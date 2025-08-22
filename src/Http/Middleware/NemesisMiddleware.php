@@ -13,63 +13,82 @@ class NemesisMiddleware
     {
         $origin = $request->headers->get('Origin');
 
+        // Gestion des requêtes OPTIONS (preflight)
+        if ($request->getMethod() === 'OPTIONS') {
+            return $this->handlePreflightRequest($origin);
+        }
+
         // --- Cas "same domain" ou Origin manquant
         if (!$origin || $this->isSameDomain($origin)) {
-            if ($request->getMethod() === 'OPTIONS') {
-                return $this->corsResponse($origin);
-            }
-
             $response = $next($request);
-            return $this->withCors($response, $origin);
+            return $this->withCorsHeaders($response, $origin);
         }
 
         // --- Vérification du token pour appels cross-domain
         $tokenValue = $request->bearerToken() ?? $request->query('token');
+
         if (!$tokenValue) {
-            return $this->blockedResponse('Missing API token');
+            return $this->blockedResponse('Missing API token', $origin);
         }
 
         $token = NemesisToken::where('token', $tokenValue)->first();
+
         if (!$token) {
-            return $this->blockedResponse('Invalid API token');
+            return $this->blockedResponse('Invalid API token', $origin);
         }
 
         if (!$this->originAllowed($origin, $token->allowed_origins)) {
-            return $this->blockedResponse('Origin not allowed');
+            return $this->blockedResponse('Origin not allowed', $origin);
         }
 
         $maxRequests = $token->max_requests ?? config('nemesis.default_max_requests');
+
         if ($token->requests_count >= $maxRequests) {
-            return $this->blockedResponse('Request limit exceeded');
+            return $this->blockedResponse('Request limit exceeded', $origin);
         }
 
         // Incrémenter compteur
         $token->increment('requests_count', 1, ['last_request_at' => now()]);
 
-        // Preflight CORS
-        if ($request->getMethod() === 'OPTIONS') {
-            return $this->corsResponse($origin);
-        }
-
         $response = $next($request);
-        return $this->withCors($response, $origin);
+        return $this->withCorsHeaders($response, $origin);
+    }
+
+    private function handlePreflightRequest(?string $origin): Response
+    {
+        return response()->noContent(204)
+            ->header('Access-Control-Allow-Origin', $origin ?? '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With')
+            ->header('Access-Control-Max-Age', '86400'); // 24 heures
     }
 
     private function isSameDomain(string $origin): bool
     {
-        $app = parse_url(config('app.url'));
+        $appUrl = config('app.url');
+        $app = parse_url($appUrl);
         $req = parse_url($origin);
 
+        $appHost = $app['host'] ?? null;
+        $reqHost = $req['host'] ?? null;
+
+        // Si les hôtes sont différents, ce n'est pas le même domaine
+        if ($appHost !== $reqHost) {
+            return false;
+        }
+
+        // Comparer les ports (avec valeurs par défaut)
         $appPort = $app['port'] ?? ($app['scheme'] === 'https' ? 443 : 80);
         $reqPort = $req['port'] ?? ($req['scheme'] === 'https' ? 443 : 80);
 
-        return ($app['host'] ?? null) === ($req['host'] ?? null)
-            && $appPort === $reqPort;
+        return $appPort === $reqPort;
     }
 
-    private function originAllowed(string $origin, array|string $allowed): bool
+    private function originAllowed(string $origin, $allowed): bool
     {
-        if (empty($allowed)) return true;
+        if (empty($allowed)) {
+            return false; // Par défaut, refuser si aucune origine n'est configurée
+        }
 
         // Cast JSON string en tableau si nécessaire
         if (is_string($allowed)) {
@@ -77,8 +96,12 @@ class NemesisMiddleware
         }
 
         foreach ($allowed as $pattern) {
-            $regex = '/^' . str_replace(['*', '.'], ['.*', '\.'], $pattern) . '$/i';
-            if (preg_match($regex, $origin)) {
+            // Échapper les caractères spéciaux de regex sauf *
+            $regexPattern = preg_quote($pattern, '/');
+            // Remplacer les étoiles par .* pour le pattern matching
+            $regexPattern = str_replace('\\*', '.*', $regexPattern);
+
+            if (preg_match('/^' . $regexPattern . '$/i', $origin)) {
                 return true;
             }
         }
@@ -86,26 +109,32 @@ class NemesisMiddleware
         return false;
     }
 
-    private function blockedResponse(string $message): Response
+    private function blockedResponse(string $message, ?string $origin): Response
     {
+        $status = config('nemesis.block_response.status', 429);
+
         return response()->json([
-            'message' => $message,
-        ], config('nemesis.block_response.status', 429));
+            'message' => config('nemesis.block_response.message', 'Accès refusé') . ' (' . $message . ')',
+        ], $status)
+            ->withHeaders($this->getCorsHeaders($origin));
     }
 
-    private function corsResponse(?string $origin): Response
+    private function withCorsHeaders(Response $response, ?string $origin): Response
     {
-        return response()->noContent(204)
-            ->header('Access-Control-Allow-Origin', $origin ?? '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    }
+        foreach ($this->getCorsHeaders($origin) as $key => $value) {
+            $response->headers->set($key, $value);
+        }
 
-    private function withCors(Response $response, ?string $origin): Response
-    {
-        $response->headers->set('Access-Control-Allow-Origin', $origin ?? '*');
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
         return $response;
+    }
+
+    private function getCorsHeaders(?string $origin): array
+    {
+        return [
+            'Access-Control-Allow-Origin' => $origin ?? '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Authorization, Content-Type, X-Requested-With',
+            'Access-Control-Allow-Credentials' => 'true',
+        ];
     }
 }
