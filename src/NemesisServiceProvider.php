@@ -9,6 +9,7 @@ use Illuminate\Routing\Router;
 use Kani\Nemesis\Console\CreateNemesisToken;
 use Kani\Nemesis\Console\ResetNemesisQuota;
 use Kani\Nemesis\Console\BlockNemesisToken;
+use Kani\Nemesis\Console\ListNemesisTokens;
 use Kani\Nemesis\Console\UnblockNemesisToken;
 use Kani\Nemesis\Http\Middleware\NemesisMiddleware;
 
@@ -29,6 +30,7 @@ class NemesisServiceProvider extends ServiceProvider
                 ResetNemesisQuota::class,
                 BlockNemesisToken::class,
                 UnblockNemesisToken::class,
+                ListNemesisTokens::class
             ]);
         }
     }
@@ -51,9 +53,6 @@ class NemesisServiceProvider extends ServiceProvider
                 __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' => $migrationFile,
             ], 'migrations');
         }
-
-        // 👉 Enregistrement du middleware
-        $router->aliasMiddleware('nemesis', NemesisMiddleware::class);
     }
 
     /**

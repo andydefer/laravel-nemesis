@@ -14,6 +14,9 @@ return new class extends Migration {
             $table->unsignedInteger('max_requests')->default(1000);
             $table->unsignedInteger('requests_count')->default(0);
             $table->timestamp('last_request_at')->nullable();
+            $table->string('name')->nullable()->comment('Descriptive name for the token');
+            $table->text('block_reason')->nullable()->comment('Reason for blocking the token');
+            $table->text('unblock_reason')->nullable()->comment('Reason for unblocking the token');
             $table->timestamps();
         });
     }

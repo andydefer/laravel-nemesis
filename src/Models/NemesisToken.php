@@ -12,6 +12,9 @@ class NemesisToken extends Model
         'max_requests',
         'requests_count',
         'last_request_at',
+        'name',
+        'block_reason',
+        'unblock_reason'
     ];
 
     protected $casts = [
