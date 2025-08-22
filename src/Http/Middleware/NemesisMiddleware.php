@@ -11,6 +11,7 @@ class NemesisMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        dd('heell');
         $origin = $request->headers->get('Origin');
 
         // Gestion des requêtes OPTIONS (preflight)
