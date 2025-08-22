@@ -89,7 +89,7 @@ Le middleware :
 ### Créer un token :
 
 ```bash
-php artisan nemesis:generate mysite.com --quota=500
+php artisan nemesis:create mysite.com --quota=500
 ```
 
 ### Réinitialiser les quotas :

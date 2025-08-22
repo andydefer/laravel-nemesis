@@ -19,7 +19,10 @@ class NemesisServiceProvider extends ServiceProvider
         // Enregistrer la commande artisan seulement si on est en console
         if ($this->app->runningInConsole()) {
             $this->commands([
-                CreateNemesisToken::class,
+                \Kani\Nemesis\Console\CreateNemesisToken::class,
+                \Kani\Nemesis\Console\ResetNemesisQuota::class,
+                \Kani\Nemesis\Console\BlockNemesisToken::class,
+                \Kani\Nemesis\Console\UnblockNemesisToken::class,
             ]);
         }
     }
