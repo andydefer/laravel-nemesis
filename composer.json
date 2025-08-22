@@ -19,10 +19,12 @@
         "php": ">=8.1"
     },
     "scripts": {
-        "post-autoload-dump": [
-            "@php -r \"if (file_exists('vendor/autoload.php')) { require_once 'vendor/autoload.php'; if (class_exists('Kani\\\\Nemesis\\\\NemesisServiceProvider')) { Kani\\\\Nemesis\\\\NemesisServiceProvider::cleanup(); } }\""
+        "pre-package-uninstall": [
+            "@php -r \"\\$configPath = 'config/app.php'; if (file_exists(\\$configPath)) { \\$config = require \\$configPath; if (isset(\\$config['providers'])) { \\$key = array_search('Kani\\\\Nemesis\\\\NemesisServiceProvider', \\$config['providers']); if (\\$key !== false) { unset(\\$config['providers'][\\$key]); file_put_contents(\\$configPath, '<?php return ' . var_export(\\$config, true) . ';'); } } }\"",
+            "@php -r \"\\$cachePath = 'bootstrap/cache/packages.php'; if (file_exists(\\$cachePath)) { unlink(\\$cachePath); }\"",
+            "@php -r \"\\$cachePath = 'bootstrap/cache/services.php'; if (file_exists(\\$cachePath)) { unlink(\\$cachePath); }\""
         ]
     },
     "type": "library",
-    "version": "0.0.3"
+    "version": "0.0.1"
 }
