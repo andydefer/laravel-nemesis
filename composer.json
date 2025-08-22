@@ -19,12 +19,14 @@
         "php": ">=8.1"
     },
     "scripts": {
+        "post-package-uninstall": [
+            "@php -r \"\\$cacheFiles = ['bootstrap/cache/packages.php', 'bootstrap/cache/services.php', 'bootstrap/cache/config.php']; foreach (\\$cacheFiles as \\$file) { if (file_exists(\\$file)) { @unlink(\\$file); } }\"",
+            "@php -r \"if (file_exists('artisan')) { @exec('php artisan config:clear'); }\""
+        ],
         "pre-package-uninstall": [
-            "@php -r \"\\$configPath = 'config/app.php'; if (file_exists(\\$configPath)) { \\$config = require \\$configPath; if (isset(\\$config['providers'])) { \\$key = array_search('Kani\\\\Nemesis\\\\NemesisServiceProvider', \\$config['providers']); if (\\$key !== false) { unset(\\$config['providers'][\\$key]); file_put_contents(\\$configPath, '<?php return ' . var_export(\\$config, true) . ';'); } } }\"",
-            "@php -r \"\\$cachePath = 'bootstrap/cache/packages.php'; if (file_exists(\\$cachePath)) { unlink(\\$cachePath); }\"",
-            "@php -r \"\\$cachePath = 'bootstrap/cache/services.php'; if (file_exists(\\$cachePath)) { unlink(\\$cachePath); }\""
+            "@php -r \"\\$configPath = 'config/app.php'; if (file_exists(\\$configPath)) { \\$content = file_get_contents(\\$configPath); \\$pattern = '/\\\\\\\\n\\\\s*\\\\\\\\Kani\\\\\\\\\\\\\\\\Nemesis\\\\\\\\\\\\\\\\NemesisServiceProvider::class,/'; \\$newContent = preg_replace(\\$pattern, '', \\$content); if (\\$newContent !== \\$content) { file_put_contents(\\$configPath, \\$newContent); } }\""
         ]
     },
     "type": "library",
-    "version": "0.1.0"
+    "version": "0.0.1"
 }
