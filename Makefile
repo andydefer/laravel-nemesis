@@ -1,5 +1,5 @@
 # Makefile for JWT Auth Package Automation
-.PHONY: help install test update patch minor major push release status clean
+.PHONY: help install test update patch minor major push release status clean init-version
 
 # Colors
 GREEN=\033[0;32m
@@ -9,7 +9,7 @@ NC=\033[0m
 
 # Variables
 PACKAGE_NAME=andydefer/jwt-auth
-CURRENT_VERSION=$(shell grep -oP '"version":\s*"\K[0-9]+\.[0-9]+\.[0-9]+' composer.json 2>/dev/null || echo "0.0.0")
+CURRENT_VERSION=$(shell grep -oP '"version":\s*"\K[0-9]+(\.[0-9]+){0,2}' composer.json 2>/dev/null || echo "0.1.0")
 BRANCH=main
 
 help: ## Affiche ce help.
@@ -22,8 +22,6 @@ install: ## Installe les dépendances Composer.
 
 test: ## Exécute les tests (si disponibles).
 	@echo "$(YELLOW)Running tests...$(NC)"
-	# Add your test commands here if you have tests
-	# php vendor/bin/phpunit
 	@echo "$(GREEN)No tests configured$(NC)"
 
 update: ## Ajoute tous les changements, commit et push.
@@ -34,16 +32,20 @@ update: ## Ajoute tous les changements, commit et push.
 	@echo "$(YELLOW)Pushing changes...$(NC)"
 	git push origin $(BRANCH)
 
-patch: ## Release patch version (x.x.1).
-	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{$$3 = $$3 + 1; OFS="."; print $$1,$$2,$$3}'))
+# Incrémentation de version
+patch: ## Release patch version (x.y.z -> x.y.(z+1))
+	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{if(NF<3) $$3=0; $$3=$$3+1; OFS="."; print $$1,$$2,$$3}'))
+	@echo "Patch release: $(CURRENT_VERSION) -> $(NEW_VERSION)"
 	@make release VERSION=$(NEW_VERSION)
 
-minor: ## Release minor version (x.1.0).
-	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{$$2 = $$2 + 1; $$3 = 0; OFS="."; print $$1,$$2,$$3}'))
+minor: ## Release minor version (x.y.z -> x.(y+1).0)
+	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{if(NF<3) $$3=0; $$2=$$2+1; $$3=0; OFS="."; print $$1,$$2,$$3}'))
+	@echo "Minor release: $(CURRENT_VERSION) -> $(NEW_VERSION)"
 	@make release VERSION=$(NEW_VERSION)
 
-major: ## Release major version (1.0.0).
-	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{$$1 = $$1 + 1; $$2 = 0; $$3 = 0; OFS="."; print $$1,$$2,$$3}'))
+major: ## Release major version (x.y.z -> (x+1).0.0)
+	@$(eval NEW_VERSION=$(shell echo $(CURRENT_VERSION) | awk -F. '{if(NF<3) $$3=0; $$1=$$1+1; $$2=0; $$3=0; OFS="."; print $$1,$$2,$$3}'))
+	@echo "Major release: $(CURRENT_VERSION) -> $(NEW_VERSION)"
 	@make release VERSION=$(NEW_VERSION)
 
 push: ## Push vers le remote avec tags.
@@ -56,8 +58,6 @@ ifndef VERSION
 	$(error VERSION is not set. Usage: make release VERSION=x.x.x)
 endif
 	@echo "$(YELLOW)Starting release process for version $(VERSION)...$(NC)"
-
-	# Vérifier si la version existe déjà dans composer.json
 	@if ! grep -q '"version":' composer.json; then \
 		echo "$(YELLOW)Adding version field to composer.json...$(NC)"; \
 		sed -i '/"name":/a\    "version": "$(VERSION)",' composer.json; \
@@ -65,24 +65,15 @@ endif
 		echo "$(YELLOW)Updating version in composer.json...$(NC)"; \
 		sed -i 's/"version": "[^"]*"/"version": "$(VERSION)"/' composer.json; \
 	fi
-
-	# Add all changes
 	@echo "$(YELLOW)Adding changes to git...$(NC)"
 	git add .
-
-	# Commit with version message
 	@echo "$(YELLOW)Creating commit...$(NC)"
 	git commit -m "🚀 release: bump version to v$(VERSION)" || true
-
-	# Create tag
 	@echo "$(YELLOW)Creating tag v$(VERSION)...$(NC)"
 	git tag -a "v$(VERSION)" -m "Version $(VERSION)"
-
-	# Push everything
 	@echo "$(YELLOW)Pushing to remote...$(NC)"
 	git push origin $(BRANCH)
 	git push --tags
-
 	@echo "$(GREEN)✅ Release v$(VERSION) completed successfully!$(NC)"
 	@echo "$(YELLOW)Current version: $(VERSION)$(NC)"
 
@@ -97,11 +88,11 @@ clean: ## Nettoie les dépendances et fichiers générés.
 	@echo "$(GREEN)Clean complete!$(NC)"
 
 # Alias for common commands
-up: update ## Alias pour update.
-p: patch ## Alias pour patch.
-m: minor ## Alias pour minor.
-M: major ## Alias pour major.
-r: release ## Alias pour release.
+up: update
+p: patch
+m: minor
+M: major
+r: release
 
 # Initialisation de la version si elle n'existe pas
 init-version: ## Initialise la version à 0.1.0 si elle n'existe pas.
