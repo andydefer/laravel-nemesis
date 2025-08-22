@@ -103,3 +103,19 @@ init-version: ## Initialise la version à 0.1.0 si elle n'existe pas.
 	else \
 		echo "$(YELLOW)Version already exists: $(CURRENT_VERSION)$(NC)"; \
 	fi
+
+republish-tag: ## Republie le dernier tag existant avec les nouveaux commits
+	@LAST_TAG=$$(git describe --tags --abbrev=0); \
+	if [ -z "$$LAST_TAG" ]; then \
+		echo "$(RED)No previous tag found.$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(YELLOW)Republishing tag $$LAST_TAG...$(NC)"; \
+	git add .; \
+	read -p "Commit message for republish: " msg; \
+	git commit -m "$$msg" || echo "No changes to commit"; \
+	git tag -d $$LAST_TAG; \
+	git tag -a $$LAST_TAG -m "Re-release $$LAST_TAG"; \
+	git push origin $(BRANCH) --force; \
+	git push origin $$LAST_TAG --force; \
+	echo "$(GREEN)✅ Tag $$LAST_TAG republished successfully!$(NC)"
