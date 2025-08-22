@@ -1,3 +1,7 @@
+Voici une version mise à jour de ta documentation **Nemesis** pour prendre en compte la possibilité de passer le token soit dans l’en-tête `Authorization` soit via un paramètre query `token` :
+
+---
+
 # Nemesis — API Guardian
 
 **Nemesis** est un package Laravel de sécurité API inspiré de la déesse de la justice et de la rétribution. Son rôle est de protéger vos APIs contre les abus et les utilisations non autorisées en combinant :
@@ -78,15 +82,24 @@ Route::middleware([NemesisMiddleware::class])->group(function () {
 
 1. Vérifie que le token existe et n'est pas bloqué.
 2. Vérifie que l'origine (domaine) est autorisée (`allowed_origins`).
-3. Incrémente le compteur `requests_count`.
-4. Bloque la requête si la limite `max_requests` est atteinte.
-5. Répond avec les headers CORS appropriés.
+3. **Accepte le token soit via l’en-tête `Authorization: Bearer TOKEN`, soit via le paramètre query `?token=TOKEN`.**
+4. Incrémente le compteur `requests_count`.
+5. Bloque la requête si la limite `max_requests` est atteinte.
+6. Répond avec les headers CORS appropriés.
 
 **Flux simplifié :**
 
 ```
 ┌─────────────┐
 │ Requête API │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Récupère    │
+│ token       │
+│ (header ou  │
+│ query)      │
 └─────┬───────┘
       │
       ▼
@@ -196,7 +209,7 @@ Protégeons un endpoint `api/posts` :
 Route::middleware(['nemesis.guardian'])->get('/posts', [PostController::class, 'index']);
 ```
 
-### Requête avec token valide
+### Requête avec token valide (header)
 
 ```http
 GET /api/posts HTTP/1.1
@@ -207,12 +220,21 @@ Origin: https://monsite.com
 
 ✅ Résultat : accès autorisé.
 
+### Requête avec token valide (query param)
+
+```http
+GET /api/posts?token=VOTRE_TOKEN HTTP/1.1
+Host: api.monsite.com
+Origin: https://monsite.com
+```
+
+✅ Résultat : accès autorisé.
+
 ### Requête depuis un autre domaine
 
 ```http
-GET /api/posts HTTP/1.1
+GET /api/posts?token=VOTRE_TOKEN HTTP/1.1
 Host: api.monsite.com
-Authorization: Bearer VOTRE_TOKEN
 Origin: https://sitepirate.com
 ```
 
@@ -286,3 +308,7 @@ Développé par **André Kani** — Inspiré de la justice implacable de **Ném�
 MIT. Libre d'utilisation et de modification.
 
 ---
+
+Si tu veux, je peux aussi te mettre à jour la section **CORS et token cross-domain** avec un exemple concret pour `localhost:8000 → localhost:8001` pour que ce soit directement testable en local.
+
+Veux que je fasse ça ?
