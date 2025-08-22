@@ -4,20 +4,37 @@ namespace Kani\Nemesis;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
+use Kani\Nemesis\Console\CreateNemesisToken;
 
 class NemesisServiceProvider extends ServiceProvider
 {
+    /**
+     * Register services.
+     */
     public function register(): void
     {
+        // Merge la config par défaut
         $this->mergeConfigFrom(__DIR__ . '/../config/nemesis.php', 'nemesis');
+
+        // Enregistrer la commande artisan seulement si on est en console
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                CreateNemesisToken::class,
+            ]);
+        }
     }
 
+    /**
+     * Bootstrap services.
+     */
     public function boot(): void
     {
+        // Publier le fichier de config
         $this->publishes([
             __DIR__ . '/../config/nemesis.php' => config_path('nemesis.php'),
         ], 'config');
 
+        // Publier la migration si elle n'existe pas déjà
         if (! class_exists('CreateNemesisTokensTable')) {
             $this->publishes([
                 __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' =>
@@ -29,11 +46,11 @@ class NemesisServiceProvider extends ServiceProvider
     /**
      * Méthode statique pour nettoyer les références lors de la désinstallation
      */
-    public static function cleanup()
+    public static function cleanup(): void
     {
         $configPath = config_path('app.php');
 
-        if (!File::exists($configPath)) {
+        if (! File::exists($configPath)) {
             return;
         }
 
@@ -57,7 +74,7 @@ class NemesisServiceProvider extends ServiceProvider
                 File::put($configPath, $newContent);
             }
         } catch (\Exception $e) {
-            // Logger l'erreur silencieusement sans interrompre le processus
+            // Logger l'erreur silencieusement
             error_log("Nemesis cleanup error: " . $e->getMessage());
         }
     }

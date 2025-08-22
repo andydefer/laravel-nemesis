@@ -20,7 +20,7 @@ class CreateNemesisToken extends Command
             'requests_count' => 0,
         ]);
 
-        $this->info('Nemesis token created: '.$token->token);
+        $this->info('Nemesis token created: ' . $token->token);
         return self::SUCCESS;
     }
 }
