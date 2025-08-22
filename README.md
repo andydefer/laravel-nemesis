@@ -1,6 +1,4 @@
-Voici la documentation améliorée de votre package **Nemesis** avec les exigences demandées intégrées :
-
-# Nemesis — API Guardian
+q# Nemesis — API Guardian
 
 **Nemesis** est un package Laravel de sécurité API et son rôle est de protéger vos APIs contre les abus et les utilisations non autorisées en combinant :
 
