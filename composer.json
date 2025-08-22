@@ -1,0 +1,22 @@
+{
+    "autoload": {
+        "psr-4": {
+            "Kani\\Nemesis\\": "src/"
+        }
+    },
+    "description": "Nemesis: CORS par token et quota par domaine pour Laravel.",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Kani\\Nemesis\\NemesisServiceProvider"
+            ]
+        }
+    },
+    "license": "MIT",
+    "name": "kani/laravel-nemesis",
+    "require": {
+        "laravel/framework": "^12.0",
+        "php": ">=8.1"
+    },
+    "type": "library"
+}
