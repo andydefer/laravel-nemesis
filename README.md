@@ -1,6 +1,3 @@
-Voici une version mise à jour de ta documentation **Nemesis** pour prendre en compte la possibilité de passer le token soit dans l’en-tête `Authorization` soit via un paramètre query `token` :
-
----
 
 # Nemesis — API Guardian
 
@@ -67,12 +64,10 @@ La migration crée une table `nemesis_tokens` avec les colonnes suivantes :
 
 ## 🛡️ Middleware
 
-Ajoutez le middleware Nemesis à vos routes API :
+Le middleware Nemesis est maintenant automatiquement enregistré par le package. Vous pouvez l’utiliser directement avec son alias `nemesis.token` :
 
 ```php
-use Kani\Nemesis\Http\Middleware\NemesisMiddleware;
-
-Route::middleware([NemesisMiddleware::class])->group(function () {
+Route::middleware('nemesis.token')->group(function () {
     Route::get('/posts', [PostController::class, 'index']);
     Route::get('/profile', [UserController::class, 'show']);
 });
@@ -80,12 +75,15 @@ Route::middleware([NemesisMiddleware::class])->group(function () {
 
 ### Fonctionnement du middleware
 
-1. Vérifie que le token existe et n'est pas bloqué.
-2. Vérifie que l'origine (domaine) est autorisée (`allowed_origins`).
-3. **Accepte le token soit via l’en-tête `Authorization: Bearer TOKEN`, soit via le paramètre query `?token=TOKEN`.**
-4. Incrémente le compteur `requests_count`.
-5. Bloque la requête si la limite `max_requests` est atteinte.
-6. Répond avec les headers CORS appropriés.
+1. Si l’origine (`Origin`) est **identique au domaine de l’application** ou absente, la requête passe **sans vérification du token**.
+2. Vérifie que le **token existe** et n’est pas bloqué.
+3. Vérifie que l’**origine** (domaine) est autorisée (`allowed_origins`) pour ce token.
+4. **Accepte le token soit via l’en-tête `Authorization: Bearer TOKEN`, soit via le paramètre query `?token=TOKEN`.**
+5. Vérifie le quota et **incrémente le compteur** `requests_count`.
+6. Bloque la requête si la limite `max_requests` est atteinte.
+7. Répond avec les **headers CORS appropriés**, y compris la gestion des requêtes `OPTIONS` (preflight).
+
+💡 **Astuce** : si votre frontend est sur le même domaine que l’API, vous n’avez **pas besoin de token** pour les requêtes internes.
 
 **Flux simplifié :**
 
@@ -306,9 +304,3 @@ Développé par **André Kani** — Inspiré de la justice implacable de **Ném�
 ## 📜 Licence
 
 MIT. Libre d'utilisation et de modification.
-
----
-
-Si tu veux, je peux aussi te mettre à jour la section **CORS et token cross-domain** avec un exemple concret pour `localhost:8000 → localhost:8001` pour que ce soit directement testable en local.
-
-Veux que je fasse ça ?
