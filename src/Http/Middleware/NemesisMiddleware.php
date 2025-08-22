@@ -13,54 +13,46 @@ class NemesisMiddleware
     {
         $origin = $request->headers->get('Origin');
 
-        // Si origine same-domain ou absente, on laisse passer sans token
+        // --- Cas "same domain" ou Origin manquant
         if (!$origin || $this->isSameDomain($origin)) {
-            return $this->handlePreflight($request) ?? $next($request);
+            if ($request->getMethod() === 'OPTIONS') {
+                return $this->corsResponse($origin);
+            }
+
+            $response = $next($request);
+            return $this->withCors($response, $origin);
         }
 
-        // Récupérer le token depuis Authorization Bearer ou query string
+        // --- Vérification du token pour appels cross-domain
         $tokenValue = $request->bearerToken() ?? $request->query('token');
-
         if (!$tokenValue) {
             return $this->blockedResponse('Missing API token');
         }
 
-        // Vérifier que le token existe
         $token = NemesisToken::where('token', $tokenValue)->first();
         if (!$token) {
             return $this->blockedResponse('Invalid API token');
         }
 
-        // Vérifier que l'origine est autorisée pour ce token
-        if (! $this->originAllowed($origin, $token->allowed_origins)) {
+        if (!$this->originAllowed($origin, $token->allowed_origins)) {
             return $this->blockedResponse('Origin not allowed');
         }
 
-        // Vérifier le quota
         $maxRequests = $token->max_requests ?? config('nemesis.default_max_requests');
         if ($token->requests_count >= $maxRequests) {
             return $this->blockedResponse('Request limit exceeded');
         }
 
-        // Incrémenter le compteur
+        // Incrémenter compteur
         $token->increment('requests_count', 1, ['last_request_at' => now()]);
 
-        // Traiter preflight OPTIONS si nécessaire
+        // Preflight CORS
         if ($request->getMethod() === 'OPTIONS') {
-            return response()->noContent(204)
-                ->header('Access-Control-Allow-Origin', $origin)
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+            return $this->corsResponse($origin);
         }
 
         $response = $next($request);
-
-        // Ajouter les headers CORS pour la réponse
-        $response->headers->set('Access-Control-Allow-Origin', $origin);
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-
-        return $response;
+        return $this->withCors($response, $origin);
     }
 
     private function isSameDomain(string $origin): bool
@@ -75,9 +67,14 @@ class NemesisMiddleware
             && $appPort === $reqPort;
     }
 
-    private function originAllowed(string $origin, array $allowed): bool
+    private function originAllowed(string $origin, array|string $allowed): bool
     {
-        if (!$allowed) return true;
+        if (empty($allowed)) return true;
+
+        // Cast JSON string en tableau si nécessaire
+        if (is_string($allowed)) {
+            $allowed = json_decode($allowed, true) ?: [];
+        }
 
         foreach ($allowed as $pattern) {
             $regex = '/^' . str_replace(['*', '.'], ['.*', '\.'], $pattern) . '$/i';
@@ -96,17 +93,19 @@ class NemesisMiddleware
         ], config('nemesis.block_response.status', 429));
     }
 
-    private function handlePreflight(Request $request): ?Response
+    private function corsResponse(?string $origin): Response
     {
-        if ($request->getMethod() !== 'OPTIONS') {
-            return null;
-        }
-
-        $origin = $request->headers->get('Origin') ?? '*';
-
         return response()->noContent(204)
-            ->header('Access-Control-Allow-Origin', $origin)
+            ->header('Access-Control-Allow-Origin', $origin ?? '*')
             ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
             ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    }
+
+    private function withCors(Response $response, ?string $origin): Response
+    {
+        $response->headers->set('Access-Control-Allow-Origin', $origin ?? '*');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        return $response;
     }
 }
