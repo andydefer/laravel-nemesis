@@ -10,7 +10,7 @@ NC=\033[0m
 # Variables
 PACKAGE_NAME=andydefer/jwt-auth
 CURRENT_VERSION=$(shell grep -oP '"version":\s*"\K[0-9]+\.[0-9]+\.[0-9]+' composer.json 2>/dev/null || echo "0.0.0")
-BRANCH=master
+BRANCH=main
 
 help: ## Affiche ce help.
 	@echo "Utilisation :"
