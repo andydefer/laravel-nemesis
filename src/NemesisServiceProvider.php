@@ -53,7 +53,7 @@ class NemesisServiceProvider extends ServiceProvider
         }
 
         // 👉 Enregistrement du middleware
-        $router->aliasMiddleware('nemesis.token', NemesisMiddleware::class);
+        $router->aliasMiddleware('nemesis', NemesisMiddleware::class);
     }
 
     /**

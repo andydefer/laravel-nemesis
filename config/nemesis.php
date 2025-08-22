@@ -1,76 +1,54 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Nemesis Token Table
-    |--------------------------------------------------------------------------
-    |
-    | Table pour stocker les tokens.
-    |
-    */
-    'table' => 'nemesis_tokens',
-
     /*
     |--------------------------------------------------------------------------
     | Default maximum requests
     |--------------------------------------------------------------------------
-    |
-    | Nombre de requêtes par défaut si non défini sur le token.
-    |
     */
     'default_max_requests' => 1000,
 
     /*
     |--------------------------------------------------------------------------
-    | Default allowed origins
+    | Reset period
     |--------------------------------------------------------------------------
-    |
-    | Origines par défaut pour les tokens.
-    |
     */
-    'default_allowed_origins' => ['*'],
+    'reset_period' => 'daily',
 
     /*
     |--------------------------------------------------------------------------
-    | Block response status code
+    | Block response configuration
     |--------------------------------------------------------------------------
-    |
-    | Code HTTP utilisé quand une requête est bloquée.
-    |
     */
     'block_response' => [
+        'message' => 'Accès refusé : quota dépassé ou domaine non autorisé.',
         'status' => 429,
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Token length
+    | Token extraction methods
     |--------------------------------------------------------------------------
-    |
-    | Longueur par défaut d’un token généré.
-    |
+    | Méthodes pour extraire le token de la requête
     */
-    'token_length' => 40,
+    'token_sources' => [
+        'bearer',
+        'query:token',
+        'query:api_token',
+    ],
 
     /*
     |--------------------------------------------------------------------------
-    | Token expiration in minutes
+    | CORS settings
     |--------------------------------------------------------------------------
-    |
-    | Durée de vie du token. NULL = jamais expire.
-    |
     */
-    'token_expiration' => null,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Logging
-    |--------------------------------------------------------------------------
-    |
-    | Activer le logging des requêtes bloquées ou dépassant le quota.
-    |
-    */
-    'logging' => true,
+    'cors' => [
+        'allow_credentials' => true,
+        'max_age' => 86400,
+        'expose_headers' => [
+            'X-RateLimit-Limit',
+            'X-RateLimit-Remaining',
+            'X-RateLimit-Reset'
+        ],
+    ],
 ];

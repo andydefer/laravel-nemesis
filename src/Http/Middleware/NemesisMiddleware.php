@@ -11,22 +11,24 @@ class NemesisMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        dd('heell');
         $origin = $request->headers->get('Origin');
 
-        // Gestion des requêtes OPTIONS (preflight)
-        if ($request->getMethod() === 'OPTIONS') {
+        // 1. Gestion des requêtes OPTIONS (preflight) - TOUJOURS autoriser
+        if ($request->isMethod('OPTIONS')) {
             return $this->handlePreflightRequest($origin);
         }
 
-        // --- Cas "same domain" ou Origin manquant
+        // 2. Préparer la réponse avec les headers CORS
+        $response = $next($request);
+        $response = $this->withCorsHeaders($response, $origin);
+
+        // 3. Si pas d'origine ou même domaine → AUTORISER sans token
         if (!$origin || $this->isSameDomain($origin)) {
-            $response = $next($request);
-            return $this->withCorsHeaders($response, $origin);
+            return $response;
         }
 
-        // --- Vérification du token pour appels cross-domain
-        $tokenValue = $request->bearerToken() ?? $request->query('token');
+        // 4. Vérification cross-domain avec token
+        $tokenValue = $this->extractToken($request);
 
         if (!$tokenValue) {
             return $this->blockedResponse('Missing API token', $origin);
@@ -48,94 +50,159 @@ class NemesisMiddleware
             return $this->blockedResponse('Request limit exceeded', $origin);
         }
 
-        // Incrémenter compteur
+        // 5. Incrémenter le compteur
         $token->increment('requests_count', 1, ['last_request_at' => now()]);
 
-        $response = $next($request);
-        return $this->withCorsHeaders($response, $origin);
+        return $response;
     }
 
+    /**
+     * Extrait le token de la requête (Bearer ou query param)
+     */
+    private function extractToken(Request $request): ?string
+    {
+        // 1. Vérifier le header Authorization: Bearer
+        if ($request->bearerToken()) {
+            return $request->bearerToken();
+        }
+
+        // 2. Vérifier le paramètre query 'token'
+        if ($request->has('token')) {
+            return $request->query('token');
+        }
+
+        // 3. Vérifier le paramètre query 'api_token' (alternative)
+        if ($request->has('api_token')) {
+            return $request->query('api_token');
+        }
+
+        return null;
+    }
+
+    /**
+     * Gère les requêtes OPTIONS (preflight CORS)
+     */
     private function handlePreflightRequest(?string $origin): Response
     {
         return response()->noContent(204)
             ->header('Access-Control-Allow-Origin', $origin ?? '*')
             ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With')
-            ->header('Access-Control-Max-Age', '86400'); // 24 heures
+            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN')
+            ->header('Access-Control-Allow-Credentials', 'true')
+            ->header('Access-Control-Max-Age', '86400'); // Cache pour 24h
     }
 
+    /**
+     * Vérifie si l'origine est la même que l'application
+     */
     private function isSameDomain(string $origin): bool
     {
         $appUrl = config('app.url');
+
+        if (!$appUrl) {
+            return false;
+        }
+
         $app = parse_url($appUrl);
         $req = parse_url($origin);
 
+        // Comparer les hosts
         $appHost = $app['host'] ?? null;
         $reqHost = $req['host'] ?? null;
 
-        // Si les hôtes sont différents, ce n'est pas le même domaine
         if ($appHost !== $reqHost) {
             return false;
         }
 
         // Comparer les ports (avec valeurs par défaut)
-        $appPort = $app['port'] ?? ($app['scheme'] === 'https' ? 443 : 80);
-        $reqPort = $req['port'] ?? ($req['scheme'] === 'https' ? 443 : 80);
+        $appPort = $app['port'] ?? (($app['scheme'] ?? 'http') === 'https' ? 443 : 80);
+        $reqPort = $req['port'] ?? (($req['scheme'] ?? 'http') === 'https' ? 443 : 80);
 
         return $appPort === $reqPort;
     }
 
+    /**
+     * Vérifie si l'origine est autorisée pour le token
+     */
     private function originAllowed(string $origin, $allowed): bool
     {
         if (empty($allowed)) {
-            return false; // Par défaut, refuser si aucune origine n'est configurée
+            return false;
         }
 
-        // Cast JSON string en tableau si nécessaire
+        // Convertir en tableau si c'est une chaîne JSON
         if (is_string($allowed)) {
             $allowed = json_decode($allowed, true) ?: [];
         }
 
         foreach ($allowed as $pattern) {
-            // Échapper les caractères spéciaux de regex sauf *
-            $regexPattern = preg_quote($pattern, '/');
-            // Remplacer les étoiles par .* pour le pattern matching
-            $regexPattern = str_replace('\\*', '.*', $regexPattern);
+            $pattern = trim($pattern);
 
-            if (preg_match('/^' . $regexPattern . '$/i', $origin)) {
+            // Wildcard global
+            if ($pattern === '*') {
                 return true;
+            }
+
+            // Comparaison exacte
+            if ($pattern === $origin) {
+                return true;
+            }
+
+            // Pattern avec wildcard
+            if (strpos($pattern, '*') !== false) {
+                $regex = $this->patternToRegex($pattern);
+                if (preg_match($regex, $origin)) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
+    /**
+     * Convertit un pattern avec wildcards en regex
+     */
+    private function patternToRegex(string $pattern): string
+    {
+        $regex = preg_quote($pattern, '/');
+        $regex = str_replace('\\*', '.*', $regex);
+        return '/^' . $regex . '$/i';
+    }
+
+    /**
+     * Réponse de blocage avec headers CORS
+     */
     private function blockedResponse(string $message, ?string $origin): Response
     {
         $status = config('nemesis.block_response.status', 429);
+        $defaultMessage = config('nemesis.block_response.message', 'Accès refusé');
 
-        return response()->json([
-            'message' => config('nemesis.block_response.message', 'Accès refusé') . ' (' . $message . ')',
-        ], $status)
-            ->withHeaders($this->getCorsHeaders($origin));
+        $response = response()->json([
+            'message' => $defaultMessage . ' (' . $message . ')',
+            'error_code' => 'NEMESIS_BLOCKED',
+        ], $status);
+
+        return $this->withCorsHeaders($response, $origin);
     }
 
+    /**
+     * Ajoute les headers CORS à une réponse
+     */
     private function withCorsHeaders(Response $response, ?string $origin): Response
     {
-        foreach ($this->getCorsHeaders($origin) as $key => $value) {
+        $headers = [
+            'Access-Control-Allow-Origin' => $origin ?? '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
+            'Access-Control-Allow-Headers' => 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN, Accept',
+            'Access-Control-Allow-Credentials' => 'true',
+            'Access-Control-Expose-Headers' => 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset',
+        ];
+
+        foreach ($headers as $key => $value) {
             $response->headers->set($key, $value);
         }
 
         return $response;
-    }
-
-    private function getCorsHeaders(?string $origin): array
-    {
-        return [
-            'Access-Control-Allow-Origin' => $origin ?? '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Authorization, Content-Type, X-Requested-With',
-            'Access-Control-Allow-Credentials' => 'true',
-        ];
     }
 }
