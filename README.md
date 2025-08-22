@@ -178,7 +178,7 @@ In Application.php line 960:
 Script @php artisan config:clear handling the post-autoload-dump event returned with error code 1
 ```
 
-Exécutez ces commandes pour nettoyer manuellement le cache :
+Exécutez ces commandes pour nettoyer manuellement le cache après la suppression du package :
 
 ```bash
 # Supprimer tous les fichiers de cache Laravel
@@ -187,8 +187,6 @@ rm -f bootstrap/cache/*.php
 # Vider le cache de configuration
 php artisan config:clear
 
-# Puis réessayer la désinstallation
-composer remove kani/laravel-nemesis
 ```
 
 ### Solution alternative complète
@@ -208,8 +206,6 @@ rm -f config/nemesis.php
 # 4. Vider tous les caches Laravel
 php artisan optimize:clear
 
-# 5. Désinstaller le package
-composer remove kani/laravel-nemesis
 ```
 
 ### Pour les utilisateurs Windows
