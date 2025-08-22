@@ -36,7 +36,6 @@ return [
         'query:token',
         'query:api_token',
     ],
-
     /*
     |--------------------------------------------------------------------------
     | CORS settings
@@ -45,10 +44,14 @@ return [
     'cors' => [
         'allow_credentials' => true,
         'max_age' => 86400,
+        'allow_methods' => 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
+        'allow_headers' => 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN, Accept, Origin',
         'expose_headers' => [
             'X-RateLimit-Limit',
             'X-RateLimit-Remaining',
-            'X-RateLimit-Reset'
+            'X-RateLimit-Reset',
+            'X-API-Version'
+
         ],
     ],
 

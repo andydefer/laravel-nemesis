@@ -45,13 +45,16 @@ class NemesisServiceProvider extends ServiceProvider
             __DIR__ . '/../config/nemesis.php' => config_path('nemesis.php'),
         ], 'config');
 
+        // Enregistrer le middleware
+        $router->aliasMiddleware('nemesis', NemesisMiddleware::class);
+
         // Publier la migration si elle n'existe pas déjà
         if (! Schema::hasTable('nemesis_tokens')) {
-            $migrationFile = database_path('migrations/' . date('Y_m_d_His') . '_create_nemesis_tokens_table.php');
-
+            $timestamp = date('Y_m_d_His') . rand(1000, 9999); // suffixe aléatoire pour garantir l'unicité
             $this->publishes([
-                __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' => $migrationFile,
-            ], 'migrations');
+                __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' =>
+                database_path("migrations/{$timestamp}_create_nemesis_tokens_table.php"),
+            ], 'nemesis-migrations');
         }
     }
 
@@ -60,34 +63,48 @@ class NemesisServiceProvider extends ServiceProvider
      */
     public static function cleanup(): void
     {
-        $configPath = config_path('app.php');
-
-        if (! File::exists($configPath)) {
-            return;
-        }
-
         try {
-            $content = File::get($configPath);
-            $providerClass = 'Kani\\Nemesis\\NemesisServiceProvider::class';
-
-            // Pattern pour trouver la ligne du provider (avec différentes indentations possibles)
-            $patterns = [
-                "/\n\s*{$providerClass},/",
-                "/{$providerClass},/",
-            ];
-
-            $newContent = $content;
-            foreach ($patterns as $pattern) {
-                $newContent = preg_replace($pattern, '', $newContent);
+            // Supprimer le fichier de config
+            $configPath = config_path('nemesis.php');
+            if (File::exists($configPath)) {
+                File::delete($configPath);
             }
 
-            // Vérifier si le contenu a changé avant d'écrire
-            if ($newContent !== $content) {
-                File::put($configPath, $newContent);
+            // Supprimer le provider de app.php
+            $appConfigPath = config_path('app.php');
+            if (File::exists($appConfigPath)) {
+                $content = File::get($appConfigPath);
+                $providerClass = 'Kani\\Nemesis\\NemesisServiceProvider::class';
+
+                // Pattern pour supprimer le provider
+                $patterns = [
+                    "/\s*{$providerClass},\s*/",
+                    "/{$providerClass},\s*/",
+                    "/\s*{$providerClass}\s*/",
+                ];
+
+                $newContent = $content;
+                foreach ($patterns as $pattern) {
+                    $newContent = preg_replace($pattern, '', $newContent);
+                }
+
+                // Nettoyer les lignes vides multiples
+                $newContent = preg_replace("/\n{3,}/", "\n\n", $newContent);
+
+                if ($newContent !== $content) {
+                    File::put($appConfigPath, $newContent);
+                }
+            }
+
+            // Supprimer les caches
+            if (function_exists('app')) {
+                app('cache')->forget('spatie.permission.cache');
             }
         } catch (\Exception $e) {
-            // Logger l'erreur silencieusement
-            error_log("Nemesis cleanup error: " . $e->getMessage());
+            // Logger silencieusement
+            if (function_exists('logger')) {
+                logger()->error("Nemesis cleanup error: " . $e->getMessage());
+            }
         }
     }
 }

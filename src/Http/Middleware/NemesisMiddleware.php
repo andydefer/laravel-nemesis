@@ -51,7 +51,10 @@ class NemesisMiddleware
         }
 
         // 5. Incrémenter le compteur
-        $token->increment('requests_count', 1, ['last_request_at' => now()]);
+        $token->update([
+            'requests_count' => $token->requests_count + 1,
+            'last_request_at' => now()
+        ]);
 
         return $response;
     }
@@ -61,19 +64,23 @@ class NemesisMiddleware
      */
     private function extractToken(Request $request): ?string
     {
-        // 1. Vérifier le header Authorization: Bearer
-        if ($request->bearerToken()) {
-            return $request->bearerToken();
-        }
+        $tokenSources = config('nemesis.token_sources', [
+            'bearer',
+            'query:token',
+            'query:api_token',
+        ]);
 
-        // 2. Vérifier le paramètre query 'token'
-        if ($request->has('token')) {
-            return $request->query('token');
-        }
-
-        // 3. Vérifier le paramètre query 'api_token' (alternative)
-        if ($request->has('api_token')) {
-            return $request->query('api_token');
+        foreach ($tokenSources as $source) {
+            if (strpos($source, 'query:') === 0) {
+                $param = substr($source, 6);
+                if ($request->has($param)) {
+                    return $request->query($param);
+                }
+            } elseif ($source === 'bearer') {
+                if ($token = $request->bearerToken()) {
+                    return $token;
+                }
+            }
         }
 
         return null;
@@ -191,13 +198,19 @@ class NemesisMiddleware
      */
     private function withCorsHeaders(Response $response, ?string $origin): Response
     {
+        $corsConfig = config('nemesis.cors', []);
+
         $headers = [
             'Access-Control-Allow-Origin' => $origin ?? '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
-            'Access-Control-Allow-Headers' => 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN, Accept',
-            'Access-Control-Allow-Credentials' => 'true',
-            'Access-Control-Expose-Headers' => 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset',
+            'Access-Control-Allow-Methods' => $corsConfig['allow_methods'] ?? 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
+            'Access-Control-Allow-Headers' => $corsConfig['allow_headers'] ?? 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN, Accept',
+            'Access-Control-Allow-Credentials' => $corsConfig['allow_credentials'] ?? 'true' ? 'true' : 'false',
+            'Access-Control-Expose-Headers' => implode(', ', $corsConfig['expose_headers'] ?? ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']),
         ];
+
+        if (isset($corsConfig['max_age'])) {
+            $headers['Access-Control-Max-Age'] = $corsConfig['max_age'];
+        }
 
         foreach ($headers as $key => $value) {
             $response->headers->set($key, $value);
