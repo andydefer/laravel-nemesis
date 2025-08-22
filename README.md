@@ -140,7 +140,7 @@ Route::middleware([NemesisMiddleware::class])->group(function () {
 ### 1️⃣ Créer un token
 
 ```bash
-php artisan nemesis:create --origins=mysite.com --max=500
+php artisan nemesis:create --origins=https://mysite.com --max=500
 ```
 
 **Description :** Crée un nouveau token API avec un quota maximum et des origines autorisées.
