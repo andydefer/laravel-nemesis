@@ -4,7 +4,11 @@ namespace Kani\Nemesis;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Kani\Nemesis\Console\CreateNemesisToken;
+use Kani\Nemesis\Console\ResetNemesisQuota;
+use Kani\Nemesis\Console\BlockNemesisToken;
+use Kani\Nemesis\Console\UnblockNemesisToken;
 
 class NemesisServiceProvider extends ServiceProvider
 {
@@ -16,13 +20,13 @@ class NemesisServiceProvider extends ServiceProvider
         // Merge la config par défaut
         $this->mergeConfigFrom(__DIR__ . '/../config/nemesis.php', 'nemesis');
 
-        // Enregistrer la commande artisan seulement si on est en console
+        // Enregistrer les commandes artisan seulement si on est en console
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Kani\Nemesis\Console\CreateNemesisToken::class,
-                \Kani\Nemesis\Console\ResetNemesisQuota::class,
-                \Kani\Nemesis\Console\BlockNemesisToken::class,
-                \Kani\Nemesis\Console\UnblockNemesisToken::class,
+                CreateNemesisToken::class,
+                ResetNemesisQuota::class,
+                BlockNemesisToken::class,
+                UnblockNemesisToken::class,
             ]);
         }
     }
@@ -38,16 +42,17 @@ class NemesisServiceProvider extends ServiceProvider
         ], 'config');
 
         // Publier la migration si elle n'existe pas déjà
-        if (! class_exists('CreateNemesisTokensTable')) {
+        if (! Schema::hasTable('nemesis_tokens')) {
+            $migrationFile = database_path('migrations/' . date('Y_m_d_His') . '_create_nemesis_tokens_table.php');
+
             $this->publishes([
-                __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' =>
-                database_path('migrations/' . date('Y_m_d_His', time()) . '_create_nemesis_tokens_table.php'),
+                __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' => $migrationFile,
             ], 'migrations');
         }
     }
 
     /**
-     * Méthode statique pour nettoyer les références lors de la désinstallation
+     * Méthode statique pour nettoyer les références lors de la désinstallation.
      */
     public static function cleanup(): void
     {
@@ -63,7 +68,7 @@ class NemesisServiceProvider extends ServiceProvider
 
             // Pattern pour trouver la ligne du provider (avec différentes indentations possibles)
             $patterns = [
-                "/\n\\s*{$providerClass},/",
+                "/\n\s*{$providerClass},/",
                 "/{$providerClass},/",
             ];
 

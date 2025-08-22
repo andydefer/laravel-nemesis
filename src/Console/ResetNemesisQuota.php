@@ -12,7 +12,11 @@ class ResetNemesisQuota extends Command
 
     public function handle(): int
     {
-        NemesisToken::query()->update(['requests_count' => 0, 'last_request_at' => null]);
+        NemesisToken::query()->update([
+            'requests_count' => 0,
+            'last_request_at' => null,
+        ]);
+
         $this->info('✅ All Nemesis token quotas have been reset.');
         return self::SUCCESS;
     }

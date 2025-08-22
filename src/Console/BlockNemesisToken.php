@@ -21,6 +21,7 @@ class BlockNemesisToken extends Command
             return self::FAILURE;
         }
 
+        // Bloquer le token en mettant max_requests à 0
         $token->max_requests = 0;
         $token->save();
 

@@ -30,14 +30,12 @@ php artisan migrate
 
 ## ⚙️ Configuration
 
-Un fichier `config/nemesis.php` sera disponible après la publication.
-
-Exemple :
+Après publication, le fichier `config/nemesis.php` est disponible :
 
 ```php
 return [
-    'default_quota' => 1000, // nombre maximum d'appels par token
-    'reset_period' => 'daily', // peut être 'daily', 'weekly', 'monthly'
+    'default_max_requests' => 1000, // nombre maximum d'appels par token
+    'reset_period' => 'daily',      // peut être 'daily', 'weekly', 'monthly'
     'block_response' => [
         'message' => 'Accès refusé : quota dépassé ou domaine non autorisé.',
         'status' => 429,
@@ -45,20 +43,21 @@ return [
 ];
 ```
 
+💡 **Astuce** : `default_max_requests` centralise les quotas par défaut, pour ne pas répéter la valeur dans toutes les commandes.
+
 ---
 
 ## 🗄️ Migration
 
-La migration crée une table `nemesis_tokens` avec :
+La migration crée une table `nemesis_tokens` avec les colonnes suivantes :
 
 * `id`
 * `token` (string unique)
-* `domains` (json : liste des domaines autorisés)
-* `calls_made` (integer : nombre d'appels effectués)
-* `quota` (integer : limite d'appels)
-* `blocked` (boolean : état du token)
-* `expires_at` (datetime : expiration du token)
-* timestamps
+* `allowed_origins` (json : liste des domaines autorisés)
+* `max_requests` (integer : limite d'appels)
+* `requests_count` (integer : nombre d'appels effectués)
+* `last_request_at` (datetime : date du dernier appel)
+* `created_at`, `updated_at` (timestamps)
 
 ---
 
@@ -67,47 +66,124 @@ La migration crée une table `nemesis_tokens` avec :
 Ajoutez le middleware Nemesis à vos routes API :
 
 ```php
-use Kani\Nemesis\Middleware\NemesisGuardian;
+use Kani\Nemesis\Http\Middleware\NemesisMiddleware;
 
-Route::middleware([NemesisGuardian::class])->group(function () {
+Route::middleware([NemesisMiddleware::class])->group(function () {
     Route::get('/posts', [PostController::class, 'index']);
     Route::get('/profile', [UserController::class, 'show']);
 });
 ```
 
-Le middleware :
+### Fonctionnement du middleware
 
 1. Vérifie que le token existe et n'est pas bloqué.
-2. Vérifie que l'origine (domaine) est autorisée.
-3. Incrémente le compteur d'appels.
-4. Bloque la requête si la limite est atteinte.
+2. Vérifie que l'origine (domaine) est autorisée (`allowed_origins`).
+3. Incrémente le compteur `requests_count`.
+4. Bloque la requête si la limite `max_requests` est atteinte.
+5. Répond avec les headers CORS appropriés.
+
+**Flux simplifié :**
+
+```
+┌─────────────┐
+│ Requête API │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Vérif token │
+│ existe et   │
+│ non bloqué  │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Vérif orig. │
+│ autorisée ? │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Compteur    │
+│ incrémenté  │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Limite OK ? │
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│ Réponse API │
+│ + CORS      │
+└─────────────┘
+```
 
 ---
 
 ## 🔧 Artisan Commands
 
-### Créer un token :
+### 1️⃣ Créer un token
 
 ```bash
-php artisan nemesis:create mysite.com --quota=500
+php artisan nemesis:create --origins=mysite.com --max=500
 ```
 
-### Réinitialiser les quotas :
+**Description :** Crée un nouveau token API avec un quota maximum et des origines autorisées.
+
+**Exemple de sortie :**
+
+```
+Nemesis token created: AbC123XyZ...
+```
+
+---
+
+### 2️⃣ Réinitialiser tous les quotas
 
 ```bash
 php artisan nemesis:reset
 ```
 
-### Bloquer un token :
+**Description :** Réinitialise `requests_count` et `last_request_at` pour tous les tokens.
+
+**Exemple de sortie :**
+
+```
+✅ All Nemesis token quotas have been reset.
+```
+
+---
+
+### 3️⃣ Bloquer un token
 
 ```bash
 php artisan nemesis:block {token}
 ```
 
-### Débloquer un token :
+**Description :** Bloque un token en mettant `max_requests=0`.
+
+**Exemple de sortie :**
+
+```
+✅ Token AbC123XyZ has been blocked.
+```
+
+---
+
+### 4️⃣ Débloquer un token
 
 ```bash
-php artisan nemesis:unblock {token}
+php artisan nemesis:unblock {token} --max=1000
+```
+
+**Description :** Débloque un token et définit `max_requests` à la valeur souhaitée (par défaut `1000`).
+
+**Exemple de sortie :**
+
+```
+✅ Token AbC123XyZ has been unblocked with max_requests=1000.
 ```
 
 ---
@@ -120,7 +196,7 @@ Protégeons un endpoint `api/posts` :
 Route::middleware(['nemesis.guardian'])->get('/posts', [PostController::class, 'index']);
 ```
 
-### Requête avec un header valide
+### Requête avec token valide
 
 ```http
 GET /api/posts HTTP/1.1
@@ -146,78 +222,54 @@ Origin: https://sitepirate.com
 
 ## 🛠️ Bonnes pratiques
 
-* ✅ Utilisez un quota adapté à chaque client.
+* ✅ Utilisez un quota adapté pour chaque client.
 * 🔄 Activez un reset automatique des quotas.
-* 🔐 Ne communiquez jamais vos tokens côté client sans contrôle (utilisez un proxy sécurisé si nécessaire).
+* 🔐 Ne communiquez jamais vos tokens côté client sans contrôle.
 * 📊 Surveillez les logs Nemesis pour détecter les abus.
 
 ---
 
 ## 🔒 Sécurité
 
-* Les tokens sont stockés **hachés** en base de données (comme les mots de passe).
-* Nemesis empêche toute utilisation d'un token depuis un domaine non autorisé.
+* Les tokens sont **hachés** en base de données.
+* Les tokens ne peuvent être utilisés que depuis les origines autorisées.
 * Les tentatives échouées sont loguées pour suivi.
 
 ---
 
 ## 🚨 Dépannage
 
-### En cas d'erreur lors de la désinstallation
-
-Si vous rencontrez cette erreur lors de la désinstallation du package :
+### Erreur lors de la désinstallation
 
 ```bash
-> @php artisan config:clear
-
-In Application.php line 960:
-
-  Class "Kani\Nemesis\NemesisServiceProvider" not found
-
-
-Script @php artisan config:clear handling the post-autoload-dump event returned with error code 1
+Class "Kani\Nemesis\NemesisServiceProvider" not found
 ```
 
-Exécutez ces commandes pour nettoyer manuellement le cache après la suppression du package :
+**Solution :**
 
 ```bash
-# Supprimer tous les fichiers de cache Laravel
+# Supprimer les caches
 rm -f bootstrap/cache/*.php
-
-# Vider le cache de configuration
 php artisan config:clear
 
-```
-
-### Solution alternative complète
-
-Si le problème persiste, utilisez cette séquence de commandes :
-
-```bash
-# 1. Nettoyer le cache manuellement
-rm -f bootstrap/cache/*.php
-
-# 2. Supprimer la référence du provider dans config/app.php
+# Supprimer le provider
 sed -i '/Kani\\Nemesis\\NemesisServiceProvider/d' config/app.php
 
-# 3. Supprimer le fichier de configuration publié (si existant)
+# Supprimer config publié
 rm -f config/nemesis.php
 
-# 4. Vider tous les caches Laravel
+# Vider tous les caches Laravel
 php artisan optimize:clear
 
+# Désinstaller le package
+composer remove kani/laravel-nemesis
 ```
 
-### Pour les utilisateurs Windows
+### Pour Windows
 
 ```cmd
-:: Supprimer les fichiers de cache
 del /Q bootstrap\cache\*.php
-
-:: Vider les caches Laravel
 php artisan optimize:clear
-
-:: Désinstaller le package
 composer remove kani/laravel-nemesis
 ```
 
@@ -231,6 +283,6 @@ Développé par **André Kani** — Inspiré de la justice implacable de **Ném�
 
 ## 📜 Licence
 
-Ce package est distribué sous licence MIT. Vous êtes libre de l'utiliser et de le modifier.
+MIT. Libre d'utilisation et de modification.
 
 ---

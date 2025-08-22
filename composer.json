@@ -4,6 +4,11 @@
             "Kani\\Nemesis\\": "src/"
         }
     },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
     "description": "Nemesis: CORS par token et quota par domaine pour Laravel.",
     "extra": {
         "laravel": {
