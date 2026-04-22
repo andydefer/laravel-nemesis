@@ -1,5 +1,4 @@
 <?php
-// src/Data/ErrorResponseData.php
 
 declare(strict_types=1);
 
@@ -7,8 +6,20 @@ namespace Kani\Nemesis\Data;
 
 use Kani\Nemesis\Enums\ErrorCode;
 
-class ErrorResponseData
+/**
+ * Data transfer object for error responses.
+ *
+ * Provides a consistent structure for all error responses
+ * returned by the Nemesis authentication system.
+ */
+final class ErrorResponseData
 {
+    /**
+     * @param ErrorCode $errorCode The error code enum
+     * @param string $message Human-readable error message
+     * @param int $status HTTP status code
+     * @param array<string, mixed>|null $details Additional error details
+     */
     private function __construct(
         public readonly ErrorCode $errorCode,
         public readonly string $message,
@@ -16,6 +27,13 @@ class ErrorResponseData
         public readonly ?array $details = null
     ) {}
 
+    /**
+     * Create an error response from an error code.
+     *
+     * @param ErrorCode $errorCode The error code
+     * @param array<string, mixed>|null $details Optional additional details
+     * @return self The error response DTO
+     */
     public static function fromErrorCode(ErrorCode $errorCode, ?array $details = null): self
     {
         return new self(
@@ -26,6 +44,12 @@ class ErrorResponseData
         );
     }
 
+    /**
+     * Create an error response from an array.
+     *
+     * @param array<string, mixed> $data The error data
+     * @return self The error response DTO
+     */
     public static function fromArray(array $data): self
     {
         $errorCode = $data['errorCode'] instanceof ErrorCode
@@ -40,6 +64,11 @@ class ErrorResponseData
         );
     }
 
+    /**
+     * Convert the error response to an array.
+     *
+     * @return array<string, mixed> The array representation
+     */
     public function toArray(): array
     {
         $data = [
@@ -55,6 +84,11 @@ class ErrorResponseData
         return $data;
     }
 
+    /**
+     * Convert the error response to JSON.
+     *
+     * @return string The JSON representation
+     */
     public function toJson(): string
     {
         return json_encode($this->toArray());

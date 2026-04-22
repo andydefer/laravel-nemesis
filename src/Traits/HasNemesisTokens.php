@@ -1,18 +1,20 @@
 <?php
 // src/Traits/HasNemesisTokens.php
 
+declare(strict_types=1);
+
 namespace Kani\Nemesis\Traits;
 
 use Kani\Nemesis\Models\NemesisToken;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Hash;
 
 trait HasNemesisTokens
 {
     /**
      * Get all tokens for this model
      */
-    public function nemesisTokens()
+    public function nemesisTokens(): MorphMany
     {
         return $this->morphMany(NemesisToken::class, 'tokenable');
     }
@@ -21,10 +23,10 @@ trait HasNemesisTokens
      * Create a new token
      */
     public function createNemesisToken(
-        string $name = null,
-        string $source = null,
-        array $abilities = null,
-        array $metadata = null
+        ?string $name = null,
+        ?string $source = null,
+        ?array $abilities = null,
+        ?array $metadata = null
     ): string {
         $plainToken = Str::random(config('nemesis.token_length', 64));
         $hashedToken = hash(config('nemesis.hash_algorithm', 'sha256'), $plainToken);
@@ -76,7 +78,7 @@ trait HasNemesisTokens
     /**
      * Get current access token
      */
-    public function currentNemesisToken()
+    public function currentNemesisToken(): ?NemesisToken
     {
         $bearerToken = request()->bearerToken();
 
@@ -102,7 +104,7 @@ trait HasNemesisTokens
     /**
      * Get token by plain text token
      */
-    public function getNemesisToken(string $plainToken)
+    public function getNemesisToken(string $plainToken): ?NemesisToken
     {
         $hashedToken = hash(config('nemesis.hash_algorithm', 'sha256'), $plainToken);
 
@@ -122,11 +124,7 @@ trait HasNemesisTokens
             return false;
         }
 
-        if ($tokenModel->expires_at && $tokenModel->expires_at->isPast()) {
-            return false;
-        }
-
-        return true;
+        return $tokenModel->isValid();
     }
 
     /**
@@ -135,7 +133,7 @@ trait HasNemesisTokens
     public function touchNemesisToken(string $token): void
     {
         if ($tokenModel = $this->getNemesisToken($token)) {
-            $tokenModel->update(['last_used_at' => now()]);
+            $tokenModel->updateLastUsed();
         }
     }
 

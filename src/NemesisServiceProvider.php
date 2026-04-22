@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Kani\Nemesis;
 
 use Illuminate\Support\ServiceProvider;
-use Kani\Nemesis\Commands\InstallNemesisCommand;
 use Kani\Nemesis\Commands\CleanTokensCommand;
+use Kani\Nemesis\Commands\InstallNemesisCommand;
 use Kani\Nemesis\Commands\ListTokensCommand;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Observers\TokenObserver;
 
 /**
  * Service provider for the Nemesis package.
@@ -22,22 +20,20 @@ class NemesisServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap package services.
-     * Registers observers, initializes systems, and publishes resources.
+     *
+     * Registers console commands and publishes resources
+     * only when running in the console context.
      */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([
-                InstallNemesisCommand::class,
-                CleanTokensCommand::class,
-                ListTokensCommand::class,
-            ]);
+            $this->registerConsoleCommands();
             $this->publishResources();
         }
     }
 
     /**
-     * Register package services and dependencies.
+     * Register package services and dependencies in the container.
      */
     public function register(): void
     {
@@ -46,15 +42,27 @@ class NemesisServiceProvider extends ServiceProvider
             'nemesis'
         );
 
-        $this->loadHelpers();
+        $this->registerHelperFunctions();
         $this->registerMiddleware();
         $this->registerTokenManager();
     }
 
     /**
-     * Load package helper functions.
+     * Register all package console commands.
      */
-    protected function loadHelpers(): void
+    private function registerConsoleCommands(): void
+    {
+        $this->commands([
+            InstallNemesisCommand::class,
+            CleanTokensCommand::class,
+            ListTokensCommand::class,
+        ]);
+    }
+
+    /**
+     * Load package helper functions from the helpers.php file.
+     */
+    private function registerHelperFunctions(): void
     {
         $helpersPath = __DIR__ . '/helpers.php';
 
@@ -64,9 +72,11 @@ class NemesisServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register package middleware.
+     * Register package middleware with the router.
+     *
+     * Registers both an alias and a middleware group for flexibility.
      */
-    protected function registerMiddleware(): void
+    private function registerMiddleware(): void
     {
         $this->app['router']->aliasMiddleware(
             'nemesis.auth',
@@ -79,17 +89,20 @@ class NemesisServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register the token manager as a singleton.
+     * Register the token manager as a singleton in the container.
      */
-    protected function registerTokenManager(): void
+    private function registerTokenManager(): void
     {
-        $this->app->singleton('nemesis', function ($app) {
+        $this->app->singleton('nemesis', function ($app): NemesisManager {
             return new NemesisManager();
         });
     }
 
     /**
      * Publish package resources for user customization.
+     *
+     * Publishes configuration file and database migrations
+     * so users can override defaults.
      */
     private function publishResources(): void
     {

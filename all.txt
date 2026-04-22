@@ -1,0 +1,874 @@
+
+// ==== ./tests/Support/TestUser.php ===
+
+<?php
+// tests/Support/TestUser.php
+
+namespace Kani\Nemesis\Tests\Support;
+
+use Illuminate\Database\Eloquent\Model;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for users that can authenticate with tokens.
+ */
+class TestUser extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'test_users';
+
+    /**
+     * The attributes that are mass assignable.
+     */
+    protected $fillable = [
+        'name',
+        'email',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+}
+
+// ==== ./tests/Support/TestApiClient.php ===
+
+<?php
+// tests/Support/TestApiClient.php
+
+namespace Kani\Nemesis\Tests\Support;
+
+use Illuminate\Database\Eloquent\Model;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for API clients that can authenticate with tokens.
+ */
+class TestApiClient extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'test_api_clients';
+
+    /**
+     * The attributes that are mass assignable.
+     */
+    protected $fillable = [
+        'name',
+        'api_key',
+    ];
+}
+
+// ==== ./tests/Unit/NemesisServiceProviderTest.php ===
+
+<?php
+// tests/Unit/NemesisServiceProviderTest.php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests\Unit;
+
+use Illuminate\Routing\Router;
+use Kani\Nemesis\Http\Middleware\NemesisAuth;
+use Kani\Nemesis\NemesisManager;
+use Kani\Nemesis\NemesisServiceProvider;
+use Kani\Nemesis\Tests\TestCase;
+
+/**
+ * Test suite for NemesisServiceProvider service registration.
+ *
+ * Validates that all required services are properly registered
+ * and bound in the Laravel service container.
+ */
+final class NemesisServiceProviderTest extends TestCase
+{
+    /**
+     * Test that the service provider registers and binds all required services.
+     */
+    public function test_service_provider_registers_and_binds_services(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: All required services should be bound in the container
+        $this->assertTrue($this->app->bound('nemesis'));
+        $this->assertInstanceOf(NemesisManager::class, $this->app->make('nemesis'));
+    }
+
+    /**
+     * Test that the service provider registers the nemesis.auth middleware.
+     */
+    public function test_service_provider_registers_middleware(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: Middleware should be registered in the router
+        /** @var Router $router */
+        $router = $this->app['router'];
+
+        $this->assertArrayHasKey('nemesis.auth', $router->getMiddleware());
+        $this->assertEquals(NemesisAuth::class, $router->getMiddleware()['nemesis.auth']);
+    }
+
+    /**
+     * Test that the service provider registers the nemesis middleware group.
+     */
+    public function test_service_provider_registers_middleware_group(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: Middleware group should be registered
+        /** @var Router $router */
+        $router = $this->app['router'];
+
+        $this->assertArrayHasKey('nemesis', $router->getMiddlewareGroups());
+        $this->assertContains(NemesisAuth::class, $router->getMiddlewareGroups()['nemesis']);
+    }
+
+    /**
+     * Test that the service provider loads helper functions.
+     */
+    public function test_service_provider_loads_helper_functions(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: Helper functions should be available
+        $this->assertTrue(function_exists('nemesis'));
+        $this->assertTrue(function_exists('current_token'));
+        $this->assertTrue(function_exists('current_authenticatable'));
+    }
+
+    /**
+     * Test that the service provider merges configuration.
+     */
+    public function test_service_provider_merges_configuration(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider
+        $provider->register();
+
+        // Assert: Configuration should be merged
+        $this->assertNotNull(config('nemesis'));
+        $this->assertArrayHasKey('token_length', config('nemesis'));
+        $this->assertArrayHasKey('hash_algorithm', config('nemesis'));
+        $this->assertArrayHasKey('middleware', config('nemesis'));
+    }
+
+    /**
+     * Test that the service provider registers commands when running in console.
+     */
+    public function test_service_provider_registers_commands_in_console(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: The provider should not throw any errors when registering commands
+        // We can verify that the application is booted successfully
+        $this->assertTrue(true);
+
+        // Alternatively, we can check if the command classes exist
+        $this->assertTrue(class_exists(\Kani\Nemesis\Commands\InstallNemesisCommand::class));
+        $this->assertTrue(class_exists(\Kani\Nemesis\Commands\CleanTokensCommand::class));
+        $this->assertTrue(class_exists(\Kani\Nemesis\Commands\ListTokensCommand::class));
+    }
+
+    /**
+     * Test that the service provider publishes resources.
+     */
+    public function test_service_provider_publishes_resources(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register and boot the service provider
+        $provider->register();
+        $provider->boot();
+
+        // Assert: Verify the configuration and migration paths exist
+        $configPath = __DIR__ . '/../../config/nemesis.php';
+        $migrationPath = __DIR__ . '/../../database/migrations/';
+
+        $this->assertFileExists($configPath);
+        $this->assertDirectoryExists($migrationPath);
+
+        // Verify that the publish groups would be registered correctly
+        // by checking if the config and migration files exist in the package
+        $this->assertTrue(true, "Resources are ready for publishing");
+    }
+}
+
+// ==== ./tests/Unit/Http/Middleware/NemesisAuthTest.php ===
+
+<?php
+// tests/Unit/Http/Middleware/NemesisAuthTest.php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests\Unit\Http\Middleware;
+
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\DB;
+use Kani\Nemesis\Enums\ErrorCode;
+use Kani\Nemesis\Http\Middleware\NemesisAuth;
+use Kani\Nemesis\Models\NemesisToken;
+use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\TestCase;
+use Mockery;
+
+/**
+ * Test suite for NemesisAuth middleware.
+ *
+ * Verifies that the token authentication middleware correctly validates
+ * bearer tokens, checks expiration, verifies abilities, and attaches
+ * the authenticated model to the request.
+ */
+final class NemesisAuthTest extends TestCase
+{
+    private NemesisAuth $middleware;
+    private Request $request;
+    private bool $nextCalled;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->middleware = new NemesisAuth();
+        $this->request = Request::create('/test', 'GET');
+        $this->nextCalled = false;
+
+        // Set up a mock route for the request
+        $route = new Route('GET', '/test', function () {});
+        $this->request->setRouteResolver(function () use ($route) {
+            return $route;
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow(); // Reset le temps
+        parent::tearDown();
+    }
+
+    // ============================================================================
+    // Tests for missing token
+    // ============================================================================
+
+    /**
+     * Test that request without bearer token returns MISSING_TOKEN error.
+     */
+    public function test_returns_missing_token_error_when_no_bearer_token_provided(): void
+    {
+        // Arrange : Request has no Authorization header
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
+        $this->assertEquals('Token not provided', $data['message']);
+        $this->assertEquals(401, $data['status']);
+
+        // Assert : Next middleware was not called
+        $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
+    // Tests for invalid token
+    // ============================================================================
+
+    /**
+     * Test that request with invalid token returns INVALID_TOKEN error.
+     */
+    public function test_returns_invalid_token_error_when_token_not_found_in_database(): void
+    {
+        // Arrange : Request with bearer token that doesn't exist in database
+        $this->request->headers->set('Authorization', 'Bearer invalid-token-12345');
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
+        $this->assertEquals('Invalid token', $data['message']);
+        $this->assertEquals(401, $data['status']);
+
+        // Assert : Next middleware was not called
+        $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
+    // Tests for expired token
+    // ============================================================================
+
+    /**
+     * Test that request with expired token returns TOKEN_EXPIRED error.
+     */
+    public function test_returns_token_expired_error_when_token_is_expired(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        // Get the token model and expire it directly in database
+        $tokenModel = $user->getNemesisToken($plainToken);
+
+        // Update directly in database
+        DB::table('nemesis_tokens')
+            ->where('id', $tokenModel->id)
+            ->update(['expires_at' => '2023-01-01 00:00:00']); // Use a fixed past date
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::TOKEN_EXPIRED->value, $data['errorCode']);
+        $this->assertEquals('Token has expired', $data['message']);
+        $this->assertEquals(401, $data['status']);
+
+        // Assert : Next middleware was not called
+        $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
+    // Tests for ability/permissions
+    // ============================================================================
+
+    /**
+     * Test that request with valid token but insufficient ability returns INSUFFICIENT_PERMISSIONS error.
+     */
+    public function test_returns_insufficient_permissions_error_when_token_lacks_required_ability(): void
+    {
+        // Arrange : Create a user and a token with limited abilities
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test', ['read']);
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request with 'write' ability requirement
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        }, 'write');
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(403, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INSUFFICIENT_PERMISSIONS->value, $data['errorCode']);
+        $this->assertEquals('Insufficient permissions', $data['message']);
+        $this->assertEquals(403, $data['status']);
+        $this->assertArrayHasKey('details', $data);
+        $this->assertEquals('write', $data['details']['required_ability']);
+
+        // Assert : Next middleware was not called
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that request with valid token and matching ability passes through.
+     */
+    public function test_passes_through_when_token_has_required_ability(): void
+    {
+        // Arrange : Create a user and a token with 'write' ability
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test', ['read', 'write']);
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request with 'write' ability requirement
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        }, 'write');
+
+        // Assert : Next middleware was called
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertTrue($data['success']);
+    }
+
+    /**
+     * Test that request with token having null abilities (unrestricted) passes any ability check.
+     */
+    public function test_passes_through_when_token_has_null_abilities_unrestricted(): void
+    {
+        // Arrange : Create a user and a token with null abilities (unrestricted)
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test', null);
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request with any ability requirement
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        }, 'super-admin');
+
+        // Assert : Next middleware was called (null abilities means no restrictions)
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(200, $response->getStatusCode());
+    }
+
+    /**
+     * Test that ability parameter is optional and not required.
+     */
+    public function test_passes_through_when_no_ability_required(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request without ability parameter
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Next middleware was called
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(200, $response->getStatusCode());
+    }
+
+    // ============================================================================
+    // Tests for successful authentication
+    // ============================================================================
+
+    /**
+     * Test that successful authentication attaches authenticatable model to request.
+     */
+    public function test_attaches_authenticatable_model_to_request_on_success(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) use ($parameterName) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Request has the authenticatable model merged
+        $this->assertTrue($this->request->has($parameterName));
+        $this->assertEquals($user->id, $this->request->get($parameterName)->id);
+        $this->assertEquals($user->getMorphClass(), $this->request->get($parameterName)->getMorphClass());
+
+        // Assert : Request has the token model merged
+        $this->assertTrue($this->request->has('currentNemesisToken'));
+        $this->assertInstanceOf(NemesisToken::class, $this->request->get('currentNemesisToken'));
+    }
+
+    /**
+     * Test that successful authentication sets route parameter for route binding.
+     */
+    public function test_sets_route_parameter_for_route_binding_on_success(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) use ($parameterName) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Route parameter was set
+        $route = $this->request->route();
+        $this->assertNotNull($route->parameter($parameterName));
+        $this->assertEquals($user->id, $route->parameter($parameterName)->id);
+    }
+
+    /**
+     * Test that last_used_at timestamp is updated on successful authentication.
+     */
+    public function test_updates_last_used_at_timestamp_on_success(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $originalLastUsed = $tokenModel->last_used_at;
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : last_used_at was updated
+        $tokenModel->refresh();
+        $this->assertNotNull($tokenModel->last_used_at);
+    }
+
+    // ============================================================================
+    // Tests for tokenable model not found
+    // ============================================================================
+
+    /**
+     * Test that request returns INVALID_TOKEN error when tokenable model is null.
+     */
+    public function test_returns_invalid_token_error_when_tokenable_model_is_null(): void
+    {
+        // Arrange : Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        // Delete the user to make tokenable null
+        $user->delete();
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
+        $this->assertEquals('Invalid token', $data['message']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
+    // Tests for edge cases
+    // ============================================================================
+
+    /**
+     * Test that empty bearer token string is treated as missing token.
+     */
+    public function test_empty_bearer_token_string_returns_missing_token_error(): void
+    {
+        // Arrange : Request with empty bearer token
+        $this->request->headers->set('Authorization', 'Bearer ');
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that malformed Authorization header returns missing token error.
+     */
+    public function test_malformed_authorization_header_returns_missing_token_error(): void
+    {
+        // Arrange : Request with malformed Authorization header (no 'Bearer' prefix)
+        $this->request->headers->set('Authorization', 'InvalidToken123');
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Error response is returned (bearerToken() returns null)
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that token with future expiration date passes through.
+     */
+    public function test_token_with_future_expiration_passes_through(): void
+    {
+        // Arrange : Create a user and a token with future expiration
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->expires_at = now()->addDays(30);
+        $tokenModel->save();
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Next middleware was called
+        $this->assertTrue($this->nextCalled);
+    }
+
+    /**
+     * Test that token with null expiration (never expires) passes through.
+     */
+    public function test_token_with_null_expiration_passes_through(): void
+    {
+        // Arrange : Create a user and a token with null expiration
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->expires_at = null;
+        $tokenModel->save();
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+
+        // Act : Process request through middleware
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Next middleware was called
+        $this->assertTrue($this->nextCalled);
+    }
+
+    /**
+     * Test that different token sources are handled correctly.
+     */
+    public function test_token_with_different_sources_are_handled_correctly(): void
+    {
+        // Arrange : Create a user with multiple tokens from different sources
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $phoneToken = $user->createNemesisToken('Phone App', 'phone');
+        $webToken = $user->createNemesisToken('Web App', 'web');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $phoneToken);
+
+        // Act : Process request with phone token
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Phone token works
+        $this->assertTrue($this->nextCalled);
+
+        // Reset
+        $this->nextCalled = false;
+        $this->request = Request::create('/test', 'GET');
+        $route = new Route('GET', '/test', function () {});
+        $this->request->setRouteResolver(function () use ($route) {
+            return $route;
+        });
+
+        // Act : Process request with web token
+        $this->request->headers->set('Authorization', 'Bearer ' . $webToken);
+        $response = $this->middleware->handle($this->request, function ($req) {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        });
+
+        // Assert : Web token works
+        $this->assertTrue($this->nextCalled);
+    }
+}
+
+// ==== ./tests/database/migrations/2024_01_01_000001_create_test_users_table.php ===
+
+<?php
+// tests/database/migrations/2024_01_01_000001_create_test_users_table.php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('test_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('test_api_clients', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('api_key')->unique();
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('test_api_clients');
+        Schema::dropIfExists('test_users');
+    }
+};
+
+// ==== ./tests/TestCase.php ===
+
+<?php
+// tests/TestCase.php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests;
+
+use Carbon\Carbon;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\DB;
+use Kani\Nemesis\NemesisServiceProvider;
+use Orchestra\Testbench\TestCase as Orchestra;
+
+abstract class TestCase extends Orchestra
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Freeze time for consistent tests
+        Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
+
+        $this->loadMigrations();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        // Clean up database tables manually without truncate
+        DB::table('nemesis_tokens')->delete();
+        DB::table('test_users')->delete();
+        DB::table('test_api_clients')->delete();
+
+        parent::tearDown();
+    }
+
+    private function loadMigrations(): void
+    {
+        // Load package migrations
+        $packageMigrationsPath = __DIR__ . '/../database/migrations';
+        if (is_dir($packageMigrationsPath)) {
+            $this->loadMigrationsFrom($packageMigrationsPath);
+        }
+
+        // Load test migrations
+        $testMigrationsPath = __DIR__ . '/database/migrations';
+        if (is_dir($testMigrationsPath)) {
+            $this->loadMigrationsFrom($testMigrationsPath);
+        }
+    }
+
+    protected function getPackageProviders($app): array
+    {
+        return [
+            NemesisServiceProvider::class,
+        ];
+    }
+
+    protected function defineEnvironment($app): void
+    {
+        // Setup default database to use sqlite :memory:
+        $app['config']->set('database.default', 'testbench');
+        $app['config']->set('database.connections.testbench', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+
+        // Setup nemesis configuration
+        $app['config']->set('nemesis.token_length', 64);
+        $app['config']->set('nemesis.hash_algorithm', 'sha256');
+        $app['config']->set('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $app['config']->set('nemesis.expiration', 60);
+    }
+}

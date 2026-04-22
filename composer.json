@@ -9,6 +9,11 @@
             "Kani\\Nemesis\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Kani\\Nemesis\\Tests\\": "tests/"
+        }
+    },
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true
