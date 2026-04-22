@@ -1,110 +1,104 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kani\Nemesis;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Routing\Router;
-use Kani\Nemesis\Console\CreateNemesisToken;
-use Kani\Nemesis\Console\ResetNemesisQuota;
-use Kani\Nemesis\Console\BlockNemesisToken;
-use Kani\Nemesis\Console\ListNemesisTokens;
-use Kani\Nemesis\Console\UnblockNemesisToken;
-use Kani\Nemesis\Http\Middleware\NemesisMiddleware;
+use Kani\Nemesis\Commands\InstallNemesisCommand;
+use Kani\Nemesis\Commands\CleanTokensCommand;
+use Kani\Nemesis\Commands\ListTokensCommand;
+use Kani\Nemesis\Http\Middleware\NemesisAuth;
+use Kani\Nemesis\Models\NemesisToken;
+use Kani\Nemesis\Observers\TokenObserver;
 
+/**
+ * Service provider for the Nemesis package.
+ *
+ * Handles registration of all package services, configurations,
+ * and bootstrapping for the multi-model token authentication system.
+ */
 class NemesisServiceProvider extends ServiceProvider
 {
     /**
-     * Register services.
+     * Bootstrap package services.
+     * Registers observers, initializes systems, and publishes resources.
+     */
+    public function boot(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                InstallNemesisCommand::class,
+                CleanTokensCommand::class,
+                ListTokensCommand::class,
+            ]);
+            $this->publishResources();
+        }
+    }
+
+    /**
+     * Register package services and dependencies.
      */
     public function register(): void
     {
-        // Merge la config par défaut
-        $this->mergeConfigFrom(__DIR__ . '/../config/nemesis.php', 'nemesis');
+        $this->mergeConfigFrom(
+            __DIR__ . '/../config/nemesis.php',
+            'nemesis'
+        );
 
-        // Enregistrer les commandes artisan seulement si on est en console
-        if ($this->app->runningInConsole()) {
-            $this->commands([
-                CreateNemesisToken::class,
-                ResetNemesisQuota::class,
-                BlockNemesisToken::class,
-                UnblockNemesisToken::class,
-                ListNemesisTokens::class
-            ]);
+        $this->loadHelpers();
+        $this->registerMiddleware();
+        $this->registerTokenManager();
+    }
+
+    /**
+     * Load package helper functions.
+     */
+    protected function loadHelpers(): void
+    {
+        $helpersPath = __DIR__ . '/helpers.php';
+
+        if (file_exists($helpersPath)) {
+            require_once $helpersPath;
         }
     }
 
     /**
-     * Bootstrap services.
+     * Register package middleware.
      */
-    public function boot(Router $router): void
+    protected function registerMiddleware(): void
     {
-        // Publier le fichier de config
+        $this->app['router']->aliasMiddleware(
+            'nemesis.auth',
+            NemesisAuth::class
+        );
+
+        $this->app['router']->middlewareGroup('nemesis', [
+            NemesisAuth::class,
+        ]);
+    }
+
+    /**
+     * Register the token manager as a singleton.
+     */
+    protected function registerTokenManager(): void
+    {
+        $this->app->singleton('nemesis', function ($app) {
+            return new NemesisManager();
+        });
+    }
+
+    /**
+     * Publish package resources for user customization.
+     */
+    private function publishResources(): void
+    {
         $this->publishes([
             __DIR__ . '/../config/nemesis.php' => config_path('nemesis.php'),
-        ], 'config');
+        ], 'nemesis-config');
 
-        // Enregistrer le middleware
-        $router->aliasMiddleware('nemesis', NemesisMiddleware::class);
-
-        // Publier la migration si elle n'existe pas déjà
-        if (! Schema::hasTable('nemesis_tokens')) {
-            $timestamp = date('Y_m_d_His') . rand(1000, 9999); // suffixe aléatoire pour garantir l'unicité
-            $this->publishes([
-                __DIR__ . '/../database/migrations/create_nemesis_tokens_table.php.stub' =>
-                database_path("migrations/{$timestamp}_create_nemesis_tokens_table.php"),
-            ], 'nemesis-migrations');
-        }
-    }
-
-    /**
-     * Méthode statique pour nettoyer les références lors de la désinstallation.
-     */
-    public static function cleanup(): void
-    {
-        try {
-            // Supprimer le fichier de config
-            $configPath = config_path('nemesis.php');
-            if (File::exists($configPath)) {
-                File::delete($configPath);
-            }
-
-            // Supprimer le provider de app.php
-            $appConfigPath = config_path('app.php');
-            if (File::exists($appConfigPath)) {
-                $content = File::get($appConfigPath);
-                $providerClass = 'Kani\\Nemesis\\NemesisServiceProvider::class';
-
-                // Pattern pour supprimer le provider
-                $patterns = [
-                    "/\s*{$providerClass},\s*/",
-                    "/{$providerClass},\s*/",
-                    "/\s*{$providerClass}\s*/",
-                ];
-
-                $newContent = $content;
-                foreach ($patterns as $pattern) {
-                    $newContent = preg_replace($pattern, '', $newContent);
-                }
-
-                // Nettoyer les lignes vides multiples
-                $newContent = preg_replace("/\n{3,}/", "\n\n", $newContent);
-
-                if ($newContent !== $content) {
-                    File::put($appConfigPath, $newContent);
-                }
-            }
-
-            // Supprimer les caches
-            if (function_exists('app')) {
-                app('cache')->forget('spatie.permission.cache');
-            }
-        } catch (\Exception $e) {
-            // Logger silencieusement
-            if (function_exists('logger')) {
-                logger()->error("Nemesis cleanup error: " . $e->getMessage());
-            }
-        }
+        $this->publishes([
+            __DIR__ . '/../database/migrations/' => database_path('migrations'),
+        ], 'nemesis-migrations');
     }
 }

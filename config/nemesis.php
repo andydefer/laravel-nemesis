@@ -1,88 +1,36 @@
 <?php
+// config/nemesis.php
 
 return [
     /*
     |--------------------------------------------------------------------------
-    | Default maximum requests
+    | Token Length
     |--------------------------------------------------------------------------
     */
-    'default_max_requests' => 1000,
+    'token_length' => 64,
 
     /*
     |--------------------------------------------------------------------------
-    | Reset period
+    | Token Expiration (in minutes)
     |--------------------------------------------------------------------------
+    | Set to null for no expiration
     */
-    'reset_period' => 'daily',
+    'expiration' => null,
 
     /*
     |--------------------------------------------------------------------------
-    | Block response configuration
+    | Hash Algorithm
     |--------------------------------------------------------------------------
     */
-    'block_response' => [
-        'message' => 'Accès refusé : quota dépassé ou domaine non autorisé.',
-        'status' => 429,
+    'hash_algorithm' => 'sha256',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Middleware Configuration
+    |--------------------------------------------------------------------------
+    */
+    'middleware' => [
+        'parameter_name' => 'nemesisAuth',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Token extraction methods
-    |--------------------------------------------------------------------------
-    | Méthodes pour extraire le token de la requête
-    */
-    'token_sources' => [
-        'bearer',
-        'query:token',
-        'query:api_token',
-    ],
-    /*
-    |--------------------------------------------------------------------------
-    | CORS settings
-    |--------------------------------------------------------------------------
-    */
-    'cors' => [
-        'allow_credentials' => true,
-        'max_age' => 86400,
-        'allow_methods' => 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
-        'allow_headers' => 'Authorization, Content-Type, X-Requested-With, X-CSRF-TOKEN, Accept, Origin',
-        'expose_headers' => [
-            'X-RateLimit-Limit',
-            'X-RateLimit-Remaining',
-            'X-RateLimit-Reset',
-            'X-API-Version'
-
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Command settings
-    |--------------------------------------------------------------------------
-    | Paramètres pour les commandes Artisan
-    */
-    'commands' => [
-        'list_limit' => 10, // Nombre par défaut de tokens à afficher dans la liste
-        'default_origins' => ['*'], // Origines par défaut pour les nouveaux tokens
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Token generation settings
-    |--------------------------------------------------------------------------
-    */
-    'token_generation' => [
-        'length' => 40, // Longueur du token généré
-        'characters' => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Automatic reset scheduling
-    |--------------------------------------------------------------------------
-    */
-    'scheduling' => [
-        'enabled' => true,
-        'time' => '00:00', // Heure de réinitialisation quotidienne
-    ],
 ];
