@@ -1,8 +1,8 @@
 # Rector Refactoring Report
-*Generated: ven. 24 avril 2026 21:10:34 WAT*
+*Generated: ven. 24 avril 2026 22:38:32 WAT*
 
 
-12 files with changes
+14 files with changes
 =====================
 
 1) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Commands/ListTokensCommand.php:108
@@ -718,5 +718,299 @@ Applied rules:
  * StringClassNameToClassConstantRector
 
 
- [OK] 12 files would have been changed (dry-run) by Rector                                                              
+13) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Helpers/NemesisHelpersTest.php:4
+
+    ---------- begin diff ----------
+@@ Line 4 @@
+
+ namespace Kani\Nemesis\Tests\Unit\Helpers;
+
++use Illuminate\Database\Eloquent\Model;
+ use Illuminate\Http\Request;
+ use Illuminate\Routing\Route;
+ use Kani\Nemesis\Models\NemesisToken;
+@@ Line 28 @@
+ final class NemesisHelpersTest extends TestCase
+ {
+     private TestUser $user;
++
+     private TestApiClient $apiClient;
++
+     private TestCheckPoint $checkpoint;
++
+     private TestCustomFormatUser $customUser;
++
+     private string $parameterName;
++
+     private string $plainToken;
++
+     private NemesisToken $tokenModel;
+
+     protected function setUp(): void
+@@ Line 90 @@
+      */
+     private function createFreshRequest(): Request
+     {
+-        $request = Request::create('/test', 'GET');
+-        $route = new Route('GET', '/test', fn() => null);
++        $request = Request::create('/test', \Symfony\Component\HttpFoundation\Request::METHOD_GET);
++        $route = new Route('GET', '/test', fn(): null => null);
+
+-        $request->setRouteResolver(fn() => $route);
++        $request->setRouteResolver(fn(): Route => $route);
+         $route->bind($request);
+
+         return $request;
+@@ Line 103 @@
+      * Simulate an authenticated request with model, token, and formatted data.
+      *
+      * @param mixed $model The authenticatable model
+-     * @param string $token The plain text token
+      * @param NemesisToken $tokenModel The token model
+      */
+-    private function simulateAuthenticatedRequest($model, string $token, NemesisToken $tokenModel): void
++    private function simulateAuthenticatedRequest(TestUser|TestApiClient|TestCheckPoint|TestCustomFormatUser $model, NemesisToken $tokenModel): void
+     {
+         $request = $this->createFreshRequest();
+
+@@ Line 166 @@
+         $newToken = $manager->createToken($this->user, 'New Token', 'web', ['read']);
+
+         $this->assertIsString($newToken);
+-        $this->assertEquals(64, strlen($newToken));
++        $this->assertSame(64, strlen($newToken));
+
+         $tokenModel = $this->user->getNemesisToken($newToken);
+         $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+@@ Line 181 @@
+
+     public function test_current_token_helper_returns_token_model(): void
+     {
+-        $this->simulateAuthenticatedRequest($this->user, $this->plainToken, $this->tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $this->tokenModel);
+
+         $token = current_token();
+
+@@ Line 196 @@
+
+         $token = current_token();
+
+-        $this->assertNull($token);
++        $this->assertNotInstanceOf(NemesisToken::class, $token);
+     }
+
+     public function test_current_token_helper_can_check_abilities(): void
+@@ Line 207 @@
+             ['read', 'write', 'delete']
+         );
+         $tokenModel = $this->user->getNemesisToken($tokenWithAbilities);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->user, $tokenWithAbilities, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $tokenModel);
+
+         $token = current_token();
+
+@@ Line 227 @@
+             ['user_agent' => 'Mozilla/5.0', 'ip' => '127.0.0.1']
+         );
+         $tokenModel = $this->user->getNemesisToken($metadataToken);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->user, $metadataToken, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $tokenModel);
+
+         $token = current_token();
+
+@@ Line 243 @@
+
+     public function test_current_authenticatable_helper_returns_user(): void
+     {
+-        $this->simulateAuthenticatedRequest($this->user, $this->plainToken, $this->tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $this->tokenModel);
+
+         $authenticatable = current_authenticatable();
+
+@@ Line 257 @@
+     {
+         $token = $this->apiClient->createNemesisToken('API Token', 'api');
+         $tokenModel = $this->apiClient->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->apiClient, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->apiClient, $tokenModel);
+
+         $authenticatable = current_authenticatable();
+
+@@ Line 271 @@
+     {
+         $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
+         $tokenModel = $this->checkpoint->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->checkpoint, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->checkpoint, $tokenModel);
+
+         $authenticatable = current_authenticatable();
+
+@@ Line 286 @@
+     {
+         $token = $this->customUser->createNemesisToken('Custom Token', 'web');
+         $tokenModel = $this->customUser->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->customUser, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->customUser, $tokenModel);
+
+         $authenticatable = current_authenticatable();
+
+@@ Line 303 @@
+
+         $authenticatable = current_authenticatable();
+
+-        $this->assertNull($authenticatable);
++        $this->assertNotInstanceOf(Model::class, $authenticatable);
+     }
+
+     // ============================================================================
+@@ Line 312 @@
+
+     public function test_current_authenticatable_format_helper_returns_formatted_user(): void
+     {
+-        $this->simulateAuthenticatedRequest($this->user, $this->plainToken, $this->tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $this->tokenModel);
+
+         $formatted = current_authenticatable_format();
+
+@@ Line 327 @@
+     {
+         $token = $this->apiClient->createNemesisToken('API Token', 'api');
+         $tokenModel = $this->apiClient->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->apiClient, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->apiClient, $tokenModel);
+
+         $formatted = current_authenticatable_format();
+
+@@ Line 343 @@
+     {
+         $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
+         $tokenModel = $this->checkpoint->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->checkpoint, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->checkpoint, $tokenModel);
+
+         $formatted = current_authenticatable_format();
+
+@@ Line 364 @@
+
+         $token = $this->customUser->createNemesisToken('Custom Token', 'web');
+         $tokenModel = $this->customUser->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->customUser, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->customUser, $tokenModel);
+
+         $formatted = current_authenticatable_format();
+
+@@ Line 399 @@
+
+     public function test_all_helpers_work_together_for_user(): void
+     {
+-        $this->simulateAuthenticatedRequest($this->user, $this->plainToken, $this->tokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $this->tokenModel);
+
+         $manager = nemesis();
+         $this->assertInstanceOf(NemesisManager::class, $manager);
+@@ Line 424 @@
+     {
+         $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
+         $tokenModel = $this->checkpoint->getNemesisToken($token);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+
+-        $this->simulateAuthenticatedRequest($this->checkpoint, $token, $tokenModel);
++        $this->simulateAuthenticatedRequest($this->checkpoint, $tokenModel);
+
+         $manager = nemesis();
+         $this->assertTrue($manager->validateToken($this->checkpoint, $token));
+@@ Line 447 @@
+     {
+         $userToken = $this->user->createNemesisToken('User Token', 'web');
+         $userTokenModel = $this->user->getNemesisToken($userToken);
+-        $this->simulateAuthenticatedRequest($this->user, $userToken, $userTokenModel);
++        $this->assertInstanceOf(NemesisToken::class, $userTokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $userTokenModel);
+         $userFormatted = current_authenticatable_format();
+
+         $checkpointToken = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
+         $checkpointTokenModel = $this->checkpoint->getNemesisToken($checkpointToken);
+-        $this->simulateAuthenticatedRequest($this->checkpoint, $checkpointToken, $checkpointTokenModel);
++        $this->assertInstanceOf(NemesisToken::class, $checkpointTokenModel);
++        $this->simulateAuthenticatedRequest($this->checkpoint, $checkpointTokenModel);
+         $checkpointFormatted = current_authenticatable_format();
+
+         $this->assertArrayHasKey('email', $userFormatted);
+@@ Line 469 @@
+     {
+         $userToken = $this->user->createNemesisToken('User Token', 'web');
+         $userTokenModel = $this->user->getNemesisToken($userToken);
+-        $this->simulateAuthenticatedRequest($this->user, $userToken, $userTokenModel);
++        $this->assertInstanceOf(NemesisToken::class, $userTokenModel);
++        $this->simulateAuthenticatedRequest($this->user, $userTokenModel);
+         $userFormatted = current_authenticatable_format();
+
+         $customToken = $this->customUser->createNemesisToken('Custom Token', 'web');
+         $customTokenModel = $this->customUser->getNemesisToken($customToken);
+-        $this->simulateAuthenticatedRequest($this->customUser, $customToken, $customTokenModel);
++        $this->assertInstanceOf(NemesisToken::class, $customTokenModel);
++        $this->simulateAuthenticatedRequest($this->customUser, $customTokenModel);
+         $customFormatted = current_authenticatable_format();
+
+         $this->assertArrayHasKey('id', $userFormatted);
+    ----------- end diff -----------
+
+Applied rules:
+ * NewlineBetweenClassLikeStmtsRector
+ * RemoveUnusedPrivateMethodParameterRector
+ * AddInstanceofAssertForNullableArgumentRector
+ * AssertEmptyNullableObjectToAssertInstanceofRector
+ * AssertEqualsToSameRector
+ * LiteralGetToRequestClassConstantRector
+ * AddArrowFunctionReturnTypeRector
+ * AddMethodCallBasedStrictParamTypeRector
+
+
+14) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Http/Middleware/NemesisAuthTest.php:1488
+
+    ---------- begin diff ----------
+@@ Line 1488 @@
+                 'custom_user' => $modelClass::create(['name' => 'Custom User', 'email' => 'custom@test.com']),
+             };
+
+-            $plainToken = $model->createNemesisToken("{$type} Token", 'test');
++            $plainToken = $model->createNemesisToken($type . ' Token', 'test');
+
+             $this->resetRequest();
+             $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+@@ Line 1502 @@
+             $this->middleware->handle($this->request, $next);
+
+             // Assert: Formatted data exists
+-            $this->assertTrue($this->request->has($parameterName . 'Format'), "Failed for type: {$type}");
++            $this->assertTrue($this->request->has($parameterName . 'Format'), 'Failed for type: ' . $type);
+             $formatted = $this->request->get($parameterName . 'Format');
+-            $this->assertIsArray($formatted, "Not an array for type: {$type}");
++            $this->assertIsArray($formatted, 'Not an array for type: ' . $type);
+
+             $this->nextCalled = false;
+         }
+    ----------- end diff -----------
+
+Applied rules:
+ * EncapsedStringsToSprintfRector
+
+
+ [OK] 14 files would have been changed (dry-run) by Rector                                                              
 
