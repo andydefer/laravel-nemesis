@@ -10,15 +10,14 @@ use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
- * Test model for users that can authenticate with Nemesis tokens.
+ * Test model for users with custom nemesisFormat implementation.
  *
- * This model represents a typical User model in a Laravel application
- * and demonstrates the correct implementation of the MustNemesis interface.
- * Used for testing token authentication in a realistic context.
+ * This model demonstrates a custom format for API responses,
+ * different from the standard TestUser format.
  *
  * @package Kani\Nemesis\Tests\Support
  */
-final class TestUser extends Model implements MustNemesis
+final class TestCustomFormatUser extends Model implements MustNemesis
 {
     use HasNemesisTokens;
     use SoftDeletes;
@@ -38,6 +37,9 @@ final class TestUser extends Model implements MustNemesis
     protected $fillable = [
         'name',
         'email',
+        'password',
+        'remember_token',
+        'email_verified_at',  // ← Ajouter ce champ
     ];
 
     /**
@@ -46,7 +48,7 @@ final class TestUser extends Model implements MustNemesis
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verified_at' => 'datetime',  // ← S'assurer du cast
         'deleted_at' => 'datetime',
     ];
 
@@ -68,17 +70,19 @@ final class TestUser extends Model implements MustNemesis
     public $timestamps = true;
 
     /**
-     * Define the format for authenticated API responses.
+     * Define custom format for authenticated API responses.
+     * This format excludes email and adds custom fields.
      *
      * @return array<string, mixed>
      */
     public function nemesisFormat(): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'email' => $this->email,
-            'type' => 'user',
+            'user_id' => $this->id,
+            'full_name' => $this->name,
+            'is_verified' => !is_null($this->email_verified_at),
+            'custom_field' => 'only_for_api',
+            'type' => 'custom_user',
         ];
     }
 }

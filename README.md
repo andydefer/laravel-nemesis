@@ -1,555 +1,543 @@
-# Nemesis — API Guardian
+# Nemesis
 
-**Nemesis** est un package Laravel de sécurité API et son rôle est de protéger vos APIs contre les abus et les utilisations non autorisées en combinant :
+![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-blue)
+![Laravel Version](https://img.shields.io/badge/Laravel-12%2B-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Tests](https://img.shields.io/badge/tests-2500%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-92%25-green)
 
-* 🔑 **Gestion des tokens** associés à des domaines spécifiques.
-* 🌍 **Contrôle CORS par token** (chaque token est lié à un ou plusieurs domaines).
-* 📊 **Quota d'appels** avec suivi en base de données.
-* 🚨 **Blocage automatique** si un token dépasse sa limite d'utilisation.
-
-Nemesis agit comme un **gardien implacable** de vos endpoints.
+**Nemesis** est un package Laravel complet pour l’authentification par **tokens multi-modèles**. Contrairement à Sanctum ou Passport, Nemesis permet à **n’importe quel modèle Eloquent** (`User`, `CheckPoint`, `ApiClient`, `Admin`, etc.) de générer, valider et gérer ses propres tokens d’API avec une sécurité renforcée : expiration, permissions (abilities), restrictions CORS par origine, métadonnées, soft delete pour révocation, et nettoyage automatique.
 
 ---
 
-## 🚀 Installation
-
-Ajoutez le package à votre projet Laravel :
+## 📦 Installation
 
 ```bash
-composer require kani/laravel-nemesis
+composer require kani/nemesis
 ```
 
-Publiez les fichiers de configuration et les migrations :
+Publier les ressources du package :
 
 ```bash
-php artisan vendor:publish --provider="Kani\Nemesis\NemesisServiceProvider"
+php artisan nemesis:install
+```
+
+Ou manuellement :
+
+```bash
+# Configuration
+php artisan vendor:publish --tag=nemesis-config
+
+# Migrations
+php artisan vendor:publish --tag=nemesis-migrations
+
+# Exécuter les migrations
 php artisan migrate
 ```
 
 ---
 
-## ⚙️ CONFIGURATION IMPORTANTE POUR LES PROJETS LARAVEL
+## 🚀 Démarrage rapide
 
-### 1. Installation de l'API Laravel
-
-**IMPERATIF** : Pour éviter les problèmes CORS (Cross-Origin) lors des appels depuis un frontend web, vous devez installer le système d'API Laravel :
-
-```bash
-php artisan install:api
-```
-
-Cette commande installe Laravel Sanctum et crée le fichier `routes/api.php` nécessaire pour les routes stateless.
-
-### 2. Configuration des routes API
-
-**TOUTES LES ROUTES PROTÉGÉES PAR NEMESIS DOIVENT ÊTRE DÉFINIES DANS `routes/api.php`** :
+### 1. Ajouter le trait et l’interface à vos modèles
 
 ```php
-// routes/api.php
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
+<?php
 
-Route::middleware(['nemesis'])->group(function () {
-    Route::get('/posts', function (Request $request) {
-        return response()->json(['data' => 'Posts list']);
-    });
+namespace App\Models;
 
-    Route::get('/profile', function (Request $request) {
-        return response()->json(['data' => 'User profile']);
+use Illuminate\Database\Eloquent\Model;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+class User extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+
+    /**
+     * Définir ce qui est exposé par l'API.
+     * Cette méthode est OBLIGATOIRE (imposée par l'interface).
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'created_at' => $this->created_at->toIso8601String(),
+        ];
+    }
+}
+
+class CheckPoint extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+
+    /**
+     * Format différent pour les points de contrôle.
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'location' => $this->location,
+            'status' => $this->is_active ? 'active' : 'inactive',
+            'last_seen' => $this->last_ping_at?->toIso8601String(),
+        ];
+    }
+}
+```
+
+### 2. Créer un token
+
+```php
+$user = User::find(1);
+$token = $user->createNemesisToken(
+    name: 'Application Mobile',
+    source: 'mobile',
+    abilities: ['scan_ticket', 'view_stats'],
+    metadata: ['app_version' => '2.1.0']
+);
+
+// Afficher le token une seule fois
+echo $token; // stocker en clair côté client
+```
+
+### 3. Protéger une route
+
+```php
+// Dans routes/api.php
+Route::middleware(['nemesis.auth'])->group(function () {
+    Route::get('/profile', function () {
+        // Version formatée (recommandée)
+        return response()->json(current_authenticatable_format());
     });
 });
+
+// Avec vérification d’une ability
+Route::post('/scan', function () {
+    // ...
+})->middleware('nemesis.auth:scan_ticket');
 ```
 
-### 3. Configuration du middleware dans bootstrap/app.php
+### 4. Utiliser le token
 
-Ajoutez l'alias du middleware Nemesis dans votre fichier `bootstrap/app.php` :
+```http
+GET /api/profile
+Authorization: Bearer <token>
+```
+
+### 5. Gérer les tokens dans le contrôleur
 
 ```php
-// bootstrap/app.php
-use Kani\Nemesis\Http\Middleware\NemesisMiddleware;
+public function revokeCurrentToken(Request $request)
+{
+    $authenticatable = current_authenticatable();
+    $authenticatable->revokeCurrentNemesisToken();
 
-->withMiddleware(function (Middleware $middleware) {
-    $middleware->alias([
-        'nemesis' => NemesisMiddleware::class,
-        // autres middlewares...
-    ]);
-})
-
-// Optionnel : changement du préfixe API
-->withRouting(
-    api: __DIR__.'/../routes/api.php',
-    apiPrefix: 'api/admin', // ou conservez 'api' par défaut
-    // ...
-)
+    return response()->json(['message' => 'Token révoqué']);
+}
 ```
 
 ---
 
-## ⚙️ Configuration du package
+## 🎨 Contrôle total de l’exposition des données (nemesisFormat)
 
-Après publication, le fichier `config/nemesis.php` est disponible :
+Nemesis **impose** à chaque modèle authentifiable de définir sa propre méthode `nemesisFormat()`. Cela force les développeurs à explicitement choisir quelles données sont exposées via l’API, évitant ainsi les fuites accidentelles d’informations sensibles.
+
+### ❌ Sans Nemesis (dangereux)
+
+```php
+// Expose TOUT (password, remember_token, etc.)
+return response()->json(auth()->user());
+```
+
+### ✅ Avec Nemesis (sécurisé)
+
+```php
+// N'expose que ce qui est défini dans nemesisFormat()
+return response()->json(current_authenticatable_format());
+```
+
+### Exemple concret
+
+```php
+// Modèle User
+public function nemesisFormat(): array
+{
+    return [
+        'id' => $this->id,
+        'name' => $this->name,
+        'email' => $this->email,
+        'avatar' => $this->avatar_url,
+        'roles' => $this->roles->pluck('name'),
+    ];
+}
+
+// Modèle CheckPoint
+public function nemesisFormat(): array
+{
+    return [
+        'id' => $this->id,
+        'name' => $this->name,
+        'location' => $this->location,
+        'status' => $this->is_active ? 'active' : 'inactive',
+        'type' => $this->type,
+    ];
+}
+```
+
+---
+
+## 🛡️ Sécurité multi-origines (CORS)
+
+Nemesis permet de restreindre un token à des origines spécifiques, y compris avec des wildcards.
+
+```php
+$tokenModel = $user->getNemesisToken($plainToken);
+$tokenModel->addAllowedOrigin('https://monapp.com');
+$tokenModel->addAllowedOrigin('https://*.example.com'); // wildcard
+
+// Vérification automatique dans le middleware
+// Si l’origine n’est pas autorisée → erreur 403
+```
+
+---
+
+## 🔑 Système d’abilities (permissions fines)
+
+Chaque token peut avoir une liste d’abilities (ex: `create`, `delete`, `scan_ticket`).
+
+```php
+// Création avec abilities
+$token = $checkpoint->createNemesisToken(
+    name: 'Scanner Billeterie',
+    source: 'kiosk',
+    abilities: ['scan_ticket', 'validate_entry']
+);
+
+// Vérifier une ability
+if ($tokenModel->can('scan_ticket')) {
+    // autorisé
+}
+```
+
+Utilisation en middleware :
+```php
+Route::post('/validate', fn() => ...)
+    ->middleware('nemesis.auth:validate_entry');
+```
+
+---
+
+## 📦 Métadonnées enrichies
+
+Stockez des informations contextuelles (IP, user-agent, version, etc.) avec validation automatique (taille max 64KB, profondeur max 5, max 100 clés).
+
+```php
+$token = $user->createNemesisToken(
+    name: 'API Session',
+    metadata: [
+        'device' => 'iPhone 15',
+        'os' => 'iOS 17',
+        'location' => 'Paris',
+        'preferences' => ['lang' => 'fr']
+    ]
+);
+
+// Modifier après création
+$tokenModel->setMetadata('last_login_ip', '192.168.1.1');
+$ip = $tokenModel->getMetadata('last_login_ip');
+$tokenModel->mergeMetadata(['new_key' => 'value']);
+```
+
+---
+
+## 🧹 Nettoyage automatique des tokens expirés
+
+Configuration dans `config/nemesis.php` :
+
+```php
+'cleanup' => [
+    'auto_cleanup' => true,       // nettoyage auto par schedule
+    'frequency' => 60,            // toutes les heures
+    'keep_expired_for_days' => 30, // garder 30 jours pour audit
+],
+```
+
+Commande manuelle :
+```bash
+php artisan nemesis:clean --force
+php artisan nemesis:clean --days=15
+php artisan nemesis:clean --keep-expired
+```
+
+---
+
+## 📋 Commandes disponibles
+
+| Commande | Description |
+|----------|-------------|
+| `nemesis:install` | Publie config + migrations |
+| `nemesis:clean`   | Supprime tokens expirés/vieux |
+| `nemesis:list`    | Liste tous les tokens (filtrable par modèle) |
+
+```bash
+php artisan nemesis:list --model=App\\Models\\CheckPoint
+```
+
+---
+
+## 🧪 Helpers globaux
+
+Nemesis fournit des helpers pour un accès rapide :
+
+```php
+// Récupérer le manager
+nemesis()->validateToken($user, $token);
+
+// Token actuel
+$tokenModel = current_token();
+if ($tokenModel && $tokenModel->can('admin')) {
+    // ...
+}
+
+// Modèle authentifié brut (User, CheckPoint, etc.)
+$authenticated = current_authenticatable();
+
+// Version formatée du modèle authentifié (recommandée pour les APIs)
+$formatted = current_authenticatable_format();
+return response()->json($formatted);
+```
+
+---
+
+## 🔗 Scénario concret : Billeterie avec User et CheckPoint
+
+### Modèles
+
+```php
+// User (client billetterie)
+class User extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+        ];
+    }
+}
+
+// CheckPoint (point de contrôle physique)
+class CheckPoint extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'location' => $this->location,
+            'status' => $this->is_active ? 'active' : 'inactive',
+        ];
+    }
+}
+```
+
+### Création des tokens
+
+```php
+// Pour un utilisateur (application mobile)
+$userToken = $user->createNemesisToken(
+    name: 'App Mobile Client',
+    source: 'mobile',
+    abilities: ['buy_ticket', 'view_tickets']
+);
+
+// Pour un point de contrôle (kiosque)
+$checkpointToken = $checkpoint->createNemesisToken(
+    name: 'Scanner Portique',
+    source: 'kiosk',
+    abilities: ['scan_ticket', 'validate_entry', 'reject_entry'],
+    metadata: ['hardware_id' => 'SCAN-01', 'location' => 'Entrée A']
+);
+```
+
+### Routes protégées
+
+```php
+// Endpoint utilisateur
+Route::middleware('nemesis.auth:buy_ticket')->post('/tickets', [TicketController::class, 'buy']);
+
+// Endpoint point de contrôle
+Route::middleware('nemesis.auth:scan_ticket')->post('/scan', [ScanController::class, 'validate']);
+```
+
+### Dans `ScanController`
+
+```php
+public function validate(Request $request)
+{
+    $checkpoint = current_authenticatable(); // instance de CheckPoint
+    $token = current_token();
+
+    if (!$token->can('validate_entry')) {
+        return response()->json(['error' => 'Permission refusée'], 403);
+    }
+
+    // scanner le billet...
+    return response()->json([
+        'status' => 'entrée validée',
+        'checkpoint' => current_authenticatable_format() // version formatée
+    ]);
+}
+```
+
+### Révocation depuis le point de contrôle
+
+```php
+public function logoutCheckPoint()
+{
+    $checkpoint = current_authenticatable();
+    $checkpoint->revokeCurrentNemesisToken(); // soft delete
+
+    return response()->json(['message' => 'Token révoqué']);
+}
+```
+
+---
+
+## 📊 API complète du modèle (MustNemesis)
+
+| Méthode | Description |
+|---------|-------------|
+| `nemesisFormat()` | **OBLIGATOIRE** - Définit les données exposées par l'API |
+| `createNemesisToken()` | Génère un nouveau token (hash stocké) |
+| `deleteNemesisTokens()` | Suppression définitive de tous les tokens |
+| `revokeNemesisTokens()` | Soft delete de tous les tokens |
+| `deleteCurrentNemesisToken()` | Supprime le token courant |
+| `revokeCurrentNemesisToken()` | Soft delete du token courant |
+| `currentNemesisToken()` | Récupère le modèle du token courant |
+| `hasNemesisTokens()` | Vérifie l’existence de tokens |
+| `getNemesisToken()` | Trouve un token par sa valeur brute |
+| `validateNemesisToken()` | Vérifie validité (expiration + non révoqué) |
+| `touchNemesisToken()` | Met à jour `last_used_at` |
+| `getNemesisTokensBySource()` | Filtre par source (`web`, `mobile`, etc.) |
+| `revokeExpiredNemesisTokens()` | Soft delete des expirés |
+| `forceDeleteExpiredNemesisTokens()` | Suppression définitive des expirés |
+| `restoreNemesisTokens()` | Restaure les tokens soft-deleted |
+
+---
+
+## 🧰 NemesisManager (facade)
+
+```php
+use Kani\Nemesis\Facades\Nemesis;
+
+Nemesis::createToken($user, 'API Token', 'api', ['read']);
+Nemesis::validateToken($user, $token);
+Nemesis::getTokenableModel($token);
+Nemesis::deleteToken($user, $token);
+Nemesis::revokeExpiredTokens();
+```
+
+---
+
+## ⚙️ Configuration (`config/nemesis.php`)
 
 ```php
 return [
-    'default_max_requests' => 1000, // nombre maximum d'appels par token
-    'reset_period' => 'daily',      // peut être 'daily', 'weekly', 'monthly'
-    'block_response' => [
-        'message' => 'Accès refusé : quota dépassé ou domaine non autorisé.',
-        'status' => 429,
+    'token_length' => 64,               // longueur du token en clair
+    'hash_algorithm' => 'sha256',       // hash pour stockage
+    'expiration' => 60,                 // null = jamais, sinon minutes
+
+    'middleware' => [
+        'parameter_name' => 'nemesisAuth',    // nom dans la requête
+        'token_header' => 'Authorization',    // ou X-Custom-Token
+        'security_headers' => true,           // X-Frame-Options, etc.
+        'validate_origin' => true,            // vérification CORS
+    ],
+
+    'cors' => [
+        'allow_credentials' => true,
+        'max_age' => 86400,
+        'expose_token_info' => false,
+    ],
+
+    'cleanup' => [
+        'auto_cleanup' => true,
+        'frequency' => 60,                     // minutes
+        'keep_expired_for_days' => 30,
     ],
 ];
 ```
 
-💡 **Astuce** : `default_max_requests` centralise les quotas par défaut, pour ne pas répéter la valeur dans toutes les commandes.
-
 ---
 
-## 🗄️ Migration
-
-La migration crée une table `nemesis_tokens` avec les colonnes suivantes :
-
-* `id`
-* `token` (string unique)
-* `allowed_origins` (json : liste des domaines autorisés)
-* `max_requests` (integer : limite d'appels)
-* `requests_count` (integer : nombre d'appels effectués)
-* `last_request_at` (datetime : date du dernier appel)
-* `created_at`, `updated_at` (timestamps)
-
----
-
-## 🛡️ Middleware
-
-### Utilisation du middleware
-
-Le middleware Nemesis est maintenant automatiquement enregistré par le package. Vous pouvez l'utiliser directement avec son alias `nemesis` :
+## 📁 Structure des migrations
 
 ```php
-// routes/api.php
-Route::middleware('nemesis')->group(function () {
-    Route::get('/posts', [PostController::class, 'index']);
-    Route::get('/profile', [UserController::class, 'show']);
-});
-```
-
-### Transmission du token
-
-Le token peut être transmis de deux manières :
-
-#### 1. Via l'en-tête Authorization (Bearer)
-```javascript
-const API_TOKEN = 'crrxnjbAucrzMl8FvlRDQHwJSmvET05ncqcX3LuO';
-
-fetch('http://localhost:8000/api/posts', {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${API_TOKEN}`,
-    'Content-Type': 'application/json',
-  },
-})
-```
-
-#### 2. Via le paramètre de query string
-```javascript
-const API_TOKEN = 'crrxnjbAucrzMl8FvlRDQHwJSmvET05ncqcX3LuO';
-
-fetch(`http://localhost:8000/api/posts?token=${API_TOKEN}`, {
-  method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-```
-
-### Fonctionnement du middleware
-
-1. Si l'origine (`Origin`) est **identique au domaine de l'application** ou absente, la requête passe **sans vérification du token**.
-2. Vérifie que le **token existe** et n'est pas bloqué.
-3. Vérifie que l'**origine** (domaine) est autorisée (`allowed_origins`) pour ce token.
-4. **Accepte le token soit via l'en-tête `Authorization: Bearer TOKEN`, soit via le paramètre query `?token=TOKEN`.**
-5. Vérifie le quota et **incrémente le compteur** `requests_count`.
-6. Bloque la requête si la limite `max_requests` est atteinte.
-7. Répond avec les **headers CORS appropriés**, y compris la gestion des requêtes `OPTIONS` (preflight).
-
-💡 **Astuce** : si votre frontend est sur le même domaine que l'API, vous n'avez **pas besoin de token** pour les requêtes internes.
-
-**Flux simplifié :**
-
-```
-┌─────────────┐
-│ Requête API │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Récupère    │
-│ token       │
-│ (header ou  │
-│ query)      │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Vérif token │
-│ existe et   │
-│ non bloqué  │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Vérif orig. │
-│ autorisée ? │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Compteur    │
-│ incrémenté  │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Limite OK ? │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ Réponse API │
-│ + CORS      │
-└─────────────┘
+// Table nemesis_tokens
+- id
+- token_hash (unique)
+- tokenable_type / tokenable_id (polymorphique)
+- name, source
+- abilities (JSON)
+- metadata (JSON)
+- allowed_origins (JSON)
+- last_used_at, expires_at
+- softDeletes, timestamps
 ```
 
 ---
 
-# 🔧 Commandes Artisan Nemesis
+## 🧠 Ce que Nemesis résout concrètement
 
-## 📋 Liste des Commandes Disponibles
-
-### 1️⃣ `nemesis:create` - Créer un nouveau token API
-```bash
-php artisan nemesis:create [--origins=*] [--max=] [--name=]
-```
-
-**Paramètres :**
-- `--origins` : (Optionnel, multiple) Domaines autorisés à utiliser ce token
-  - Format : `--origins=https://site1.com --origins=https://site2.com`
-  - Par défaut : `['*']` (tous les domaines autorisés)
-- `--max` : (Optionnel) Nombre maximum de requêtes autorisées
-  - Par défaut : valeur définie dans `config/nemesis.php` (généralement 1000)
-- `--name` : (Optionnel) Nom descriptif pour identifier le token
-
-**Exemples :**
-```bash
-# Créer un token avec des domaines spécifiques
-php artisan nemesis:create --origins=https://monsite.com --origins=https://api.monsite.com
-
-# Créer un token avec une limite personnalisée
-php artisan nemesis:create --max=5000 --origins=https://client-site.com
-
-# Créer un token avec un nom descriptif
-php artisan nemesis:create --name="Token pour application mobile"
-
-# Créer un token avec tous les paramètres
-php artisan nemesis:create --origins=https://production.com --max=10000 --name="Token production"
-```
-
-**Exemple de sortie :**
-```
-✅ Nemesis token created successfully!
-
-Token: AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza
-Max Requests: 5000
-Allowed Origins: ["https://monsite.com","https://api.monsite.com"]
-Name: Token pour application mobile
-
-⚠️  Important: Save this token securely as it cannot be retrieved later!
-```
+| Problème | Solution Nemesis |
+|----------|------------------|
+| Plusieurs modèles doivent s’authentifier (User, CheckPoint) | Polymorphisme `tokenable` |
+| Contrôle total des données exposées via API | Méthode obligatoire `nemesisFormat()` |
+| Un token ne doit servir que pour certaines origines | `allowed_origins` + validation middleware |
+| Une application mobile a moins de droits qu’un admin | `abilities` (ex: `scan_ticket` vs `delete_user`) |
+| Besoin de tracer le contexte (IP, device, version) | `metadata` validé et nettoyé |
+| Révocation sans perte d’audit | `softDeletes` |
+| Nettoyage des tokens obsolètes | Commande schedule + `auto_cleanup` |
+| Un token peut expirer après X minutes | `expires_at` + `isExpired()` |
 
 ---
 
-### 2️⃣ `nemesis:reset` - Réinitialiser les quotas d'utilisation
-```bash
-php artisan nemesis:reset [--token=] [--force]
-```
+## 🔄 Comparaison rapide avec Laravel Sanctum
 
-**Paramètres :**
-- `--token` : (Optionnel) Réinitialiser uniquement un token spécifique
-- `--force` : (Optionnel) Forcer la réinitialisation sans confirmation
-
-**Fonctionnement :**
-- Réinitialise le compteur `requests_count` à 0
-- Remet à null la date `last_request_at`
-- Affecte tous les tokens si aucun token spécifique n'est précisé
-
-**Exemples :**
-```bash
-# Réinitialiser tous les tokens (avec confirmation)
-php artisan nemesis:reset
-
-# Réinitialiser tous les tokens sans confirmation
-php artisan nemesis:reset --force
-
-# Réinitialiser un token spécifique
-php artisan nemesis:reset --token=AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza
-```
-
-**Exemple de sortie :**
-```
-Are you sure you want to reset all token quotas? (yes/no) [no]:
-> yes
-
-✅ Successfully reset quotas for 15 tokens.
-```
+| Fonctionnalité | Sanctum | Nemesis |
+|----------------|---------|---------|
+| Multi-modèles (User + CheckPoint) | ❌ (seulement User) | ✅ (tout modèle) |
+| Contrôle explicite de l'exposition des données | ❌ | ✅ (méthode obligatoire) |
+| Restrictions CORS par token | ❌ (globale) | ✅ (par token) |
+| Métadonnées enrichies | ❌ | ✅ (validation stricte) |
+| Soft delete des tokens | ❌ | ✅ |
+| Abilities sans user | ❌ | ✅ |
+| Nettoyage auto configurable | ❌ | ✅ |
 
 ---
 
-### 3️⃣ `nemesis:block` - Bloquer un token
-```bash
-php artisan nemesis:block {token} [--reason=]
-```
+## 🤝 Contribution
 
-**Paramètres :**
-- `token` : (Requis) Le token à bloquer
-- `--reason` : (Optionnel) Raison du blocage pour documentation
-
-**Fonctionnement :**
-- Met la valeur de `max_requests` à 0
-- Le token ne peut plus être utilisé pour des appels API
-- Le blocage est réversible avec la commande `nemesis:unblock`
-
-**Exemples :**
-```bash
-# Bloquer un token
-php artisan nemesis:block AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza
-
-# Bloquer un token avec une raison
-php artisan nemesis:block AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza --reason="Abuse detected"
-```
-
-**Exemple de sortie :**
-```
-✅ Token AbC123XyZ... has been blocked successfully.
-Reason: Abuse detected
-```
+1. Fork + branche `feature/ma-fonctionnalité`
+2. `composer test` (2500 tests doivent passer)
+3. Pull request vers `main`
 
 ---
 
-### 4️⃣ `nemesis:unblock` - Débloquer un token
-```bash
-php artisan nemesis:unblock {token} [--max=] [--reason=]
-```
+## 📄 Licence
 
-**Paramètres :**
-- `token` : (Requis) Le token à débloquer
-- `--max` : (Optionnel) Nouvelle limite de requêtes
-  - Par défaut : valeur définie dans `config/nemesis.php`
-- `--reason` : (Optionnel) Raison du déblocage
-
-**Exemples :**
-```bash
-# Débloquer un token avec la limite par défaut
-php artisan nemesis:unblock AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza
-
-# Débloquer avec une limite personnalisée
-php artisan nemesis:unblock AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza --max=2000
-
-# Débloquer avec une raison
-php artisan nemesis:unblock AbC123XyZdef456Uvw789Ghi012Jkl345Mno678Pqr901Stu234Vwx567Yza --reason="Issue resolved"
-```
-
-**Exemple de sortie :**
-```
-✅ Token AbC123XyZ... has been unblocked successfully.
-New max requests: 2000
-Reason: Issue resolved
-```
+MIT © [Kani](https://github.com/kani)
 
 ---
 
-### 5️⃣ `nemesis:list` - Lister tous les tokens (Nouvelle commande)
-```bash
-php artisan nemesis:list [--status=]
-```
-
-**Paramètres :**
-- `--status` : (Optionnel) Filtrer par status: `active`, `blocked`, `all`
-
-**Exemples :**
-```bash
-# Lister tous les tokens
-php artisan nemesis:list
-
-# Lister seulement les tokens actifs
-php artisan nemesis:list --status=active
-
-# Lister seulement les tokens bloqués
-php artisan nemesis:list --status=blocked
-```
-
-**Exemple de sortie :**
-```
-📋 Nemesis Tokens List (Showing 3 of 15 tokens)
-
-┌──────────────┬────────────────────────────────────────────┬─────────────┬────────┬──────────────┐
-│ Name         │ Token (truncated)                         │ Status      │ Usage  │ Last Used    │
-├──────────────┼────────────────────────────────────────────┼─────────────┼────────┼──────────────┤
-│ Mobile App   │ AbC123XyZ...                              │ ✅ Active   │ 250/1K │ 2 hours ago  │
-│ Production   │ Def456Uvw...                              │ ✅ Active   │ 980/10K│ 5 minutes ago│
-│ Test Client  │ Ghi012Jkl...                              │ 🚫 Blocked  │ 0/0    │ Never        │
-└──────────────┴────────────────────────────────────────────┴─────────────┴────────┴──────────────┘
-```
-
----
-
-## 🎯 Bonnes Pratiques pour les Commandes
-
-1. **Sécurité des Tokens** :
-   - Les tokens sont affichés une seule fois à la création
-   - Stockez-les dans un gestionnaire de mots de passe sécurisé
-   - Utilisez des variables d'environnement en production
-
-2. **Gestion des Quotas** :
-   - Planifiez la réinitialisation régulière avec `php artisan nemesis:reset`
-   - Utilisez `php artisan schedule:run` pour l'automatisation
-
-3. **Surveillance** :
-   - Utilisez régulièrement `nemesis:list` pour monitorer l'utilisation
-   - Bloquez rapidement les tokens suspects
-
-4. **Documentation** :
-   - Utilisez le paramètre `--name` pour identifier clairement chaque token
-   - Documentez les raisons de blocage/déblocage avec `--reason`
-
-## ⚙️ Intégration avec la Planification Laravel
-
-Ajoutez à votre `app/Console/Kernel.php` pour automatiser les tâches :
-
-```php
-protected function schedule(Schedule $schedule)
-{
-    // Réinitialiser les quotas tous les jours à minuit
-    $schedule->command('nemesis:reset --force')->daily();
-
-    // Lister l'état des tokens chaque lundi
-    $schedule->command('nemesis:list --status=active')->weeklyOn(1, '8:00');
-}
-```
-
-Ces commandes offrent une gestion complète de vos tokens API Nemesis, permettant un contrôle précis de l'accès et des quotas d'utilisation.
-
----
-
-## 📌 Exemple concret
-
-Protégeons un endpoint `api/posts` dans `routes/api.php` :
-
-```php
-// routes/api.php
-Route::middleware(['nemesis'])->get('/posts', [PostController::class, 'index']);
-```
-
-### Requête avec token valide (header)
-
-```http
-GET /api/posts HTTP/1.1
-Host: api.monsite.com
-Authorization: Bearer VOTRE_TOKEN
-Origin: https://monsite.com
-```
-
-✅ Résultat : accès autorisé.
-
-### Requête avec token valide (query param)
-
-```http
-GET /api/posts?token=VOTRE_TOKEN HTTP/1.1
-Host: api.monsite.com
-Origin: https://monsite.com
-```
-
-✅ Résultat : accès autorisé.
-
-### Requête depuis un autre domaine
-
-```http
-GET /api/posts?token=VOTRE_TOKEN HTTP/1.1
-Host: api.monsite.com
-Origin: https://sitepirate.com
-```
-
-❌ Résultat : `429 Accès refusé : quota dépassé ou domaine non autorisé.`
-
----
-
-## 🛠️ Bonnes pratiques
-
-* ✅ **IMPERATIF** : Définissez vos routes protégées dans `routes/api.php`
-* ✅ Utilisez un quota adapté pour chaque client.
-* 🔄 Activez un reset automatique des quotas.
-* 🔐 Ne communiquez jamais vos tokens côté client sans contrôle.
-* 📊 Surveillez les logs Nemesis pour détecter les abus.
-
----
-
-## 🔒 Sécurité
-
-* Les tokens sont **hachés** en base de données.
-* Les tokens ne peuvent être utilisés que depuis les origines autorisées.
-* Les tentatives échouées sont loguées pour suivi.
-
----
-
-## 🚨 Dépannage
-
-### Erreur CORS persistante
-
-**Solution :** Vérifiez que :
-1. Vous avez bien exécuté `php artisan install:api`
-2. Vos routes sont bien définies dans `routes/api.php`
-3. Le middleware est bien aliasé dans `bootstrap/app.php`
-
-### Erreur lors de la désinstallation
-
-```bash
-Class "Kani\Nemesis\NemesisServiceProvider" not found
-```
-
-**Solution :**
-
-```bash
-# Supprimer les caches
-rm -f bootstrap/cache/*.php
-php artisan config:clear
-
-# Supprimer le provider
-sed -i '/Kani\\Nemesis\\NemesisServiceProvider/d' config/app.php
-
-# Supprimer config publié
-rm -f config/nemesis.php
-
-# Vider tous les caches Laravel
-php artisan optimize:clear
-
-# Désinstaller le package
-composer remove kani/laravel-nemesis
-```
-
-### Pour Windows
-
-```cmd
-del /Q bootstrap\cache\*.php
-php artisan optimize:clear
-composer remove kani/laravel-nemesis
-```
-
----
-
-## 👤 Auteur
-
-Développé par **André Kani** — Inspiré de la justice implacable de **Némésis**.
-
----
-
-## 📜 Licence
-
-MIT. Libre d'utilisation et de modification.
+**Nemesis** – L’authentification par tokens multi-modèles pour Laravel, pensée pour les systèmes complexes où chaque acteur (utilisateur, point de contrôle, API client) a ses propres jetons, droits et origines, avec un **contrôle total sur les données exposées**. 🔐⚡

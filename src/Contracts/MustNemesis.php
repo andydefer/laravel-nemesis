@@ -18,7 +18,7 @@ use Kani\Nemesis\Models\NemesisToken;
  *
  * @package Kani\Nemesis\Contracts
  */
-interface MustNemesis
+interface MustNemesis extends CanBeFormatted
 {
     /**
      * Get all tokens belonging to this model.

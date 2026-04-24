@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * Creates test_user and test_api_client tables that support the MustNemesis
  * interface for testing multi-model token authentication.
+ * Modified to support additional fields for TestCustomFormatUser.
  *
  * @package Kani\Nemesis\Tests\Database\Migrations
  */
@@ -34,6 +35,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('password')->nullable();
+            $table->string('remember_token')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -59,23 +62,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $this->dropTestApiClientsTable();
-        $this->dropTestUsersTable();
-    }
-
-    /**
-     * Drop the test_api_clients table.
-     */
-    private function dropTestApiClientsTable(): void
-    {
         Schema::dropIfExists('test_api_clients');
-    }
-
-    /**
-     * Drop the test_users table.
-     */
-    private function dropTestUsersTable(): void
-    {
         Schema::dropIfExists('test_users');
     }
 };

@@ -57,4 +57,18 @@ final class TestApiClient extends Model implements MustNemesis
     protected $hidden = [
         'api_key',
     ];
+
+    /**
+     * Define the format for authenticated API responses.
+     *
+     * @return array<string, mixed>
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'type' => 'api_client',
+        ];
+    }
 }

@@ -16,6 +16,8 @@ use Kani\Nemesis\Enums\ErrorCode;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\Tests\Support\TestApiClient;
+use Kani\Nemesis\Tests\Support\TestCheckPoint;
+use Kani\Nemesis\Tests\Support\TestCustomFormatUser;
 use Kani\Nemesis\Tests\Support\TestInvalidModel;
 use Kani\Nemesis\Tests\Support\TestUser;
 use Kani\Nemesis\Tests\TestCase;
@@ -190,7 +192,7 @@ final class NemesisAuthTest extends TestCase
 
         $this->expireTokenInDatabase($user->getNemesisToken($plainToken));
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -223,7 +225,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->expires_at = now()->addDays(30);
         $tokenModel->save();
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -250,7 +252,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->expires_at = null;
         $tokenModel->save();
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -277,7 +279,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', ['read']);
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -309,7 +311,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', ['read', 'write']);
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -337,7 +339,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', null);
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -362,7 +364,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -391,7 +393,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -421,7 +423,7 @@ final class NemesisAuthTest extends TestCase
 
         $tokenModel = $user->getNemesisToken($plainToken);
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -451,7 +453,7 @@ final class NemesisAuthTest extends TestCase
 
         $user->delete();
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -485,7 +487,7 @@ final class NemesisAuthTest extends TestCase
         $phoneToken = $user->createNemesisToken('Phone App', 'phone');
         $webToken = $user->createNemesisToken('Web App', 'web');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$phoneToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $phoneToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -500,7 +502,7 @@ final class NemesisAuthTest extends TestCase
 
         // Arrange: Reset for web token test
         $this->resetRequest();
-        $this->request->headers->set('Authorization', 'Bearer '.$webToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $webToken);
         $this->nextCalled = false;
 
         // Act: Process request with web token
@@ -525,7 +527,7 @@ final class NemesisAuthTest extends TestCase
 
         // Ensure no origin header is set
         $this->request->headers->remove('Origin');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -555,7 +557,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(['https://example.com', 'https://app.example.com']);
 
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -585,7 +587,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(['https://example.com']);
 
         $this->request->headers->set('Origin', 'https://malicious.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -622,7 +624,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins([]); // Empty array means allow all
 
         $this->request->headers->set('Origin', 'https://any-domain.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -652,7 +654,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(null); // Null means allow all
 
         $this->request->headers->set('Origin', 'https://another-domain.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -688,7 +690,7 @@ final class NemesisAuthTest extends TestCase
             // Arrange: Reset for each subdomain
             $this->resetRequest();
             $this->request->headers->set('Origin', $subdomain);
-            $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+            $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
             $this->nextCalled = false;
 
             $next = function ($req): JsonResponse {
@@ -721,7 +723,7 @@ final class NemesisAuthTest extends TestCase
 
         // Test with different case
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -752,7 +754,7 @@ final class NemesisAuthTest extends TestCase
 
         // Test with trailing slash in request
         $this->request->headers->set('Origin', 'https://example.com/');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -782,7 +784,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             return response()->json(['success' => true]);
@@ -844,7 +846,7 @@ final class NemesisAuthTest extends TestCase
             // Arrange: Reset for each origin
             $this->resetRequest();
             $this->request->headers->set('Origin', $origin);
-            $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+            $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
             $this->nextCalled = false;
 
             $next = function ($req): JsonResponse {
@@ -881,7 +883,7 @@ final class NemesisAuthTest extends TestCase
         // Test first origin
         $this->resetRequest();
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
@@ -901,7 +903,7 @@ final class NemesisAuthTest extends TestCase
         // Test removed origin
         $this->resetRequest();
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
 
         $this->nextCalled = false;
 
@@ -932,7 +934,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel = $user->getNemesisToken($plainToken);
         $tokenModel->revoke(); // Soft delete the token
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -966,7 +968,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->save();
         $tokenModel->revoke(); // Soft delete the token
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -998,7 +1000,7 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->revoke(); // Soft delete the token
         $tokenModel->restoreRevoked(); // Restore the token
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -1029,7 +1031,7 @@ final class NemesisAuthTest extends TestCase
         $user->nemesisTokens()->delete();
 
         // Assert: First token should be invalid
-        $this->request->headers->set('Authorization', 'Bearer '.$token1);
+        $this->request->headers->set('Authorization', 'Bearer ' . $token1);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -1040,13 +1042,13 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Second token should be invalid
         $this->resetRequest();
-        $this->request->headers->set('Authorization', 'Bearer '.$token2);
+        $this->request->headers->set('Authorization', 'Bearer ' . $token2);
         $response = $this->middleware->handle($this->request, $next);
         $this->assertEquals(401, $response->getStatusCode());
 
         // Assert: Third token should be invalid
         $this->resetRequest();
-        $this->request->headers->set('Authorization', 'Bearer '.$token3);
+        $this->request->headers->set('Authorization', 'Bearer ' . $token3);
         $response = $this->middleware->handle($this->request, $next);
         $this->assertEquals(401, $response->getStatusCode());
     }
@@ -1157,7 +1159,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -1182,7 +1184,7 @@ final class NemesisAuthTest extends TestCase
         $apiClient = TestApiClient::create(['name' => 'API Client', 'api_key' => 'test-key-123']);
         $plainToken = $apiClient->createNemesisToken('API Token', 'api');
 
-        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
 
@@ -1274,6 +1276,238 @@ final class NemesisAuthTest extends TestCase
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
         $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
+// Tests for nemesisFormat() - Formatage du modèle authentifié
+// ============================================================================
+
+    /**
+     * Test that successful authentication attaches formatted version of model to request.
+     */
+    public function test_attaches_formatted_authenticatable_model_to_request_on_success(): void
+    {
+        // Arrange: Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $this->middleware->handle($this->request, $next);
+
+        // Assert: Request has the formatted version merged
+        $this->assertTrue($this->request->has($parameterName . 'Format'));
+        $formatted = $this->request->get($parameterName . 'Format');
+
+        $this->assertIsArray($formatted);
+        $this->assertArrayHasKey('id', $formatted);
+        $this->assertArrayHasKey('name', $formatted);
+        $this->assertArrayHasKey('email', $formatted);
+        $this->assertArrayHasKey('type', $formatted);
+        $this->assertEquals($user->id, $formatted['id']);
+        $this->assertEquals($user->name, $formatted['name']);
+        $this->assertEquals($user->email, $formatted['email']);
+        $this->assertEquals('user', $formatted['type']);
+    }
+
+    /**
+     * Test that formatted data uses custom nemesisFormat() from TestCheckPoint.
+     */
+    public function test_formatted_data_for_checkpoint_uses_correct_format(): void
+    {
+        // Arrange: Create a checkpoint
+        $checkpoint = TestCheckPoint::create([
+            'name' => 'Gate A',
+            'location' => 'Entrance 1',
+            'is_active' => true,
+        ]);
+        $plainToken = $checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $this->middleware->handle($this->request, $next);
+
+        // Assert: Formatted data uses checkpoint format
+        $formatted = $this->request->get($parameterName . 'Format');
+
+        $this->assertIsArray($formatted);
+        $this->assertArrayHasKey('id', $formatted);
+        $this->assertArrayHasKey('name', $formatted);
+        $this->assertArrayHasKey('location', $formatted);
+        $this->assertArrayHasKey('status', $formatted);
+        $this->assertArrayHasKey('type', $formatted);
+        $this->assertEquals($checkpoint->id, $formatted['id']);
+        $this->assertEquals('Gate A', $formatted['name']);
+        $this->assertEquals('Entrance 1', $formatted['location']);
+        $this->assertEquals('active', $formatted['status']);
+        $this->assertEquals('checkpoint', $formatted['type']);
+    }
+
+    /**
+     * Test that formatted data for TestApiClient uses correct format.
+     */
+    public function test_formatted_data_for_api_client_uses_correct_format(): void
+    {
+        // Arrange: Create an API client
+        $apiClient = TestApiClient::create([
+            'name' => 'External Service',
+            'api_key' => 'secret-key-123',
+        ]);
+        $plainToken = $apiClient->createNemesisToken('API Token', 'api');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $this->middleware->handle($this->request, $next);
+
+        // Assert: Formatted data uses API client format
+        $formatted = $this->request->get($parameterName . 'Format');
+
+        $this->assertIsArray($formatted);
+        $this->assertArrayHasKey('id', $formatted);
+        $this->assertArrayHasKey('name', $formatted);
+        $this->assertArrayHasKey('type', $formatted);
+        $this->assertEquals($apiClient->id, $formatted['id']);
+        $this->assertEquals('External Service', $formatted['name']);
+        $this->assertEquals('api_client', $formatted['type']);
+
+        // API key should NOT be exposed
+        $this->assertArrayNotHasKey('api_key', $formatted);
+    }
+
+    /**
+     * Test that custom format user excludes email and uses different keys.
+     */
+    public function test_custom_format_user_excludes_sensitive_data(): void
+    {
+        // Arrange: Create a custom format user
+        $user = TestCustomFormatUser::create([
+            'name' => 'Secure User',
+            'email' => 'secure@example.com',
+            'password' => 'hash',
+            'remember_token' => 'token',
+        ]);
+        $plainToken = $user->createNemesisToken('Secure Token', 'web');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $this->middleware->handle($this->request, $next);
+
+        // Assert: Sensitive fields are NOT exposed
+        $formatted = $this->request->get($parameterName . 'Format');
+
+        $this->assertArrayNotHasKey('email', $formatted);
+        $this->assertArrayNotHasKey('password', $formatted);
+        $this->assertArrayNotHasKey('remember_token', $formatted);
+
+        // Custom format fields are present
+        $this->assertArrayHasKey('user_id', $formatted);
+        $this->assertArrayHasKey('full_name', $formatted);
+        $this->assertArrayHasKey('is_verified', $formatted);
+        $this->assertArrayHasKey('custom_field', $formatted);
+        $this->assertEquals('Secure User', $formatted['full_name']);
+    }
+
+    /**
+     * Test that formatted data is available via helper function.
+     */
+    public function test_formatted_data_available_via_helper(): void
+    {
+        // Arrange: Create a checkpoint
+        $checkpoint = TestCheckPoint::create([
+            'name' => 'Helper Checkpoint',
+            'location' => 'Test Location',
+            'is_active' => true,
+        ]);
+        $plainToken = $checkpoint->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            // Simulate helper usage in controller
+            $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+            $formatted = $req->get($parameterName . 'Format');
+
+            return response()->json(['formatted' => $formatted]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Helper can access formatted data
+        $data = $response->getData(true);
+        $this->assertArrayHasKey('formatted', $data);
+        $this->assertEquals($checkpoint->id, $data['formatted']['id']);
+        $this->assertEquals('Helper Checkpoint', $data['formatted']['name']);
+        $this->assertEquals('Test Location', $data['formatted']['location']);
+        $this->assertEquals('active', $data['formatted']['status']);
+    }
+
+    /**
+     * Test that formatted data works with all model types in the same request.
+     */
+    public function test_formatted_data_works_for_multiple_model_types(): void
+    {
+        $modelTypes = [
+            'user' => TestUser::class,
+            'api_client' => TestApiClient::class,
+            'checkpoint' => TestCheckPoint::class,
+            'custom_user' => TestCustomFormatUser::class,
+        ];
+
+        foreach ($modelTypes as $type => $modelClass) {
+            // Arrange: Create model instance
+            $model = match ($type) {
+                'user' => $modelClass::create(['name' => 'User', 'email' => 'user@test.com']),
+                'api_client' => $modelClass::create(['name' => 'API Client', 'api_key' => 'key']),
+                'checkpoint' => $modelClass::create(['name' => 'Checkpoint', 'location' => 'Gate', 'is_active' => true]),
+                'custom_user' => $modelClass::create(['name' => 'Custom User', 'email' => 'custom@test.com']),
+            };
+
+            $plainToken = $model->createNemesisToken("{$type} Token", 'test');
+
+            $this->resetRequest();
+            $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+            $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+            $next = function ($req): JsonResponse {
+                $this->nextCalled = true;
+                return response()->json(['success' => true]);
+            };
+
+            // Act: Process request through middleware
+            $this->middleware->handle($this->request, $next);
+
+            // Assert: Formatted data exists
+            $this->assertTrue($this->request->has($parameterName . 'Format'), "Failed for type: {$type}");
+            $formatted = $this->request->get($parameterName . 'Format');
+            $this->assertIsArray($formatted, "Not an array for type: {$type}");
+
+            $this->nextCalled = false;
+        }
     }
 
     // ============================================================================

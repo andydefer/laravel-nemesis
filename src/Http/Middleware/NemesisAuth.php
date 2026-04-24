@@ -242,6 +242,10 @@ final class NemesisAuth
             $this->config->parameterName => $authenticatable,
             'currentNemesisToken' => $tokenModel,
         ]);
+
+        $request->merge([
+            $this->config->parameterName . 'Format' => $authenticatable->nemesisFormat(),
+        ]);
     }
 
     /**

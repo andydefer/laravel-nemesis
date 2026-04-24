@@ -68,3 +68,26 @@ if (!function_exists('current_authenticatable')) {
         return request()->route($parameterName);
     }
 }
+
+if (!function_exists('current_authenticatable_format')) {
+    /**
+     * Get the formatted version of the current authenticated model.
+     *
+     * Returns the array defined by nemesisFormat() method on the model.
+     * This forces developers to explicitly control what data is exposed.
+     *
+     * @return array<string, mixed>|null The formatted data or null if not authenticated
+     *
+     * @example
+     * // In your controller
+     * return response()->json([
+     *     'user' => current_authenticatable_format(),
+     *     'token' => current_token()
+     * ]);
+     */
+    function current_authenticatable_format(): ?array
+    {
+        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+        return request()->get($parameterName . 'Format');
+    }
+}

@@ -10,15 +10,14 @@ use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
- * Test model for users that can authenticate with Nemesis tokens.
+ * Test model for checkpoints (billeterie) that can authenticate with tokens.
  *
- * This model represents a typical User model in a Laravel application
- * and demonstrates the correct implementation of the MustNemesis interface.
- * Used for testing token authentication in a realistic context.
+ * This model represents a physical checkpoint (turnstile, gate, etc.)
+ * that needs to authenticate with Nemesis tokens for ticket validation.
  *
  * @package Kani\Nemesis\Tests\Support
  */
-final class TestUser extends Model implements MustNemesis
+final class TestCheckPoint extends Model implements MustNemesis
 {
     use HasNemesisTokens;
     use SoftDeletes;
@@ -28,7 +27,7 @@ final class TestUser extends Model implements MustNemesis
      *
      * @var string
      */
-    protected $table = 'test_users';
+    protected $table = 'test_checkpoints';
 
     /**
      * The attributes that are mass assignable.
@@ -37,7 +36,9 @@ final class TestUser extends Model implements MustNemesis
      */
     protected $fillable = [
         'name',
-        'email',
+        'location',
+        'is_active',
+        'last_ping_at',
     ];
 
     /**
@@ -46,18 +47,9 @@ final class TestUser extends Model implements MustNemesis
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
+        'last_ping_at' => 'datetime',
         'deleted_at' => 'datetime',
-    ];
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
     ];
 
     /**
@@ -77,8 +69,10 @@ final class TestUser extends Model implements MustNemesis
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'email' => $this->email,
-            'type' => 'user',
+            'location' => $this->location,
+            'status' => $this->is_active ? 'active' : 'inactive',
+            'last_seen' => $this->last_ping_at?->toIso8601String(),
+            'type' => 'checkpoint',
         ];
     }
 }
