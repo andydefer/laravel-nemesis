@@ -5,20 +5,35 @@ declare(strict_types=1);
 namespace Kani\Nemesis\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Enums\ErrorCode;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Kani\Nemesis\Config\NemesisConfig;
+use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Data\ErrorResponseData;
+use Kani\Nemesis\Enums\ErrorCode;
+use Kani\Nemesis\Models\NemesisToken;
 
 /**
  * Middleware for authenticating requests using Nemesis tokens.
  *
- * Validates bearer tokens, checks expiration, abilities, and origin restrictions,
- * then attaches the authenticated model to the request.
+ * This middleware handles Bearer token authentication, validates token
+ * expiration, checks required abilities, enforces CORS origin restrictions,
+ * and attaches the authenticated model to the request for downstream use.
+ *
+ * @package Kani\Nemesis\Http\Middleware
  */
 final class NemesisAuth
 {
+    /**
+     * Create a new middleware instance.
+     *
+     * @param NemesisConfig $config Immutable configuration for the middleware
+     */
+    public function __construct(
+        private readonly NemesisConfig $config
+    ) {}
+
     /**
      * Handle an incoming request and authenticate via bearer token.
      *
@@ -29,69 +44,53 @@ final class NemesisAuth
      */
     public function handle(Request $request, Closure $next, ?string $ability = null): mixed
     {
-        // Extract and validate the bearer token
         $token = $this->extractBearerToken($request);
 
         if ($token === null) {
             return $this->sendErrorResponse(ErrorCode::MISSING_TOKEN);
         }
 
-        // Hash the token for database lookup
-        $hashedToken = $this->hashToken($token);
-
-        // Find the token model with its associated authenticatable model
-        $tokenModel = $this->findTokenModel($hashedToken);
+        $tokenModel = $this->findValidToken($token);
 
         if ($tokenModel === null) {
             return $this->sendErrorResponse(ErrorCode::INVALID_TOKEN);
         }
 
-        // Check if the token has expired
-        if ($tokenModel->isExpired()) {
+        if ($this->isTokenExpired($tokenModel)) {
             return $this->sendErrorResponse(ErrorCode::TOKEN_EXPIRED);
         }
 
-        // Check origin restrictions (CORS security) if enabled
-        if ($this->shouldValidateOrigin() && !$this->isOriginAllowed($tokenModel, $request)) {
+        if ($this->isOriginRestricted($tokenModel, $request)) {
             return $this->sendErrorResponse(
                 ErrorCode::ORIGIN_NOT_ALLOWED,
                 ['origin' => $request->headers->get('Origin')]
             );
         }
 
-        // Check ability/permissions if specified
-        if (!$this->hasRequiredAbility($tokenModel, $ability)) {
+        if ($this->hasInsufficientAbility($tokenModel, $ability)) {
             return $this->sendErrorResponse(
                 ErrorCode::INSUFFICIENT_PERMISSIONS,
                 ['required_ability' => $ability]
             );
         }
 
-        // Verify the authenticatable model exists
-        $authenticatable = $tokenModel->tokenable;
+        $authenticatable = $this->getAuthenticatableModel($tokenModel);
 
         if ($authenticatable === null) {
             return $this->sendErrorResponse(ErrorCode::INVALID_TOKEN);
         }
 
-        // Update token usage timestamp
-        $this->updateTokenUsage($tokenModel);
+        if (!$this->isValidAuthenticatable($authenticatable)) {
+            return $this->sendInvalidAuthenticatableResponse($authenticatable);
+        }
 
-        // Attach the authenticated model and token to the request
+        $this->updateTokenUsage($tokenModel);
         $this->attachToRequest($request, $authenticatable, $tokenModel);
 
-        // Get the response from the next middleware
         $response = $next($request);
 
-        // Add security headers if enabled
-        if ($this->shouldAddSecurityHeaders()) {
-            $response = $this->addSecurityHeaders($response);
-        }
-
-        // Add CORS headers if needed
-        if ($this->shouldAddCorsHeaders()) {
-            $response = $this->addCorsHeaders($response, $request);
-        }
+        $response = $this->applySecurityHeaders($response);
+        $response = $this->applyCorsHeaders($response, $request);
 
         return $response;
     }
@@ -104,99 +103,120 @@ final class NemesisAuth
      */
     private function extractBearerToken(Request $request): ?string
     {
-        $tokenHeader = config('nemesis.middleware.token_header', 'Authorization');
-
-        // If using custom header, extract token from there
-        if ($tokenHeader !== 'Authorization') {
-            $token = $request->header($tokenHeader);
+        if ($this->config->isUsingCustomHeader()) {
+            $token = $request->header($this->config->tokenHeader);
             if ($token !== null && trim($token) !== '') {
                 return $token;
             }
         }
 
-        // Fall back to standard bearer token extraction
         $token = $request->bearerToken();
 
-        // Validate that token is not empty
-        if ($token === null || trim($token) === '') {
-            return null;
-        }
-
-        return $token;
+        return $token !== null && trim($token) !== '' ? $token : null;
     }
 
     /**
-     * Hash the token using the configured hash algorithm.
+     * Find a valid token model from the database.
      *
-     * @param string $token The raw token to hash
-     * @return string The hashed token
-     */
-    private function hashToken(string $token): string
-    {
-        $algorithm = config('nemesis.hash_algorithm', 'sha256');
-
-        return hash($algorithm, $token);
-    }
-
-    /**
-     * Find the token model by its hashed value.
-     *
-     * @param string $hashedToken The hashed token to search for
+     * @param string $rawToken The raw token string
      * @return NemesisToken|null The token model or null if not found
      */
-    private function findTokenModel(string $hashedToken): ?NemesisToken
+    private function findValidToken(string $rawToken): ?NemesisToken
     {
+        $hashedToken = hash($this->config->hashAlgorithm, $rawToken);
 
-        return NemesisToken::where('token', $hashedToken)
+        return NemesisToken::where('token_hash', $hashedToken)
             ->with('tokenable')
             ->first();
     }
 
     /**
-     * Check if origin validation is enabled.
+     * Check if the token has expired.
      *
-     * @return bool True if origin validation should be performed
+     * @param NemesisToken $tokenModel The token model
+     * @return bool True if expired, false otherwise
      */
-    private function shouldValidateOrigin(): bool
+    private function isTokenExpired(NemesisToken $tokenModel): bool
     {
-        return config('nemesis.middleware.validate_origin', true);
+        return $tokenModel->isExpired();
     }
 
     /**
-     * Check if the token's origin is allowed.
+     * Check if the request origin is restricted for this token.
      *
      * @param NemesisToken $tokenModel The token model
      * @param Request $request The HTTP request
-     * @return bool True if origin is allowed, false otherwise
+     * @return bool True if origin is NOT allowed, false otherwise
      */
-    private function isOriginAllowed(NemesisToken $tokenModel, Request $request): bool
+    private function isOriginRestricted(NemesisToken $tokenModel, Request $request): bool
     {
-        $origin = $request->headers->get('Origin');
-
-        // If no origin header, allow by default (non-browser requests)
-        // For browser requests, origin is always sent
-        if ($origin === null) {
-            return true;
+        if (!$this->config->validateOrigin) {
+            return false;
         }
 
-        return $tokenModel->canUseFromOrigin($origin);
+        $origin = $request->headers->get('Origin');
+
+        if ($origin === null) {
+            return false;
+        }
+
+        return !$tokenModel->canUseFromOrigin($origin);
     }
 
     /**
-     * Check if the token has the required ability.
+     * Check if the token has insufficient ability for the request.
      *
      * @param NemesisToken $tokenModel The token model
-     * @param string|null $ability The required ability
-     * @return bool True if token has the ability, false otherwise
+     * @param string|null $requiredAbility The required ability
+     * @return bool True if ability is insufficient, false otherwise
      */
-    private function hasRequiredAbility(NemesisToken $tokenModel, ?string $ability): bool
+    private function hasInsufficientAbility(NemesisToken $tokenModel, ?string $requiredAbility): bool
     {
-        // If no ability is required, allow access
-        if ($ability === null) {
-            return true;
+        if ($requiredAbility === null) {
+            return false;
         }
 
-        return $tokenModel->can($ability);
+        return !$tokenModel->can($requiredAbility);
+    }
+
+    /**
+     * Get the authenticatable model from the token.
+     *
+     * @param NemesisToken $tokenModel The token model
+     * @return mixed The authenticatable model or null
+     */
+    private function getAuthenticatableModel(NemesisToken $tokenModel): mixed
+    {
+        return $tokenModel->tokenable;
+    }
+
+    /**
+     * Check if the authenticatable model implements the required interface.
+     *
+     * @param mixed $authenticatable The authenticatable model
+     * @return bool True if valid, false otherwise
+     */
+    private function isValidAuthenticatable(mixed $authenticatable): bool
+    {
+        return $authenticatable instanceof MustNemesis;
+    }
+
+    /**
+     * Send error response for invalid authenticatable model.
+     *
+     * @param mixed $authenticatable The invalid model
+     * @return JsonResponse The error response
+     */
+    private function sendInvalidAuthenticatableResponse(mixed $authenticatable): JsonResponse
+    {
+        return $this->sendErrorResponse(
+            ErrorCode::INVALID_AUTHENTICATABLE_MODEL,
+            [
+                'message' => 'Authenticatable model must implement MustNemesis interface',
+                'model_class' => get_class($authenticatable),
+                'expected_interface' => MustNemesis::class,
+            ]
+        );
     }
 
     /**
@@ -218,108 +238,119 @@ final class NemesisAuth
      */
     private function attachToRequest(Request $request, mixed $authenticatable, NemesisToken $tokenModel): void
     {
-        $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
-
         $request->merge([
-            $parameterName => $authenticatable,
+            $this->config->parameterName => $authenticatable,
             'currentNemesisToken' => $tokenModel,
         ]);
     }
 
     /**
-     * Check if security headers should be added.
-     *
-     * @return bool True if security headers should be added
-     */
-    private function shouldAddSecurityHeaders(): bool
-    {
-        return config('nemesis.middleware.security_headers', true);
-    }
-
-    /**
-     * Add security headers to the response.
+     * Apply security headers to the response.
      *
      * @param mixed $response The response object
      * @return mixed The response with security headers
      */
-    private function addSecurityHeaders(mixed $response): mixed
+    private function applySecurityHeaders(mixed $response): mixed
     {
-        // Add security headers to prevent common attacks
-        if (method_exists($response, 'header')) {
-            // Prevent clickjacking
-            $response->header('X-Frame-Options', 'DENY');
-
-            // Enable XSS protection
-            $response->header('X-XSS-Protection', '1; mode=block');
-
-            // Prevent MIME type sniffing
-            $response->header('X-Content-Type-Options', 'nosniff');
-
-            // Referrer policy
-            $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-            // HSTS (HTTP Strict Transport Security) - only for HTTPS
-            if (app()->environment('production')) {
-                $response->header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-            }
+        if (!$this->config->securityHeaders) {
+            return $response;
         }
+
+        if (!method_exists($response, 'header')) {
+            return $response;
+        }
+
+        $response->header('X-Frame-Options', 'DENY');
+        $response->header('X-XSS-Protection', '1; mode=block');
+        $response->header('X-Content-Type-Options', 'nosniff');
+        $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        $this->applyHstsHeader($response);
 
         return $response;
     }
 
     /**
-     * Check if CORS headers should be added.
+     * Apply HSTS (Strict-Transport-Security) header in production.
      *
-     * @return bool True if CORS headers should be added
+     * @param Response|JsonResponse $response The response object
      */
-    private function shouldAddCorsHeaders(): bool
+    private function applyHstsHeader(Response|JsonResponse $response): void
     {
-        return config('nemesis.middleware.validate_origin', true);
+        if (app()->environment('production')) {
+            $response->header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
     }
 
     /**
-     * Add CORS headers to the response.
+     * Apply CORS headers to the response.
      *
      * @param mixed $response The response object
      * @param Request $request The HTTP request
      * @return mixed The response with CORS headers
      */
-    private function addCorsHeaders(mixed $response, Request $request): mixed
+    private function applyCorsHeaders(mixed $response, Request $request): mixed
     {
+        if (!$this->config->validateOrigin) {
+            return $response;
+        }
+
         if (!method_exists($response, 'header')) {
             return $response;
         }
 
         $origin = $request->headers->get('Origin');
 
-        // Only add CORS headers if origin is present
-        if ($origin !== null) {
-            $allowCredentials = config('nemesis.cors.allow_credentials', true);
-            $maxAge = config('nemesis.cors.max_age', 86400);
-            $exposeTokenInfo = config('nemesis.cors.expose_token_info', false);
-
-            // Set Access-Control-Allow-Origin to the requesting origin
-            $response->header('Access-Control-Allow-Origin', $origin);
-
-            // Allow credentials if configured
-            if ($allowCredentials) {
-                $response->header('Access-Control-Allow-Credentials', 'true');
-            }
-
-            // For preflight requests, add additional headers
-            if ($request->isMethod('OPTIONS')) {
-                $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-                $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-                $response->header('Access-Control-Max-Age', (string) $maxAge);
-            }
-
-            // Expose token information if configured
-            if ($exposeTokenInfo) {
-                $response->header('Access-Control-Expose-Headers', 'X-Token-Expires-At, X-Token-Abilities');
-            }
+        if ($origin === null) {
+            return $response;
         }
 
+        $response->header('Access-Control-Allow-Origin', $origin);
+
+        $this->applyCorsCredentialsHeader($response);
+        $this->applyPreflightHeaders($response, $request);
+        $this->applyExposeHeaders($response);
+
         return $response;
+    }
+
+    /**
+     * Apply CORS credentials header if configured.
+     *
+     * @param Response|JsonResponse $response The response object
+     */
+    private function applyCorsCredentialsHeader(Response|JsonResponse $response): void
+    {
+        if ($this->config->allowCredentials) {
+            $response->header('Access-Control-Allow-Credentials', 'true');
+        }
+    }
+
+    /**
+     * Apply preflight request headers for OPTIONS method.
+     *
+     * @param Response|JsonResponse $response The response object
+     * @param Request $request The HTTP request
+     */
+    private function applyPreflightHeaders(Response|JsonResponse $response, Request $request): void
+    {
+        if ($request->isMethod('OPTIONS')) {
+            $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+            $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            $response->header('Access-Control-Max-Age', (string) $this->config->maxAge);
+        }
+    }
+
+    /**
+     * Apply expose headers to expose token information.
+     *
+     * @param Response|JsonResponse $response The response object
+     */
+    private function applyExposeHeaders(Response|JsonResponse $response): void
+    {
+        if ($this->config->exposeTokenInfo) {
+            $response->header('Access-Control-Expose-Headers', 'X-Token-Expires-At, X-Token-Abilities');
+        }
     }
 
     /**
@@ -341,16 +372,33 @@ final class NemesisAuth
             status: $errorResponse->status
         );
 
-        // Add CORS headers to error responses if needed
-        if ($this->shouldAddCorsHeaders() && request()->headers->has('Origin')) {
-            $origin = request()->headers->get('Origin');
-            $response->header('Access-Control-Allow-Origin', $origin);
-
-            if (config('nemesis.cors.allow_credentials', true)) {
-                $response->header('Access-Control-Allow-Credentials', 'true');
-            }
-        }
+        $this->addCorsToErrorResponse($response);
 
         return $response;
+    }
+
+    /**
+     * Add CORS headers to error response if needed.
+     *
+     * 
+     * @param JsonResponse $response The error response
+     */
+    private function addCorsToErrorResponse(JsonResponse $response): void
+    {
+        if (!$this->config->validateOrigin) {
+            return;
+        }
+
+        $origin = request()->headers->get('Origin');
+
+        if ($origin === null) {
+            return;
+        }
+
+        $response->header('Access-Control-Allow-Origin', $origin);
+
+        if ($this->config->allowCredentials) {
+            $response->header('Access-Control-Allow-Credentials', 'true');
+        }
     }
 }

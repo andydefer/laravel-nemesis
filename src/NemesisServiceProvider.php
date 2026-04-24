@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis;
 
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Kani\Nemesis\Commands\CleanTokensCommand;
 use Kani\Nemesis\Commands\InstallNemesisCommand;
 use Kani\Nemesis\Commands\ListTokensCommand;
+use Kani\Nemesis\Config\NemesisConfig;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
 
 /**
@@ -43,6 +46,7 @@ class NemesisServiceProvider extends ServiceProvider
         );
 
         $this->registerHelperFunctions();
+        $this->registerNemesisConfig();
         $this->registerMiddleware();
         $this->registerTokenManager();
     }
@@ -72,12 +76,36 @@ class NemesisServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register the NemesisConfig value object as a singleton.
+     *
+     * This makes the configuration available throughout the application
+     * as an immutable value object instead of accessing config() directly.
+     */
+    private function registerNemesisConfig(): void
+    {
+        $this->app->singleton(NemesisConfig::class, function (Application $app): NemesisConfig {
+            /** @var ConfigRepository $config */
+            $config = $app['config'];
+
+            return NemesisConfig::fromLaravelConfig($config);
+        });
+    }
+
+    /**
      * Register package middleware with the router.
      *
      * Registers both an alias and a middleware group for flexibility.
+     * Uses dependency injection to pass the NemesisConfig to the middleware.
      */
     private function registerMiddleware(): void
     {
+        // Register the middleware with dependency injection
+        $this->app->singleton(NemesisAuth::class, function (Application $app): NemesisAuth {
+            return new NemesisAuth(
+                config: $app->make(NemesisConfig::class)
+            );
+        });
+
         $this->app['router']->aliasMiddleware(
             'nemesis.auth',
             NemesisAuth::class
@@ -93,7 +121,7 @@ class NemesisServiceProvider extends ServiceProvider
      */
     private function registerTokenManager(): void
     {
-        $this->app->singleton('nemesis', function ($app): NemesisManager {
+        $this->app->singleton('nemesis', function (Application $app): NemesisManager {
             return new NemesisManager();
         });
     }

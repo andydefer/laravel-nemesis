@@ -1,8 +1,11 @@
 <?php
-// src/Facades/Nemesis.php
 
+declare(strict_types=1);
+
+// src/Facades/Nemesis.php
 namespace Kani\Nemesis\Facades;
 
+use Kani\Nemesis\Models\NemesisToken;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -12,7 +15,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool deleteToken($model, string $token)
  * @method static void deleteAllTokens($model)
  * @method static int revokeExpiredTokens()
- * @method static \Kani\Nemesis\Models\NemesisToken|null getTokenModel(string $token)
+ * @method static NemesisToken|null getTokenModel(string $token)
  */
 class Nemesis extends Facade
 {

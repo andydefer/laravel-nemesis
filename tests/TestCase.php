@@ -49,7 +49,7 @@ abstract class TestCase extends Orchestra
     /**
      * Get the package service providers to register.
      *
-     * @param Application $app The Laravel application instance
+     * @param  Application  $app  The Laravel application instance
      * @return array<int, class-string> The service providers to register
      */
     protected function getPackageProviders($app): array
@@ -65,7 +65,7 @@ abstract class TestCase extends Orchestra
      * Sets up SQLite in-memory database and package-specific
      * configuration defaults for testing.
      *
-     * @param Application $app The Laravel application instance
+     * @param  Application  $app  The Laravel application instance
      */
     protected function getEnvironmentSetUp($app): void
     {
@@ -94,13 +94,13 @@ abstract class TestCase extends Orchestra
     protected function defineDatabaseMigrations(): void
     {
         // Load package migrations if they exist
-        $packageMigrationsPath = __DIR__ . '/../database/migrations';
+        $packageMigrationsPath = __DIR__.'/../database/migrations';
         if (is_dir($packageMigrationsPath)) {
             $this->loadMigrationsFrom($packageMigrationsPath);
         }
 
         // Load test-specific migrations if they exist
-        $testMigrationsPath = __DIR__ . '/database/migrations';
+        $testMigrationsPath = __DIR__.'/database/migrations';
         if (is_dir($testMigrationsPath)) {
             $this->loadMigrationsFrom($testMigrationsPath);
         }

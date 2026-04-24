@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Tests\Unit\Http\Middleware;
 
+use Symfony\Component\HttpFoundation\Response;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\DB;
+use Kani\Nemesis\Config\NemesisConfig;
+use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Enums\ErrorCode;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
 use Kani\Nemesis\Models\NemesisToken;
+use Kani\Nemesis\Tests\Support\TestApiClient;
+use Kani\Nemesis\Tests\Support\TestInvalidModel;
 use Kani\Nemesis\Tests\Support\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
@@ -25,15 +30,18 @@ use Kani\Nemesis\Tests\TestCase;
 final class NemesisAuthTest extends TestCase
 {
     private NemesisAuth $middleware;
+
     private Request $request;
+
     private bool $nextCalled;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->middleware = new NemesisAuth();
-        $this->request = Request::create('/test', 'GET');
+        $config = NemesisConfig::forTesting();
+        $this->middleware = new NemesisAuth($config);
+        $this->request = Request::create('/test', \Symfony\Component\HttpFoundation\Request::METHOD_GET);
         $this->nextCalled = false;
 
         $this->setupMockRoute();
@@ -45,7 +53,7 @@ final class NemesisAuthTest extends TestCase
     private function setupMockRoute(): void
     {
         $route = new Route('GET', '/test', function (): void {});
-        $this->request->setRouteResolver(function () use ($route) {
+        $this->request->setRouteResolver(function () use ($route): Route {
             return $route;
         });
     }
@@ -68,6 +76,7 @@ final class NemesisAuthTest extends TestCase
         // Arrange: Request has no Authorization header
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -76,7 +85,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
@@ -94,6 +103,7 @@ final class NemesisAuthTest extends TestCase
         $this->request->headers->set('Authorization', 'Bearer ');
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -102,7 +112,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
@@ -118,6 +128,7 @@ final class NemesisAuthTest extends TestCase
         $this->request->headers->set('Authorization', 'InvalidToken123');
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -126,7 +137,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::MISSING_TOKEN->value, $data['errorCode']);
@@ -146,6 +157,7 @@ final class NemesisAuthTest extends TestCase
         $this->request->headers->set('Authorization', 'Bearer invalid-token-12345');
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -154,7 +166,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
@@ -178,9 +190,10 @@ final class NemesisAuthTest extends TestCase
 
         $this->expireTokenInDatabase($user->getNemesisToken($plainToken));
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -189,7 +202,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::TOKEN_EXPIRED->value, $data['errorCode']);
@@ -210,14 +223,15 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->expires_at = now()->addDays(30);
         $tokenModel->save();
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
         // Act: Process request through middleware
-        $response = $this->middleware->handle($this->request, $next);
+        $this->middleware->handle($this->request, $next);
 
         // Assert: Next middleware was called
         $this->assertTrue($this->nextCalled);
@@ -236,14 +250,15 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->expires_at = null;
         $tokenModel->save();
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
         // Act: Process request through middleware
-        $response = $this->middleware->handle($this->request, $next);
+        $this->middleware->handle($this->request, $next);
 
         // Assert: Next middleware was called
         $this->assertTrue($this->nextCalled);
@@ -262,9 +277,10 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', ['read']);
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -273,7 +289,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::INSUFFICIENT_PERMISSIONS->value, $data['errorCode']);
@@ -293,9 +309,10 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', ['read', 'write']);
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -305,7 +322,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called and returns success response
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertTrue($data['success']);
@@ -320,9 +337,10 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test', null);
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -332,7 +350,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (null abilities means no restrictions)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -344,9 +362,10 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -356,7 +375,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     // ============================================================================
@@ -372,10 +391,11 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
-        $next = function ($req) use ($parameterName): JsonResponse {
+        $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -400,11 +420,11 @@ final class NemesisAuthTest extends TestCase
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
         $tokenModel = $user->getNemesisToken($plainToken);
-        $originalLastUsed = $tokenModel->last_used_at;
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -431,9 +451,10 @@ final class NemesisAuthTest extends TestCase
 
         $user->delete();
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -442,7 +463,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(401, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
@@ -464,9 +485,10 @@ final class NemesisAuthTest extends TestCase
         $phoneToken = $user->createNemesisToken('Phone App', 'phone');
         $webToken = $user->createNemesisToken('Web App', 'web');
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $phoneToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$phoneToken);
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -478,7 +500,7 @@ final class NemesisAuthTest extends TestCase
 
         // Arrange: Reset for web token test
         $this->resetRequest();
-        $this->request->headers->set('Authorization', 'Bearer ' . $webToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$webToken);
         $this->nextCalled = false;
 
         // Act: Process request with web token
@@ -488,7 +510,7 @@ final class NemesisAuthTest extends TestCase
         $this->assertTrue($this->nextCalled);
     }
 
-        // ============================================================================
+    // ============================================================================
     // Tests for origin validation (CORS)
     // ============================================================================
 
@@ -503,10 +525,11 @@ final class NemesisAuthTest extends TestCase
 
         // Ensure no origin header is set
         $this->request->headers->remove('Origin');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -516,7 +539,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (non-browser requests are allowed)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -532,10 +555,11 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(['https://example.com', 'https://app.example.com']);
 
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -545,7 +569,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -561,10 +585,11 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(['https://example.com']);
 
         $this->request->headers->set('Origin', 'https://malicious.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -573,7 +598,7 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Error response is returned and next middleware was not called
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode(), (string) $response->getContent());
 
         $data = $response->getData(true);
         $this->assertEquals(ErrorCode::ORIGIN_NOT_ALLOWED->value, $data['errorCode']);
@@ -597,10 +622,11 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins([]); // Empty array means allow all
 
         $this->request->headers->set('Origin', 'https://any-domain.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -610,7 +636,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (empty allowed_origins = allow all)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -626,10 +652,11 @@ final class NemesisAuthTest extends TestCase
         $tokenModel->setAllowedOrigins(null); // Null means allow all
 
         $this->request->headers->set('Origin', 'https://another-domain.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -639,7 +666,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (null allowed_origins = allow all)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -661,11 +688,12 @@ final class NemesisAuthTest extends TestCase
             // Arrange: Reset for each subdomain
             $this->resetRequest();
             $this->request->headers->set('Origin', $subdomain);
-            $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+            $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
             $this->nextCalled = false;
 
             $next = function ($req): JsonResponse {
                 $this->nextCalled = true;
+
                 return response()->json(['success' => true]);
             };
 
@@ -673,9 +701,9 @@ final class NemesisAuthTest extends TestCase
             $response = $this->middleware->handle($this->request, $next);
 
             // Assert: Next middleware was called for each subdomain
-            $this->assertTrue($this->nextCalled, "Failed for subdomain: {$subdomain}");
+            $this->assertTrue($this->nextCalled, 'Failed for subdomain: ' . $subdomain);
             $this->assertInstanceOf(JsonResponse::class, $response);
-            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
         }
     }
 
@@ -693,10 +721,11 @@ final class NemesisAuthTest extends TestCase
 
         // Test with different case
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -706,7 +735,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (domains are case-insensitive)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     /**
@@ -723,10 +752,11 @@ final class NemesisAuthTest extends TestCase
 
         // Test with trailing slash in request
         $this->request->headers->set('Origin', 'https://example.com/');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -736,7 +766,7 @@ final class NemesisAuthTest extends TestCase
         // Assert: Next middleware was called (trailing slashes are normalized)
         $this->assertTrue($this->nextCalled);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
     }
 
     // ============================================================================
@@ -752,7 +782,7 @@ final class NemesisAuthTest extends TestCase
         $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
         $plainToken = $user->createNemesisToken('Test Token', 'test');
 
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             return response()->json(['success' => true]);
@@ -763,10 +793,10 @@ final class NemesisAuthTest extends TestCase
 
         // Assert: Security headers are present
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $this->assertEquals('DENY', $response->headers->get('X-Frame-Options'));
-        $this->assertEquals('1; mode=block', $response->headers->get('X-XSS-Protection'));
-        $this->assertEquals('nosniff', $response->headers->get('X-Content-Type-Options'));
-        $this->assertEquals('strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'));
+        $this->assertSame('DENY', $response->headers->get('X-Frame-Options'));
+        $this->assertSame('1; mode=block', $response->headers->get('X-XSS-Protection'));
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+        $this->assertSame('strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'));
     }
 
     /**
@@ -777,6 +807,7 @@ final class NemesisAuthTest extends TestCase
         // Arrange: Request with no token
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -813,11 +844,12 @@ final class NemesisAuthTest extends TestCase
             // Arrange: Reset for each origin
             $this->resetRequest();
             $this->request->headers->set('Origin', $origin);
-            $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+            $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
             $this->nextCalled = false;
 
             $next = function ($req): JsonResponse {
                 $this->nextCalled = true;
+
                 return response()->json(['success' => true]);
             };
 
@@ -825,9 +857,9 @@ final class NemesisAuthTest extends TestCase
             $response = $this->middleware->handle($this->request, $next);
 
             // Assert: Next middleware was called for each allowed origin
-            $this->assertTrue($this->nextCalled, "Failed for origin: {$origin}");
+            $this->assertTrue($this->nextCalled, 'Failed for origin: ' . $origin);
             $this->assertInstanceOf(JsonResponse::class, $response);
-            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
         }
     }
 
@@ -849,10 +881,11 @@ final class NemesisAuthTest extends TestCase
         // Test first origin
         $this->resetRequest();
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
 
         $next = function ($req): JsonResponse {
             $this->nextCalled = true;
+
             return response()->json(['success' => true]);
         };
 
@@ -868,7 +901,8 @@ final class NemesisAuthTest extends TestCase
         // Test removed origin
         $this->resetRequest();
         $this->request->headers->set('Origin', 'https://example.com');
-        $this->request->headers->set('Authorization', 'Bearer ' . $plainToken);
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+
         $this->nextCalled = false;
 
         // Act: Process request through middleware
@@ -883,13 +917,373 @@ final class NemesisAuthTest extends TestCase
     }
 
     // ============================================================================
+    // Tests for revoked tokens (soft delete)
+    // ============================================================================
+
+    /**
+     * Test that request with revoked token (soft deleted) returns INVALID_TOKEN error.
+     */
+    public function test_returns_invalid_token_error_when_token_is_revoked(): void
+    {
+        // Arrange: Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->revoke(); // Soft delete the token
+
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Error response is returned and next middleware was not called
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
+        $this->assertEquals('Invalid token', $data['message']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that revoked token cannot be used even if not expired.
+     */
+    public function test_revoked_token_is_invalid_even_when_not_expired(): void
+    {
+        // Arrange: Create a user and a token with future expiration
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->expires_at = now()->addDays(30);
+        $tokenModel->save();
+        $tokenModel->revoke(); // Soft delete the token
+
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Token should be rejected (revoked overrides expiration)
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that restored token becomes valid again.
+     */
+    public function test_restored_token_becomes_valid_again(): void
+    {
+        // Arrange: Create a user and a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->revoke(); // Soft delete the token
+        $tokenModel->restoreRevoked(); // Restore the token
+
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Restored token should work
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
+    }
+
+    /**
+     * Test that revoke all tokens for a user works correctly.
+     */
+    public function test_revoke_all_tokens_for_user(): void
+    {
+        // Arrange: Create a user with multiple tokens
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $token1 = $user->createNemesisToken('Token 1', 'test');
+        $token2 = $user->createNemesisToken('Token 2', 'test');
+        $token3 = $user->createNemesisToken('Token 3', 'test');
+
+        // Act: Revoke all tokens (soft delete)
+        $user->nemesisTokens()->delete();
+
+        // Assert: First token should be invalid
+        $this->request->headers->set('Authorization', 'Bearer '.$token1);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+        $response = $this->middleware->handle($this->request, $next);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        // Assert: Second token should be invalid
+        $this->resetRequest();
+        $this->request->headers->set('Authorization', 'Bearer '.$token2);
+        $response = $this->middleware->handle($this->request, $next);
+        $this->assertEquals(401, $response->getStatusCode());
+
+        // Assert: Third token should be invalid
+        $this->resetRequest();
+        $this->request->headers->set('Authorization', 'Bearer '.$token3);
+        $response = $this->middleware->handle($this->request, $next);
+        $this->assertEquals(401, $response->getStatusCode());
+    }
+
+    /**
+     * Test that soft deleted tokens are not returned in normal queries.
+     */
+    public function test_soft_deleted_tokens_are_excluded_from_normal_queries(): void
+    {
+        // Arrange: Create a user with tokens
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->revoke(); // Soft delete
+
+        // Act: Try to find the token normally
+        $foundToken = $user->getNemesisToken($plainToken);
+
+        // Assert: Token should not be found in normal queries
+        $this->assertNull($foundToken);
+    }
+
+    /**
+     * Test that withTrashed() can retrieve soft deleted tokens.
+     */
+    public function test_with_trashed_can_retrieve_revoked_tokens(): void
+    {
+        // Arrange: Create a user with a token
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $tokenModel = $user->getNemesisToken($plainToken);
+        $tokenModel->revoke(); // Soft delete
+
+        // Act: Find token with trashed included
+        $hashedToken = hash(config('nemesis.hash_algorithm', 'sha256'), $plainToken);
+        $foundToken = NemesisToken::withTrashed()
+            ->where('token_hash', $hashedToken)
+            ->first();
+
+        // Assert: Token should be found
+        $this->assertInstanceOf(NemesisToken::class, $foundToken);
+        $this->assertTrue($foundToken->trashed());
+        $this->assertTrue($foundToken->isRevoked());
+    }
+
+    // ============================================================================
+    // Tests for MustNemesis contract validation
+    // ============================================================================
+
+    /**
+     * Test that request returns INVALID_AUTHENTICATABLE_MODEL error when tokenable model does not implement MustNemesis.
+     */
+    public function test_returns_invalid_authenticatable_model_error_when_tokenable_does_not_implement_must_nemesis(): void
+    {
+        // Arrange: Create an invalid model that does NOT implement MustNemesis
+        $invalidModel = TestInvalidModel::create(['name' => 'Invalid Client']);
+
+        // Create a token directly in database with the invalid model
+        $hashedToken = hash('sha256', 'test-token-invalid-model');
+
+        DB::table('nemesis_tokens')->insert([
+            'token_hash' => $hashedToken,
+            'tokenable_type' => TestInvalidModel::class,
+            'tokenable_id' => $invalidModel->id,
+            'name' => 'Test Token',
+            'abilities' => json_encode(['read']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->request->headers->set('Authorization', 'Bearer test-token-invalid-model');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Error response is returned with correct error code and status
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $response->getStatusCode(), (string) $response->getContent());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_AUTHENTICATABLE_MODEL->value, $data['errorCode']);
+        $this->assertEquals('Authenticatable model is invalid or misconfigured', $data['message']);
+        $this->assertEquals(500, $data['status']);
+
+        // Assert: Details contain the problematic model class
+        $this->assertArrayHasKey('details', $data);
+        $this->assertEquals('Authenticatable model must implement MustNemesis interface', $data['details']['message']);
+        $this->assertEquals(TestInvalidModel::class, $data['details']['model_class']);
+        $this->assertEquals(MustNemesis::class, $data['details']['expected_interface']);
+
+        // Assert: Next middleware was not called
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that request passes through when tokenable model correctly implements MustNemesis.
+     */
+    public function test_passes_through_when_tokenable_model_implements_must_nemesis(): void
+    {
+        // Arrange: Create a user that implements MustNemesis (TestUser does)
+        $user = TestUser::create(['name' => 'Test User', 'email' => 'test@example.com']);
+        $plainToken = $user->createNemesisToken('Test Token', 'test');
+
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Next middleware was called (valid model implements MustNemesis)
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
+    }
+
+    /**
+     * Test that request passes through when tokenable model is TestApiClient (implements MustNemesis).
+     */
+    public function test_passes_through_when_tokenable_model_is_api_client_implements_must_nemesis(): void
+    {
+        // Arrange: Create an API client that implements MustNemesis
+        $apiClient = TestApiClient::create(['name' => 'API Client', 'api_key' => 'test-key-123']);
+        $plainToken = $apiClient->createNemesisToken('API Token', 'api');
+
+        $this->request->headers->set('Authorization', 'Bearer '.$plainToken);
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Next middleware was called (API client implements MustNemesis)
+        $this->assertTrue($this->nextCalled);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode(), (string) $response->getContent());
+    }
+
+    /**
+     * Test that the interface check happens after token validation but before attaching to request.
+     */
+    public function test_interface_check_occurs_after_token_validation(): void
+    {
+        // Arrange: Create an invalid model that does NOT implement MustNemesis
+        $invalidModel = TestInvalidModel::create(['name' => 'Invalid Client']);
+
+        // Create a valid token (not expired) but link it to an invalid model
+        $hashedToken = hash('sha256', 'valid-token-invalid-model');
+
+        DB::table('nemesis_tokens')->insert([
+            'token_hash' => $hashedToken,
+            'tokenable_type' => TestInvalidModel::class,
+            'tokenable_id' => $invalidModel->id,
+            'name' => 'Test Token',
+            'expires_at' => now()->addDays(30), // Not expired
+            'abilities' => json_encode(['read']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->request->headers->set('Authorization', 'Bearer valid-token-invalid-model');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Token was valid but model fails interface check -> 500 error, not 401
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $response->getStatusCode(), (string) $response->getContent());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_AUTHENTICATABLE_MODEL->value, $data['errorCode']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    /**
+     * Test that token with null tokenable model returns INVALID_TOKEN, not INVALID_AUTHENTICATABLE_MODEL.
+     */
+    public function test_returns_invalid_token_when_tokenable_model_is_null(): void
+    {
+        // Arrange: Create a token with a non-existent tokenable_id
+        $hashedToken = hash('sha256', 'orphan-token');
+
+        DB::table('nemesis_tokens')->insert([
+            'token_hash' => $hashedToken,
+            'tokenable_type' => TestUser::class,
+            'tokenable_id' => 99999, // Non-existent ID
+            'name' => 'Orphan Token',
+            'abilities' => json_encode(['read']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->request->headers->set('Authorization', 'Bearer orphan-token');
+        $next = function ($req): JsonResponse {
+            $this->nextCalled = true;
+
+            return response()->json(['success' => true]);
+        };
+
+        // Act: Process request through middleware
+        $response = $this->middleware->handle($this->request, $next);
+
+        // Assert: Should return INVALID_TOKEN (401), not INVALID_AUTHENTICATABLE_MODEL
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode(), (string) $response->getContent());
+
+        $data = $response->getData(true);
+        $this->assertEquals(ErrorCode::INVALID_TOKEN->value, $data['errorCode']);
+        $this->assertFalse($this->nextCalled);
+    }
+
+    // ============================================================================
     // Helper methods
     // ============================================================================
 
     /**
      * Expire a token by setting its expiration date to the past.
      *
-     * @param NemesisToken $tokenModel The token to expire
+     * @param  NemesisToken  $tokenModel  The token to expire
      */
     private function expireTokenInDatabase(NemesisToken $tokenModel): void
     {
@@ -903,7 +1297,7 @@ final class NemesisAuthTest extends TestCase
      */
     private function resetRequest(): void
     {
-        $this->request = Request::create('/test', 'GET');
+        $this->request = Request::create('/test', \Symfony\Component\HttpFoundation\Request::METHOD_GET);
         $this->setupMockRoute();
     }
 }

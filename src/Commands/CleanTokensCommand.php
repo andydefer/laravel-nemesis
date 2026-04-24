@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Commands;
 
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 use Kani\Nemesis\Models\NemesisToken;
 
 /**
@@ -38,21 +40,35 @@ final class CleanTokensCommand extends Command
     /**
      * Execute the console command.
      *
-     * @return int Exit code (0 for success, 1 for error)
+     * @return int Exit code (0 for success)
      */
     public function handle(): int
     {
-        // Display warning and ask for confirmation unless forced
-        if (!$this->option('force') && !$this->confirm('This will permanently delete expired and old tokens. Do you wish to continue?')) {
-            $this->info('Operation cancelled.');
+        if (!$this->shouldProceed()) {
             return self::SUCCESS;
         }
 
-        $stats = $this->performCleanup();
+        $statistics = $this->performCleanup();
 
-        $this->displayResults($stats);
+        $this->displayResults($statistics);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Determine if the cleanup operation should proceed.
+     *
+     * @return bool True if should proceed, false otherwise
+     */
+    private function shouldProceed(): bool
+    {
+        if ($this->option('force')) {
+            return true;
+        }
+
+        return $this->confirm(
+            'This will permanently delete expired and old tokens. Do you wish to continue?'
+        );
     }
 
     /**
@@ -62,80 +78,108 @@ final class CleanTokensCommand extends Command
      */
     private function performCleanup(): array
     {
-        $stats = [
+        $statistics = [
             'expired' => 0,
             'old' => 0,
             'total' => 0,
         ];
 
-        // Clean expired tokens unless --keep-expired flag is used
-        if (!$this->option('keep-expired')) {
-            $stats['expired'] = $this->deleteExpiredTokens();
-            $this->info("Deleted {$stats['expired']} expired tokens");
-        } else {
-            $this->warn('Keeping expired tokens as requested (--keep-expired)');
-        }
+        $statistics['expired'] = $this->cleanExpiredTokens();
+        $statistics['old'] = $this->cleanOldTokens();
+        $statistics['total'] = $statistics['expired'] + $statistics['old'];
 
-        // Clean old tokens based on retention period
-        $stats['old'] = $this->deleteOldTokens();
-        $stats['total'] = $stats['expired'] + $stats['old'];
-
-        return $stats;
+        return $statistics;
     }
 
     /**
-     * Delete tokens that have expired.
+     * Clean expired tokens from the database.
      *
-     * @return int Number of deleted tokens
+     * @return int Number of expired tokens deleted
      */
-    private function deleteExpiredTokens(): int
+    private function cleanExpiredTokens(): int
     {
-        $query = NemesisToken::where('expires_at', '<', now());
+        if ($this->option('keep-expired')) {
+            $this->warn('Keeping expired tokens as requested (--keep-expired)');
+            return 0;
+        }
 
+        $query = $this->getExpiredTokensQuery();
         $count = $query->count();
 
         if ($count > 0) {
             $query->delete();
+            $this->info(sprintf('Deleted %d expired tokens', $count));
         }
 
         return $count;
     }
 
     /**
-     * Delete old tokens based on retention period.
+     * Get the query builder for expired tokens.
      *
-     * @return int Number of deleted tokens
+     * @return Builder<NemesisToken>
      */
-    private function deleteOldTokens(): int
+    private function getExpiredTokensQuery(): Builder
+    {
+        return NemesisToken::where('expires_at', '<', now());
+    }
+
+    /**
+     * Clean old tokens based on retention period.
+     *
+     * @return int Number of old tokens deleted
+     */
+    private function cleanOldTokens(): int
     {
         $retentionDays = $this->getRetentionDays();
 
-        // If retention is set to 0 or negative, don't delete old tokens
         if ($retentionDays <= 0) {
             $this->info('Retention period is set to 0 or negative, skipping old token cleanup');
             return 0;
         }
 
-        $cutoffDate = now()->subDays($retentionDays);
-
-        $query = NemesisToken::where('created_at', '<', $cutoffDate);
-
-        // Don't delete tokens that are already expired if --keep-expired is not set
-        // They will be handled by the expired tokens cleanup
-        if (!$this->option('keep-expired')) {
-            $query->where(function ($q) {
-                $q->whereNull('expires_at')
-                    ->orWhere('expires_at', '>=', now());
-            });
-        }
+        $cutoffDate = $this->getCutoffDate($retentionDays);
+        $query = $this->getOldTokensQuery($cutoffDate);
 
         $count = $query->count();
 
         if ($count > 0) {
             $query->delete();
+            $this->info(sprintf('Deleted %d old tokens (older than %d days)', $count, $retentionDays));
         }
 
         return $count;
+    }
+
+    /**
+     * Get the cutoff date based on retention days.
+     *
+     * @param int $retentionDays Number of days to keep tokens
+     * @return CarbonInterface The cutoff date
+     */
+    private function getCutoffDate(int $retentionDays): CarbonInterface
+    {
+        return now()->subDays($retentionDays);
+    }
+
+    /**
+     * Get the query builder for old tokens.
+     *
+     * @param CarbonInterface $cutoffDate Tokens created before this date are considered old
+     * @return Builder<NemesisToken>
+     */
+    private function getOldTokensQuery(CarbonInterface $cutoffDate): Builder
+    {
+        $query = NemesisToken::where('created_at', '<', $cutoffDate);
+
+        if (!$this->option('keep-expired')) {
+            $query->where(function (Builder $subQuery): void {
+                $subQuery->whereNull('expires_at')
+                    ->orWhere('expires_at', '>=', now());
+            });
+        }
+
+        return $query;
     }
 
     /**
@@ -150,62 +194,110 @@ final class CleanTokensCommand extends Command
      */
     private function getRetentionDays(): int
     {
-        // Check command line option first
-        if ($this->option('days') !== null) {
-            $days = (int) $this->option('days');
-            $this->info("Using retention period from command line: {$days} days");
+        $daysOption = $this->option('days');
+
+        if ($daysOption !== null) {
+            $days = (int) $daysOption;
+            $this->info(sprintf('Using retention period from command line: %d days', $days));
             return $days;
         }
 
-        // Check configuration
         $configDays = config('nemesis.cleanup.keep_expired_for_days', 30);
-
-        $this->info("Using retention period from config: {$configDays} days");
+        $this->info(sprintf('Using retention period from config: %d days', (int) $configDays));
 
         return (int) $configDays;
     }
 
     /**
-     * Display the cleanup results.
+     * Display the cleanup results in a formatted table.
      *
-     * @param array<string, int> $stats Cleanup statistics
+     * @param array<string, int> $statistics Cleanup statistics
      */
-    private function displayResults(array $stats): void
+    private function displayResults(array $statistics): void
     {
         $this->newLine();
+        $this->displayHeader();
+        $this->displayStatisticsTable($statistics);
+        $this->displayStatusMessage($statistics);
+        $this->displayConfigurationSummary();
+    }
+
+    /**
+     * Display the cleanup header.
+     */
+    private function displayHeader(): void
+    {
         $this->line('═══════════════════════════════════════════════════════');
         $this->info('🧹 TOKEN CLEANUP COMPLETED');
         $this->line('═══════════════════════════════════════════════════════');
+    }
 
+    /**
+     * Display the statistics table.
+     *
+     * @param array<string, int> $statistics Cleanup statistics
+     */
+    private function displayStatisticsTable(array $statistics): void
+    {
         $this->table(
             ['Metric', 'Count'],
             [
-                ['Expired tokens deleted', $stats['expired']],
-                ['Old tokens deleted', $stats['old']],
+                ['Expired tokens deleted', $statistics['expired']],
+                ['Old tokens deleted', $statistics['old']],
                 ['━━━━━━━━━━━━━━━━━━━━━', '━━━━━━━━━'],
-                ['Total tokens deleted', $stats['total']],
+                ['Total tokens deleted', $statistics['total']],
             ]
         );
 
         $this->newLine();
+    }
 
-        if ($stats['total'] === 0) {
+    /**
+     * Display the status message based on cleanup results.
+     *
+     * @param array<string, int> $statistics Cleanup statistics
+     */
+    private function displayStatusMessage(array $statistics): void
+    {
+        if ($statistics['total'] === 0) {
             $this->info('✨ No tokens needed cleaning. Database is clean!');
         } else {
             $this->info('✅ Cleanup completed successfully!');
         }
+    }
 
-        // Display configuration summary
+    /**
+     * Display the current configuration summary.
+     */
+    private function displayConfigurationSummary(): void
+    {
         $this->newLine();
         $this->line('📋 Current Configuration:');
-        $this->line("   • Auto cleanup: " . (config('nemesis.cleanup.auto_cleanup', true) ? '✅ Enabled' : '❌ Disabled'));
-        $this->line("   • Cleanup frequency: " . config('nemesis.cleanup.frequency', 60) . " minutes");
-        $this->line("   • Retention period: " . $this->getRetentionDays() . " days");
+        $this->line(sprintf(
+            '   • Auto cleanup: %s',
+            config('nemesis.cleanup.auto_cleanup', true) ? '✅ Enabled' : '❌ Disabled'
+        ));
+        $this->line(sprintf(
+            '   • Cleanup frequency: %d minutes',
+            config('nemesis.cleanup.frequency', 60)
+        ));
+        $this->line(sprintf(
+            '   • Retention period: %d days',
+            $this->getRetentionDays()
+        ));
 
+        $this->displayExpiredTokensStatus();
+    }
+
+    /**
+     * Display the status of expired token handling.
+     */
+    private function displayExpiredTokensStatus(): void
+    {
         if (!$this->option('keep-expired')) {
-            $this->line("   • Expired tokens: ✅ Removed");
+            $this->line('   • Expired tokens: ✅ Removed');
         } else {
-            $this->line("   • Expired tokens: ⏸️  Kept (--keep-expired flag used)");
+            $this->line('   • Expired tokens: ⏸️  Kept (--keep-expired flag used)');
         }
     }
 

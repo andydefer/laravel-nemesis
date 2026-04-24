@@ -8,6 +8,7 @@ use Illuminate\Routing\Router;
 use Kani\Nemesis\Commands\CleanTokensCommand;
 use Kani\Nemesis\Commands\InstallNemesisCommand;
 use Kani\Nemesis\Commands\ListTokensCommand;
+use Kani\Nemesis\Config\NemesisConfig;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
 use Kani\Nemesis\NemesisManager;
 use Kani\Nemesis\NemesisServiceProvider;
@@ -145,10 +146,106 @@ final class NemesisServiceProviderTest extends TestCase
         $provider->boot();
 
         // Assert: Package configuration and migration files exist and are ready for publishing
-        $configPath = __DIR__ . '/../../config/nemesis.php';
-        $migrationPath = __DIR__ . '/../../database/migrations/';
+        $configPath = __DIR__.'/../../config/nemesis.php';
+        $migrationPath = __DIR__.'/../../database/migrations/';
 
         $this->assertFileExists($configPath);
         $this->assertDirectoryExists($migrationPath);
+    }
+
+    /**
+     * Test that the service provider registers NemesisConfig as a singleton.
+     */
+    public function test_service_provider_registers_nemesis_config(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider
+        $provider->register();
+
+        // Assert: NemesisConfig should be bound in the container
+        $this->assertTrue($this->app->bound(NemesisConfig::class));
+
+        $config = $this->app->make(NemesisConfig::class);
+        $this->assertInstanceOf(NemesisConfig::class, $config);
+
+        // Assert config values are loaded correctly
+        $this->assertSame('Authorization', $config->tokenHeader);
+        $this->assertSame('sha256', $config->hashAlgorithm);
+        $this->assertSame('nemesisAuth', $config->parameterName);
+        $this->assertTrue($config->validateOrigin);
+        $this->assertTrue($config->securityHeaders);
+        $this->assertTrue($config->allowCredentials);
+        $this->assertSame(86400, $config->maxAge);
+        $this->assertFalse($config->exposeTokenInfo);
+    }
+
+    /**
+     * Test that NemesisConfig is a singleton (same instance throughout the app).
+     */
+    public function test_nemesis_config_is_singleton(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve config twice
+        $provider->register();
+
+        $firstInstance = $this->app->make(NemesisConfig::class);
+        $secondInstance = $this->app->make(NemesisConfig::class);
+
+        // Assert: Both instances should be the same object
+        $this->assertSame($firstInstance, $secondInstance);
+    }
+
+    /**
+     * Test that NemesisAuth receives the NemesisConfig dependency via constructor injection.
+     */
+    public function test_nemesis_auth_receives_config_dependency(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve NemesisAuth
+        $provider->register();
+
+        /** @var NemesisAuth $middleware */
+        $middleware = $this->app->make(NemesisAuth::class);
+
+        // Assert: Middleware should be instantiated without errors
+        $this->assertInstanceOf(NemesisAuth::class, $middleware);
+    }
+
+    /**
+     * Test that custom configuration values are properly loaded.
+     */
+    public function test_custom_configuration_values_are_loaded(): void
+    {
+        // Arrange: Set custom configuration values
+        config()->set('nemesis.middleware.token_header', 'X-Custom-Token');
+        config()->set('nemesis.hash_algorithm', 'sha512');
+        config()->set('nemesis.middleware.parameter_name', 'customAuth');
+        config()->set('nemesis.middleware.validate_origin', false);
+        config()->set('nemesis.middleware.security_headers', false);
+        config()->set('nemesis.cors.allow_credentials', false);
+        config()->set('nemesis.cors.max_age', 3600);
+        config()->set('nemesis.cors.expose_token_info', true);
+
+        // Act: Create service provider instance and register
+        $provider = new NemesisServiceProvider($this->app);
+        $provider->register();
+
+        // Assert: Custom values should be reflected in the config object
+        $config = $this->app->make(NemesisConfig::class);
+
+        $this->assertEquals('X-Custom-Token', $config->tokenHeader);
+        $this->assertEquals('sha512', $config->hashAlgorithm);
+        $this->assertEquals('customAuth', $config->parameterName);
+        $this->assertFalse($config->validateOrigin);
+        $this->assertFalse($config->securityHeaders);
+        $this->assertFalse($config->allowCredentials);
+        $this->assertEquals(3600, $config->maxAge);
+        $this->assertTrue($config->exposeTokenInfo);
     }
 }

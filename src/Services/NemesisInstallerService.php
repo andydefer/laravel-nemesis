@@ -1,4 +1,5 @@
 <?php
+
 // src/Services/NemesisInstallerService.php
 
 declare(strict_types=1);
@@ -25,8 +26,8 @@ class NemesisInstallerService
     /**
      * Execute the complete Nemesis package installation process.
      *
-     * @param Command $command Console command instance for user interaction
-     * @param bool $force Skip confirmation prompts when true
+     * @param  Command  $command  Console command instance for user interaction
+     * @param  bool  $force  Skip confirmation prompts when true
      */
     public function install(Command $command, bool $force = false): void
     {
@@ -46,8 +47,8 @@ class NemesisInstallerService
     /**
      * Check if installation should proceed based on user confirmation.
      *
-     * @param Command $command Console command instance
-     * @param bool $force Skip confirmation when true
+     * @param  Command  $command  Console command instance
+     * @param  bool  $force  Skip confirmation when true
      * @return bool True if installation should proceed
      */
     private function shouldProceedWithInstallation(Command $command, bool $force): bool
@@ -62,6 +63,7 @@ class NemesisInstallerService
 
         if (! $command->confirm('Continue?', true)) {
             $command->info('Installation cancelled.');
+
             return false;
         }
 
@@ -71,8 +73,8 @@ class NemesisInstallerService
     /**
      * Publish package resources to the application.
      *
-     * @param Command $command Console command instance
-     * @param bool $force Overwrite existing files when true
+     * @param  Command  $command  Console command instance
+     * @param  bool  $force  Overwrite existing files when true
      */
     private function publishResources(Command $command, bool $force): void
     {
@@ -88,12 +90,13 @@ class NemesisInstallerService
     /**
      * Handle database migrations based on existing tables.
      *
-     * @param Command $command Console command instance
+     * @param  Command  $command  Console command instance
      */
     private function handleDatabaseMigrations(Command $command): void
     {
         if ($this->hasCoreTables()) {
             $command->warn('⚠️ Nemesis tables already exist. Skipping migrations.');
+
             return;
         }
 
@@ -120,7 +123,7 @@ class NemesisInstallerService
     /**
      * Generate token example for the user.
      *
-     * @param Command $command Console command instance
+     * @param  Command  $command  Console command instance
      */
     private function generateTokenExample(Command $command): void
     {
@@ -130,13 +133,13 @@ class NemesisInstallerService
         $exampleToken = bin2hex(random_bytes(32));
 
         $command->line('💡 Example token (for testing):');
-        $command->line("   <info>{$exampleToken}</info>");
+        $command->line(sprintf('   <info>%s</info>', $exampleToken));
     }
 
     /**
      * Display installation success message with next steps.
      *
-     * @param Command $command Console command instance
+     * @param  Command  $command  Console command instance
      */
     private function displaySuccessMessage(Command $command): void
     {
