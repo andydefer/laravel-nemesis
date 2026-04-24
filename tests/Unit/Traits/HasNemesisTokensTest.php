@@ -17,17 +17,17 @@ use Kani\Nemesis\Tests\TestCase;
  */
 final class HasNemesisTokensTest extends TestCase
 {
-    private TestUser $user;
+    private TestUser $testUser;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Set a fixed time for consistent testing
+        // Arrange: Freeze time for consistent test results
         Carbon::setTestNow(Carbon::create(2025, 1, 1, 12, 0, 0));
 
         // Arrange: Create a fresh test user for each test
-        $this->user = TestUser::create([
+        $this->testUser = TestUser::create([
             'name' => 'Test User',
             'email' => 'test@example.com'
         ]);
@@ -35,519 +35,703 @@ final class HasNemesisTokensTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Clean up: Delete all tokens created during the test
-        if ($this->user instanceof TestUser && $this->user->exists) {
-            $this->user->nemesisTokens()->forceDelete();
+        // Arrange: Clean up all tokens created during the test
+        if ($this->testUser->exists) {
+            $this->testUser->nemesisTokens()->forceDelete();
         }
 
+        // Arrange: Restore normal time behavior
         Carbon::setTestNow();
         parent::tearDown();
     }
 
     // ============================================================================
-    // Tests for createNemesisToken()
+    // Token Creation Tests
     // ============================================================================
 
+    /**
+     * Test that createNemesisToken generates a valid token with correct attributes.
+     */
     public function test_create_nemesis_token_creates_new_token(): void
     {
-        $name = 'API Token';
-        $source = 'api';
-        $abilities = ['read', 'write'];
+        // Arrange: Define token properties
+        $tokenName = 'API Token';
+        $tokenSource = 'api';
+        $tokenAbilities = ['read', 'write'];
 
-        $plainToken = $this->user->createNemesisToken($name, $source, $abilities);
+        // Act: Create a new token
+        $plainToken = $this->testUser->createNemesisToken(
+            name: $tokenName,
+            source: $tokenSource,
+            abilities: $tokenAbilities
+        );
 
+        // Assert: Token is a 64-character string
         $this->assertIsString($plainToken);
         $this->assertSame(64, strlen($plainToken));
 
-        $tokenModel = $this->user->getNemesisToken($plainToken);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-        $this->assertEquals($name, $tokenModel->name);
-        $this->assertEquals($source, $tokenModel->source);
-        $this->assertEquals($abilities, $tokenModel->abilities);
+        // Assert: Token is correctly stored in database
+        $storedToken = $this->testUser->getNemesisToken($plainToken);
+        $this->assertInstanceOf(NemesisToken::class, $storedToken);
+        $this->assertEquals($tokenName, $storedToken->name);
+        $this->assertEquals($tokenSource, $storedToken->source);
+        $this->assertEquals($tokenAbilities, $storedToken->abilities);
     }
 
+    /**
+     * Test that createNemesisToken validates and sanitizes metadata correctly.
+     */
     public function test_create_nemesis_token_validates_and_sanitizes_metadata(): void
     {
-        $metadata = ['keep' => 'value', 'remove' => null, 'nested' => ['keep' => 'data', 'empty' => []]];
+        // Arrange: Prepare metadata with null values and empty arrays to be sanitized
+        $rawMetadata = [
+            'keep' => 'value',
+            'remove' => null,
+            'nested' => ['keep' => 'data', 'empty' => []]
+        ];
 
-        $plainToken = $this->user->createNemesisToken(
+        // Act: Create a token with metadata
+        $plainToken = $this->testUser->createNemesisToken(
             name: 'Test Token',
-            metadata: $metadata
+            metadata: $rawMetadata
         );
 
-        $tokenModel = $this->user->getNemesisToken($plainToken);
-        $this->assertEquals(['keep' => 'value', 'nested' => ['keep' => 'data']], $tokenModel->metadata);
+        // Assert: Null values and empty arrays are removed from metadata
+        $storedToken = $this->testUser->getNemesisToken($plainToken);
+        $expectedMetadata = ['keep' => 'value', 'nested' => ['keep' => 'data']];
+        $this->assertEquals($expectedMetadata, $storedToken->metadata);
     }
 
     // ============================================================================
-    // Tests for deleteNemesisTokens() and revokeNemesisTokens()
+    // Bulk Token Deletion Tests
     // ============================================================================
 
+    /**
+     * Test that deleteNemesisTokens permanently deletes all tokens.
+     */
     public function test_delete_nemesis_tokens_permanently_deletes_all_tokens(): void
     {
-        $this->user->createNemesisToken('Token 1');
-        $this->user->createNemesisToken('Token 2');
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
+        // Arrange: Create multiple tokens
+        $this->testUser->createNemesisToken('Token 1');
+        $this->testUser->createNemesisToken('Token 2');
 
-        $deletedCount = $this->user->deleteNemesisTokens();
+        // Arrange: Verify tokens exist before deletion
+        $initialCount = $this->testUser->nemesisTokens()->count();
+        $this->assertEquals(2, $initialCount);
 
+        // Act: Permanently delete all tokens
+        $deletedCount = $this->testUser->deleteNemesisTokens();
+
+        // Assert: All tokens are permanently removed
         $this->assertSame(2, $deletedCount);
-        $this->assertEquals(0, $this->user->nemesisTokens()->count());
-        $this->assertEquals(0, $this->user->nemesisTokens()->withTrashed()->count());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->withTrashed()->count());
     }
 
+    /**
+     * Test that revokeNemesisTokens soft deletes all tokens.
+     */
     public function test_revoke_nemesis_tokens_soft_deletes_all_tokens(): void
     {
-        $this->user->createNemesisToken('Token 1');
-        $this->user->createNemesisToken('Token 2');
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
+        // Arrange: Create multiple tokens
+        $this->testUser->createNemesisToken('Token 1');
+        $this->testUser->createNemesisToken('Token 2');
 
-        $revokedCount = $this->user->revokeNemesisTokens();
+        // Arrange: Verify tokens exist before revocation
+        $initialCount = $this->testUser->nemesisTokens()->count();
+        $this->assertEquals(2, $initialCount);
 
+        // Act: Soft delete all tokens
+        $revokedCount = $this->testUser->revokeNemesisTokens();
+
+        // Assert: All tokens are soft deleted
         $this->assertSame(2, $revokedCount);
-        $this->assertEquals(0, $this->user->nemesisTokens()->count());
-        $this->assertEquals(2, $this->user->nemesisTokens()->withTrashed()->count());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->withTrashed()->count());
     }
 
     // ============================================================================
-    // Tests for deleteCurrentNemesisToken() and revokeCurrentNemesisToken()
+    // Current Token Deletion Tests
     // ============================================================================
 
+    /**
+     * Test that deleteCurrentNemesisToken permanently deletes the current token and returns true.
+     */
     public function test_delete_current_nemesis_token_permanently_deletes_current_token(): void
     {
-        $plainToken = $this->user->createNemesisToken('Current Token');
+        // Arrange: Create a token and authenticate the request
+        $plainToken = $this->testUser->createNemesisToken('Current Token');
         $this->withBearerToken($plainToken);
 
-        $this->assertInstanceOf(NemesisToken::class, $this->user->currentNemesisToken());
+        // Arrange: Verify token exists before deletion
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
 
-        $this->user->deleteCurrentNemesisToken();
+        // Act: Delete the current token
+        $result = $this->testUser->deleteCurrentNemesisToken();
 
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->currentNemesisToken());
-        $this->assertEquals(0, $this->user->nemesisTokens()->withTrashed()->count());
+        // Assert: Token is permanently deleted and method returns true
+        $this->assertTrue($result);
+        $this->assertNull($this->testUser->currentNemesisToken());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->withTrashed()->count());
     }
 
+    /**
+     * Test that deleteCurrentNemesisToken returns false when no token is present.
+     */
+    public function test_delete_current_nemesis_token_returns_false_when_no_token(): void
+    {
+        // Arrange: Ensure no token is set in the request
+        $this->withBearerToken('');
+
+        // Act: Attempt to delete the current token
+        $result = $this->testUser->deleteCurrentNemesisToken();
+
+        // Assert: Method returns false because no token was found
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Test that revokeCurrentNemesisToken soft deletes the current token and returns true.
+     */
     public function test_revoke_current_nemesis_token_soft_deletes_current_token(): void
     {
-        $plainToken = $this->user->createNemesisToken('Current Token');
+        // Arrange: Create a token and authenticate the request
+        $plainToken = $this->testUser->createNemesisToken('Current Token');
         $this->withBearerToken($plainToken);
 
-        $this->assertInstanceOf(NemesisToken::class, $this->user->currentNemesisToken());
+        // Arrange: Verify token exists before revocation
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
 
-        $this->user->revokeCurrentNemesisToken();
+        // Act: Revoke the current token
+        $result = $this->testUser->revokeCurrentNemesisToken();
 
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->currentNemesisToken());
-        $this->assertEquals(1, $this->user->nemesisTokens()->withTrashed()->count());
+        // Assert: Token is soft deleted and method returns true
+        $this->assertTrue($result);
+        $this->assertNull($this->testUser->currentNemesisToken());
+        $this->assertEquals(1, $this->testUser->nemesisTokens()->withTrashed()->count());
+    }
+
+    /**
+     * Test that revokeCurrentNemesisToken returns false when no token is present.
+     */
+    public function test_revoke_current_nemesis_token_returns_false_when_no_token(): void
+    {
+        // Arrange: Ensure no token is set in the request
+        $this->withBearerToken('');
+
+        // Act: Attempt to revoke the current token
+        $result = $this->testUser->revokeCurrentNemesisToken();
+
+        // Assert: Method returns false because no token was found
+        $this->assertFalse($result);
     }
 
     // ============================================================================
-    // Tests for hasNemesisTokens()
+    // Token Existence Tests
     // ============================================================================
 
+    /**
+     * Test that hasNemesisTokens returns false when no tokens exist.
+     */
     public function test_has_nemesis_tokens_returns_false_when_no_tokens(): void
     {
-        $this->assertFalse($this->user->hasNemesisTokens());
+        // Assert: No tokens exist
+        $this->assertFalse($this->testUser->hasNemesisTokens());
     }
 
+    /**
+     * Test that hasNemesisTokens returns true when tokens exist.
+     */
     public function test_has_nemesis_tokens_returns_true_when_tokens_exist(): void
     {
-        $this->user->createNemesisToken('Test Token');
-        $this->assertTrue($this->user->hasNemesisTokens());
+        // Arrange: Create a token
+        $this->testUser->createNemesisToken('Test Token');
+
+        // Assert: Tokens exist
+        $this->assertTrue($this->testUser->hasNemesisTokens());
     }
 
+    /**
+     * Test that hasNemesisTokens with trashed parameter includes soft deleted tokens.
+     */
     public function test_has_nemesis_tokens_with_trashed_includes_soft_deleted_tokens(): void
     {
         // Arrange: Create a token
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $this->assertInstanceOf(NemesisToken::class, $tokenModel);
 
         // Act: Soft delete the token
         $tokenModel->delete();
 
         // Assert: Without trashed returns false (soft deleted not visible)
-        $this->assertFalse($this->user->hasNemesisTokens());
+        $this->assertFalse($this->testUser->hasNemesisTokens());
 
         // Assert: With trashed returns true (includes soft deleted)
-        $this->assertTrue($this->user->hasNemesisTokens(withTrashed: true));
+        $this->assertTrue($this->testUser->hasNemesisTokens(withTrashed: true));
     }
 
     // ============================================================================
-    // Tests for getNemesisToken()
+    // Token Retrieval Tests
     // ============================================================================
 
+    /**
+     * Test that getNemesisToken retrieves a token by its plain text value.
+     */
     public function test_get_nemesis_token_retrieves_token_by_plain_text(): void
     {
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        // Arrange: Create a token
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
 
+        // Act: Retrieve the token
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
+
+        // Assert: Token is correctly retrieved
         $this->assertInstanceOf(NemesisToken::class, $tokenModel);
         $this->assertEquals('Test Token', $tokenModel->name);
     }
 
+    /**
+     * Test that getNemesisToken returns null for an invalid token.
+     */
     public function test_get_nemesis_token_returns_null_for_invalid_token(): void
     {
-        $tokenModel = $this->user->getNemesisToken('invalid-token');
-        $this->assertNotInstanceOf(NemesisToken::class, $tokenModel);
+        // Act: Attempt to retrieve an invalid token
+        $tokenModel = $this->testUser->getNemesisToken('invalid-token');
+
+        // Assert: Null is returned
+        $this->assertNull($tokenModel);
     }
 
+    /**
+     * Test that getNemesisToken with trashed parameter includes soft deleted tokens.
+     */
     public function test_get_nemesis_token_with_trashed_includes_soft_deleted_tokens(): void
     {
         // Arrange: Create a token
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $this->assertInstanceOf(NemesisToken::class, $tokenModel);
 
         // Act: Soft delete the token
         $tokenModel->delete();
 
         // Assert: Without trashed returns null
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->getNemesisToken($plainToken));
+        $this->assertNull($this->testUser->getNemesisToken($plainToken));
 
         // Assert: With trashed returns the soft deleted token
-        $foundToken = $this->user->getNemesisToken($plainToken, withTrashed: true);
+        $foundToken = $this->testUser->getNemesisToken($plainToken, withTrashed: true);
         $this->assertInstanceOf(NemesisToken::class, $foundToken);
         $this->assertTrue($foundToken->trashed());
     }
 
     // ============================================================================
-    // Tests for validateNemesisToken()
+    // Token Validation Tests
     // ============================================================================
 
+    /**
+     * Test that validateNemesisToken returns true for a valid token.
+     */
     public function test_validate_nemesis_token_returns_true_for_valid_token(): void
     {
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        // Arrange: Create a valid token with future expiration
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $tokenModel->expires_at = now()->addDays(10);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
         $tokenModel->save();
 
-        $this->assertTrue($this->user->validateNemesisToken($plainToken));
+        // Assert: Token is valid
+        $this->assertTrue($this->testUser->validateNemesisToken($plainToken));
     }
 
+    /**
+     * Test that validateNemesisToken returns false for an invalid token.
+     */
     public function test_validate_nemesis_token_returns_false_for_invalid_token(): void
     {
-        $this->assertFalse($this->user->validateNemesisToken('invalid-token'));
+        // Assert: Invalid token returns false
+        $this->assertFalse($this->testUser->validateNemesisToken('invalid-token'));
     }
 
+    /**
+     * Test that validateNemesisToken returns false for a revoked token.
+     */
     public function test_validate_nemesis_token_returns_false_for_revoked_token(): void
     {
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        // Arrange: Create a token and revoke it
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $tokenModel->expires_at = now()->addDays(10);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
         $tokenModel->save();
         $tokenModel->delete();
 
-        $this->assertFalse($this->user->validateNemesisToken($plainToken));
+        // Assert: Revoked token is invalid
+        $this->assertFalse($this->testUser->validateNemesisToken($plainToken));
     }
 
+    /**
+     * Test that validateNemesisToken with includeRevoked includes revoked tokens.
+     */
     public function test_validate_nemesis_token_with_include_revoked_includes_revoked_tokens(): void
     {
         // Arrange: Create a token with future expiration and soft delete it
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $tokenModel->expires_at = now()->addDays(10);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
         $tokenModel->save();
         $tokenModel->delete();
 
         // Assert: With includeRevoked returns true (token exists and is not expired)
-        $this->assertTrue($this->user->validateNemesisToken($plainToken, includeRevoked: true));
+        $this->assertTrue($this->testUser->validateNemesisToken($plainToken, includeRevoked: true));
     }
 
+    /**
+     * Test that validateNemesisToken with includeRevoked returns false for expired revoked tokens.
+     */
     public function test_validate_nemesis_token_with_include_revoked_returns_false_for_expired_revoked_token(): void
     {
         // Arrange: Create a token with past expiration and soft delete it
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $tokenModel->expires_at = now()->subDay();
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
         $tokenModel->save();
         $tokenModel->delete();
 
         // Assert: With includeRevoked returns false (token is expired)
-        $this->assertFalse($this->user->validateNemesisToken($plainToken, includeRevoked: true));
+        $this->assertFalse($this->testUser->validateNemesisToken($plainToken, includeRevoked: true));
     }
 
     // ============================================================================
-    // Tests for touchNemesisToken()
+    // Token Touch Tests
     // ============================================================================
 
-    public function test_touch_nemesis_token_updates_last_used_at(): void
+    /**
+     * Test that touchNemesisToken updates last_used_at and returns true.
+     */
+    public function test_touch_nemesis_token_updates_last_used_at_and_returns_true(): void
     {
-        $plainToken = $this->user->createNemesisToken('Test Token');
-        $tokenModel = $this->user->getNemesisToken($plainToken);
+        // Arrange: Create a token and store its original last_used_at
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
+        $tokenModel = $this->testUser->getNemesisToken($plainToken);
         $originalLastUsed = $tokenModel->last_used_at;
 
+        // Arrange: Advance time by one hour
         Carbon::setTestNow(now()->addHour());
 
-        $this->user->touchNemesisToken($plainToken);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+        // Act: Touch the token
+        $result = $this->testUser->touchNemesisToken($plainToken);
 
+        // Assert: Method returns true and last_used_at was updated
+        $this->assertTrue($result);
         $tokenModel->refresh();
         $this->assertNotEquals($originalLastUsed, $tokenModel->last_used_at);
     }
 
+    /**
+     * Test that touchNemesisToken returns false for an invalid token.
+     */
+    public function test_touch_nemesis_token_returns_false_for_invalid_token(): void
+    {
+        // Act: Attempt to touch an invalid token
+        $result = $this->testUser->touchNemesisToken('invalid-token');
+
+        // Assert: Method returns false because token was not found
+        $this->assertFalse($result);
+    }
+
     // ============================================================================
-    // Tests for getNemesisTokensBySource()
+    // Token Source Filtering Tests
     // ============================================================================
 
+    /**
+     * Test that getNemesisTokensBySource returns tokens filtered by source.
+     */
     public function test_get_nemesis_tokens_by_source_returns_filtered_tokens(): void
     {
-        $this->user->createNemesisToken('Web Token', 'web');
-        $this->user->createNemesisToken('Mobile Token', 'mobile');
-        $this->user->createNemesisToken('API Token', 'api');
+        // Arrange: Create tokens with different sources
+        $this->testUser->createNemesisToken('Web Token', 'web');
+        $this->testUser->createNemesisToken('Mobile Token', 'mobile');
+        $this->testUser->createNemesisToken('API Token', 'api');
 
-        $webTokens = $this->user->getNemesisTokensBySource('web');
-        $mobileTokens = $this->user->getNemesisTokensBySource('mobile');
+        // Act: Filter tokens by source
+        $webTokens = $this->testUser->getNemesisTokensBySource('web');
+        $mobileTokens = $this->testUser->getNemesisTokensBySource('mobile');
 
+        // Assert: Only tokens with matching source are returned
         $this->assertCount(1, $webTokens);
         $this->assertEquals('Web Token', $webTokens->first()->name);
         $this->assertCount(1, $mobileTokens);
         $this->assertEquals('Mobile Token', $mobileTokens->first()->name);
     }
 
+    /**
+     * Test that getNemesisTokensBySource with trashed includes soft deleted tokens.
+     */
     public function test_get_nemesis_tokens_by_source_with_trashed_includes_soft_deleted_tokens(): void
     {
         // Arrange: Create tokens with same source
-        $this->user->createNemesisToken('Web Token 1', 'web');
-        $this->user->createNemesisToken('Web Token 2', 'web');
+        $this->testUser->createNemesisToken('Web Token 1', 'web');
+        $this->testUser->createNemesisToken('Web Token 2', 'web');
 
-        // Get the second token and revoke it
-        $tokens = $this->user->getNemesisTokensBySource('web');
+        // Arrange: Get the second token and revoke it
+        $tokens = $this->testUser->getNemesisTokensBySource('web');
         $this->assertCount(2, $tokens);
-
         $secondToken = $tokens->last();
         $secondToken->delete();
 
         // Act: Get tokens by source without trashed
-        $webTokensWithoutTrashed = $this->user->getNemesisTokensBySource('web');
+        $webTokensWithoutTrashed = $this->testUser->getNemesisTokensBySource('web');
 
-        // Assert: Without trashed returns only non-deleted (1 token)
+        // Assert: Without trashed returns only non-deleted tokens
         $this->assertCount(1, $webTokensWithoutTrashed);
         $this->assertEquals('Web Token 1', $webTokensWithoutTrashed->first()->name);
 
         // Act: Get tokens by source with trashed
-        $webTokensWithTrashed = $this->user->getNemesisTokensBySource('web', withTrashed: true);
+        $webTokensWithTrashed = $this->testUser->getNemesisTokensBySource('web', withTrashed: true);
 
         // Assert: With trashed returns all tokens (including soft deleted)
         $this->assertCount(2, $webTokensWithTrashed);
     }
 
     // ============================================================================
-    // Tests for revokeExpiredNemesisTokens()
+    // Expired Token Revocation Tests
     // ============================================================================
 
+    /**
+     * Test that revokeExpiredNemesisTokens soft deletes expired tokens only.
+     */
     public function test_revoke_expired_nemesis_tokens_soft_deletes_expired_tokens(): void
     {
         // Arrange: Create expired and valid tokens
-        $expiredPlainToken = $this->user->createNemesisToken('Expired Token');
-        $validPlainToken = $this->user->createNemesisToken('Valid Token');
+        $expiredPlainToken = $this->testUser->createNemesisToken('Expired Token');
+        $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
 
-        // Expire the first token
-        $expiredTokenModel = $this->user->getNemesisToken($expiredPlainToken);
+        // Arrange: Expire the first token
+        $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
         $expiredTokenModel->expires_at = now()->subDay();
-        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
         $expiredTokenModel->save();
 
-        // Set valid token to future expiration
-        $validTokenModel = $this->user->getNemesisToken($validPlainToken);
+        // Arrange: Set valid token to future expiration
+        $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
         $validTokenModel->expires_at = now()->addDays(10);
-        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
         $validTokenModel->save();
 
         // Act: Revoke expired tokens
-        $revokedCount = $this->user->revokeExpiredNemesisTokens();
+        $revokedCount = $this->testUser->revokeExpiredNemesisTokens();
 
         // Assert: Only expired token is soft deleted
         $this->assertSame(1, $revokedCount);
 
-        // Verify expired token is soft deleted
-        $deletedToken = $this->user->getNemesisToken($expiredPlainToken, withTrashed: true);
+        // Assert: Expired token is soft deleted
+        $deletedToken = $this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true);
         $this->assertInstanceOf(NemesisToken::class, $deletedToken);
         $this->assertTrue($deletedToken->trashed());
 
-        // Verify valid token still exists and is not soft deleted
-        $validToken = $this->user->getNemesisToken($validPlainToken);
+        // Assert: Valid token remains active
+        $validToken = $this->testUser->getNemesisToken($validPlainToken);
         $this->assertInstanceOf(NemesisToken::class, $validToken);
         $this->assertFalse($validToken->trashed());
     }
 
+    /**
+     * Test that revokeExpiredNemesisTokens does not affect valid tokens.
+     */
     public function test_revoke_expired_nemesis_tokens_does_not_affect_valid_tokens(): void
     {
-        // Arrange: Create a valid token
-        $validPlainToken = $this->user->createNemesisToken('Valid Token');
-        $validTokenModel = $this->user->getNemesisToken($validPlainToken);
+        // Arrange: Create a valid token with future expiration
+        $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
+        $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
         $validTokenModel->expires_at = now()->addDays(10);
-        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
         $validTokenModel->save();
 
         // Act: Revoke expired tokens
-        $revokedCount = $this->user->revokeExpiredNemesisTokens();
+        $revokedCount = $this->testUser->revokeExpiredNemesisTokens();
 
         // Assert: No tokens were deleted
         $this->assertSame(0, $revokedCount);
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($validPlainToken));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
         $this->assertFalse($validTokenModel->fresh()->trashed());
     }
 
     // ============================================================================
-    // Tests for forceDeleteExpiredNemesisTokens()
+    // Expired Token Permanent Deletion Tests
     // ============================================================================
 
+    /**
+     * Test that forceDeleteExpiredNemesisTokens permanently deletes expired tokens.
+     */
     public function test_force_delete_expired_nemesis_tokens_permanently_deletes_expired_tokens(): void
     {
-        $expiredPlainToken = $this->user->createNemesisToken('Expired Token');
-        $validPlainToken = $this->user->createNemesisToken('Valid Token');
+        // Arrange: Create expired and valid tokens
+        $expiredPlainToken = $this->testUser->createNemesisToken('Expired Token');
+        $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
 
-        $expiredTokenModel = $this->user->getNemesisToken($expiredPlainToken);
+        // Arrange: Expire the first token
+        $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
         $expiredTokenModel->expires_at = now()->subDay();
-        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
         $expiredTokenModel->save();
 
-        $deletedCount = $this->user->forceDeleteExpiredNemesisTokens();
+        // Act: Permanently delete expired tokens
+        $deletedCount = $this->testUser->forceDeleteExpiredNemesisTokens();
 
+        // Assert: Only expired token is permanently deleted
         $this->assertSame(1, $deletedCount);
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->getNemesisToken($expiredPlainToken, withTrashed: true));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($validPlainToken));
+        $this->assertNull($this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
     }
 
     // ============================================================================
-    // Tests for restoreNemesisTokens()
+    // Token Restoration Tests
     // ============================================================================
 
+    /**
+     * Test that restoreNemesisTokens restores all revoked tokens.
+     */
     public function test_restore_nemesis_tokens_restores_all_revoked_tokens(): void
     {
         // Arrange: Create multiple tokens
-        $token1 = $this->user->createNemesisToken('Token 1');
-        $token2 = $this->user->createNemesisToken('Token 2');
+        $token1 = $this->testUser->createNemesisToken('Token 1');
+        $token2 = $this->testUser->createNemesisToken('Token 2');
 
-        // Soft delete both tokens
-        $tokenModel1 = $this->user->getNemesisToken($token1);
-        $tokenModel2 = $this->user->getNemesisToken($token2);
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel1);
+        // Arrange: Soft delete both tokens
+        $tokenModel1 = $this->testUser->getNemesisToken($token1);
+        $tokenModel2 = $this->testUser->getNemesisToken($token2);
         $tokenModel1->delete();
-        $this->assertInstanceOf(NemesisToken::class, $tokenModel2);
         $tokenModel2->delete();
 
-        // Verify they are soft deleted
-        $this->assertEquals(0, $this->user->nemesisTokens()->count());
-        $this->assertEquals(2, $this->user->nemesisTokens()->withTrashed()->count());
+        // Arrange: Verify they are soft deleted
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->withTrashed()->count());
 
         // Act: Restore all tokens
-        $restoredCount = $this->user->restoreNemesisTokens();
+        $restoredCount = $this->testUser->restoreNemesisTokens();
 
-        // Assert: All tokens should be restored
+        // Assert: All tokens are restored
         $this->assertSame(2, $restoredCount);
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
-        $this->assertEquals(0, $this->user->nemesisTokens()->onlyTrashed()->count());
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->onlyTrashed()->count());
     }
 
+    /**
+     * Test that restoreNemesisTokens returns zero when no revoked tokens exist.
+     */
     public function test_restore_nemesis_tokens_returns_zero_when_no_revoked_tokens(): void
     {
         // Arrange: Create valid tokens (not deleted)
-        $token1 = $this->user->createNemesisToken('Token 1');
-        $token2 = $this->user->createNemesisToken('Token 2');
+        $token1 = $this->testUser->createNemesisToken('Token 1');
+        $token2 = $this->testUser->createNemesisToken('Token 2');
 
-        // Verify both tokens are active
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($token1));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($token2));
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
+        // Arrange: Verify both tokens are active
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($token1));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($token2));
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->count());
 
         // Act: Try to restore tokens (nothing to restore)
-        $restoredCount = $this->user->restoreNemesisTokens();
+        $restoredCount = $this->testUser->restoreNemesisTokens();
 
-        // Assert: No tokens were restored (restore returns 0 when nothing to restore)
+        // Assert: No tokens were restored
         $this->assertSame(0, $restoredCount);
 
-        // Verify tokens still exist and are still active
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($token1));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($token2));
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
+        // Assert: Tokens are still active
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($token1));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($token2));
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->count());
     }
 
+    /**
+     * Test that restoreNemesisTokens restores only revoked tokens while keeping valid tokens.
+     */
     public function test_can_restore_only_revoked_tokens_while_keeping_valid_tokens(): void
     {
-        // Arrange: Create tokens - one valid, one revoked
-        $validPlainToken = $this->user->createNemesisToken('Valid Token');
-        $revokedPlainToken = $this->user->createNemesisToken('Revoked Token');
+        // Arrange: Create valid and revoked tokens
+        $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
+        $revokedPlainToken = $this->testUser->createNemesisToken('Revoked Token');
 
-        // Verify both tokens are active initially
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($validPlainToken));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($revokedPlainToken));
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
+        // Arrange: Verify both tokens are active initially
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken));
 
-        // Revoke only the second token
-        $revokedTokenModel = $this->user->getNemesisToken($revokedPlainToken);
-        $this->assertInstanceOf(NemesisToken::class, $revokedTokenModel);
+        // Arrange: Revoke only the second token
+        $revokedTokenModel = $this->testUser->getNemesisToken($revokedPlainToken);
         $revokedTokenModel->delete();
 
-        // Verify state: 1 active token (valid), 1 revoked (soft deleted)
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($validPlainToken));
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->getNemesisToken($revokedPlainToken));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($revokedPlainToken, withTrashed: true));
-        $this->assertEquals(1, $this->user->nemesisTokens()->count());
-        $this->assertEquals(1, $this->user->nemesisTokens()->onlyTrashed()->count());
+        // Arrange: Verify state: 1 active, 1 soft deleted
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
+        $this->assertNull($this->testUser->getNemesisToken($revokedPlainToken));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken, withTrashed: true));
+        $this->assertEquals(1, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(1, $this->testUser->nemesisTokens()->onlyTrashed()->count());
 
         // Act: Restore all tokens
-        $restoredCount = $this->user->restoreNemesisTokens();
+        $restoredCount = $this->testUser->restoreNemesisTokens();
 
-        // Assert: Only the revoked token was restored (1 restored)
+        // Assert: Only the revoked token was restored
         $this->assertSame(1, $restoredCount);
 
-        // Now both tokens should be active (2 active tokens)
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($validPlainToken));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($revokedPlainToken));
-        $this->assertEquals(2, $this->user->nemesisTokens()->count());
-        $this->assertEquals(0, $this->user->nemesisTokens()->onlyTrashed()->count());
+        // Assert: Both tokens are now active
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken));
+        $this->assertEquals(2, $this->testUser->nemesisTokens()->count());
+        $this->assertEquals(0, $this->testUser->nemesisTokens()->onlyTrashed()->count());
     }
 
     // ============================================================================
-    // Tests for combined soft delete operations
+    // Combined Soft Delete Operation Tests
     // ============================================================================
 
+    /**
+     * Test that revoke then restore tokens works correctly.
+     */
     public function test_revoke_then_restore_tokens(): void
     {
         // Arrange: Create a token
-        $plainToken = $this->user->createNemesisToken('Test Token');
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
 
         // Act: Revoke the token
-        $this->user->revokeNemesisTokens();
+        $this->testUser->revokeNemesisTokens();
 
         // Assert: Token is soft deleted
-        $this->assertNotInstanceOf(NemesisToken::class, $this->user->getNemesisToken($plainToken));
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($plainToken, withTrashed: true));
+        $this->assertNull($this->testUser->getNemesisToken($plainToken));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken, withTrashed: true));
 
         // Act: Restore the token
-        $this->user->restoreNemesisTokens();
+        $this->testUser->restoreNemesisTokens();
 
         // Assert: Token is restored
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($plainToken));
-        $this->assertFalse($this->user->getNemesisToken($plainToken)->trashed());
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken));
+        $this->assertFalse($this->testUser->getNemesisToken($plainToken)->trashed());
     }
 
+    /**
+     * Test that revoke then permanently delete tokens works correctly.
+     */
     public function test_revoke_then_permanently_delete_tokens(): void
     {
         // Arrange: Create a token
-        $plainToken = $this->user->createNemesisToken('Test Token');
+        $plainToken = $this->testUser->createNemesisToken('Test Token');
 
         // Act: Revoke the token (soft delete)
-        $this->user->revokeNemesisTokens();
+        $this->testUser->revokeNemesisTokens();
 
         // Assert: Token is soft deleted
-        $this->assertInstanceOf(NemesisToken::class, $this->user->getNemesisToken($plainToken, withTrashed: true));
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken, withTrashed: true));
 
         // Act: Permanently delete all tokens
-        $this->user->deleteNemesisTokens();
+        $this->testUser->deleteNemesisTokens();
 
         // Assert: Token is permanently deleted
-        $this->assertNull($this->user->getNemesisToken($plainToken, withTrashed: true));
+        $this->assertNull($this->testUser->getNemesisToken($plainToken, withTrashed: true));
     }
 
     // ============================================================================
-    // Helper methods
+    // Helper Methods
     // ============================================================================
 
+    /**
+     * Set the bearer token in the request header for authentication simulation.
+     *
+     * @param string $token The token to set in the Authorization header
+     */
     private function withBearerToken(string $token): void
     {
         $this->app['request']->headers->set('Authorization', 'Bearer ' . $token);

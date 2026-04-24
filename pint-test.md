@@ -1,5 +1,5 @@
 # Pint Formatting Test Report
-*Generated: ven. 24 avril 2026 22:38:30 WAT*
+*Generated: ven. 24 avril 2026 23:07:47 WAT*
 
 
   ⨯.⨯⨯⨯⨯⨯⨯⨯⨯..⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.⨯
@@ -21,7 +21,7 @@
   ⨯ src/Models/NemesisToken.php                                      concat_space, unary_operator_spaces, not_operator_with_successor_space, blank_line_before_statement, phpdoc_align  
   ⨯ src/NemesisManager.php                                                                                                                phpdoc_no_package, phpdoc_trim, phpdoc_align  
   ⨯ src/NemesisServiceProvider.php                                                                                                                  new_with_parentheses, concat_space  
-  ⨯ src/Traits/HasNemesisTokens.php                                                            unary_operator_spaces, not_operator_with_successor_space, ordered_imports, phpdoc_align  
+  ⨯ src/Traits/HasNemesisTokens.php                                                     fully_qualified_strict_types, not_operator_with_successor_space, ordered_imports, phpdoc_align  
   ⨯ src/helpers.php                                        fully_qualified_strict_types, concat_space, not_operator_with_successor_space, blank_line_before_statement, ordered_imports  
   ⨯ tests/Support/TestApiClient.php                                                                                                                     phpdoc_no_package, phpdoc_trim  
   ⨯ tests/Support/TestCheckPoint.php                                                                                                                    phpdoc_no_package, phpdoc_trim  
@@ -36,7 +36,7 @@
   ⨯ tests/Unit/Http/Middleware/NemesisAuthTest.php          concat_space, braces_position, statement_indentation, single_line_empty_body, blank_line_before_statement, ordered_imports  
   ⨯ tests/Unit/Models/NemesisTokenTest.php                                                                                                                 trailing_comma_in_multiline  
   ⨯ tests/Unit/Services/TokenMetadataServiceTest.php                                                                                                     increment_style, concat_space  
-  ⨯ tests/Unit/Traits/HasNemesisTokensTest.php                                                                                               concat_space, trailing_comma_in_multiline  
+  ⨯ tests/Unit/Traits/HasNemesisTokensTest.php                                                                                 concat_space, trailing_comma_in_multiline, phpdoc_align  
   ⨯ tests/database/migrations/2024_01_01_000001_create_test_users_table.php                                          class_definition, phpdoc_no_package, braces_position, phpdoc_trim  
   ⨯ tests/database/migrations/2024_01_01_000002_create_invalid_models_table.php                                      class_definition, phpdoc_no_package, braces_position, phpdoc_trim  
   ⨯ tests/database/migrations/2024_01_01_000003_create_test_checkpoints_table.php                                    class_definition, phpdoc_no_package, braces_position, phpdoc_trim  

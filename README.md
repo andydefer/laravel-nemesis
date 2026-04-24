@@ -1,4 +1,4 @@
-# Nemesis
+# Nemesis — Authentification par tokens multi-modèles pour Laravel
 
 ![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-blue)
 ![Laravel Version](https://img.shields.io/badge/Laravel-12%2B-orange)
@@ -134,9 +134,13 @@ Authorization: Bearer <token>
 public function revokeCurrentToken(Request $request)
 {
     $authenticatable = current_authenticatable();
-    $authenticatable->revokeCurrentNemesisToken();
-
-    return response()->json(['message' => 'Token révoqué']);
+    
+    // La méthode retourne un booléen indiquant le succès
+    if ($authenticatable->revokeCurrentNemesisToken()) {
+        return response()->json(['message' => 'Token révoqué avec succès']);
+    }
+    
+    return response()->json(['error' => 'Aucun token actif trouvé'], 404);
 }
 ```
 
@@ -405,9 +409,13 @@ public function validate(Request $request)
 public function logoutCheckPoint()
 {
     $checkpoint = current_authenticatable();
-    $checkpoint->revokeCurrentNemesisToken(); // soft delete
-
-    return response()->json(['message' => 'Token révoqué']);
+    
+    // La méthode retourne un booléen indiquant si la révocation a réussi
+    if ($checkpoint->revokeCurrentNemesisToken()) {
+        return response()->json(['message' => 'Token révoqué avec succès']);
+    }
+    
+    return response()->json(['error' => 'Aucun token actif trouvé'], 404);
 }
 ```
 
@@ -415,23 +423,23 @@ public function logoutCheckPoint()
 
 ## 📊 API complète du modèle (MustNemesis)
 
-| Méthode | Description |
-|---------|-------------|
-| `nemesisFormat()` | **OBLIGATOIRE** - Définit les données exposées par l'API |
-| `createNemesisToken()` | Génère un nouveau token (hash stocké) |
-| `deleteNemesisTokens()` | Suppression définitive de tous les tokens |
-| `revokeNemesisTokens()` | Soft delete de tous les tokens |
-| `deleteCurrentNemesisToken()` | Supprime le token courant |
-| `revokeCurrentNemesisToken()` | Soft delete du token courant |
-| `currentNemesisToken()` | Récupère le modèle du token courant |
-| `hasNemesisTokens()` | Vérifie l’existence de tokens |
-| `getNemesisToken()` | Trouve un token par sa valeur brute |
-| `validateNemesisToken()` | Vérifie validité (expiration + non révoqué) |
-| `touchNemesisToken()` | Met à jour `last_used_at` |
-| `getNemesisTokensBySource()` | Filtre par source (`web`, `mobile`, etc.) |
-| `revokeExpiredNemesisTokens()` | Soft delete des expirés |
-| `forceDeleteExpiredNemesisTokens()` | Suppression définitive des expirés |
-| `restoreNemesisTokens()` | Restaure les tokens soft-deleted |
+| Méthode | Description | Retour |
+|---------|-------------|--------|
+| `nemesisFormat()` | **OBLIGATOIRE** - Définit les données exposées par l'API | `array` |
+| `createNemesisToken()` | Génère un nouveau token (hash stocké) | `string` |
+| `deleteNemesisTokens()` | Suppression définitive de tous les tokens | `int` |
+| `revokeNemesisTokens()` | Soft delete de tous les tokens | `int` |
+| `deleteCurrentNemesisToken()` | Supprime définitivement le token courant | `bool` |
+| `revokeCurrentNemesisToken()` | Soft delete du token courant | `bool` |
+| `currentNemesisToken()` | Récupère le modèle du token courant | `?NemesisToken` |
+| `hasNemesisTokens()` | Vérifie l’existence de tokens | `bool` |
+| `getNemesisToken()` | Trouve un token par sa valeur brute | `?NemesisToken` |
+| `validateNemesisToken()` | Vérifie validité (expiration + non révoqué) | `bool` |
+| `touchNemesisToken()` | Met à jour `last_used_at` | `bool` |
+| `getNemesisTokensBySource()` | Filtre par source (`web`, `mobile`, etc.) | `iterable` |
+| `revokeExpiredNemesisTokens()` | Soft delete des expirés | `int` |
+| `forceDeleteExpiredNemesisTokens()` | Suppression définitive des expirés | `int` |
+| `restoreNemesisTokens()` | Restaure les tokens soft-deleted | `int` |
 
 ---
 
@@ -509,6 +517,7 @@ return [
 | Révocation sans perte d’audit | `softDeletes` |
 | Nettoyage des tokens obsolètes | Commande schedule + `auto_cleanup` |
 | Un token peut expirer après X minutes | `expires_at` + `isExpired()` |
+| Savoir si une opération a réussi (suppression/révocation) | Retour `bool` des méthodes concernées |
 
 ---
 
@@ -523,6 +532,7 @@ return [
 | Soft delete des tokens | ❌ | ✅ |
 | Abilities sans user | ❌ | ✅ |
 | Nettoyage auto configurable | ❌ | ✅ |
+| Retour booléen sur les opérations de suppression | ❌ | ✅ |
 
 ---
 
@@ -540,4 +550,4 @@ MIT © [Kani](https://github.com/kani)
 
 ---
 
-**Nemesis** – L’authentification par tokens multi-modèles pour Laravel, pensée pour les systèmes complexes où chaque acteur (utilisateur, point de contrôle, API client) a ses propres jetons, droits et origines, avec un **contrôle total sur les données exposées**. 🔐⚡
+**Nemesis** – L’authentification par tokens multi-modèles pour Laravel, pensée pour les systèmes complexes où chaque acteur (utilisateur, point de contrôle, API client) a ses propres jetons, droits et origines, avec un **contrôle total sur les données exposées** et des **retours explicites sur les opérations critiques**. 🔐⚡

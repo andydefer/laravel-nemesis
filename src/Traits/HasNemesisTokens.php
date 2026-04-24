@@ -24,6 +24,8 @@ trait HasNemesisTokens
 {
     /**
      * Get all tokens for this model.
+     *
+     * @return MorphMany<NemesisToken, static>
      */
     public function nemesisTokens(): MorphMany
     {
@@ -31,7 +33,18 @@ trait HasNemesisTokens
     }
 
     /**
-     * Create a new token.
+     * Create a new token for the model.
+     *
+     * Generates a cryptographically secure random token, hashes it for storage,
+     * and returns the plain text token (which should be shown to the user once).
+     *
+     * @param string|null $name Human-readable token name
+     * @param string|null $source Token source/origin (web, mobile, api, cli)
+     * @param array<int, string>|null $abilities List of permissions granted
+     * @param array<string, mixed>|null $metadata Additional metadata
+     * @return string The plain text token (store securely, cannot be retrieved again)
+     *
+     * @throws \Kani\Nemesis\Exceptions\MetadataValidationException When metadata is invalid
      */
     public function createNemesisToken(
         ?string $name = null,
@@ -60,7 +73,9 @@ trait HasNemesisTokens
     }
 
     /**
-     * Get token expiration date.
+     * Get token expiration date based on configuration.
+     *
+     * @return DateTimeInterface|null Expiration timestamp or null if never expires
      */
     protected function getTokenExpiration(): ?DateTimeInterface
     {
@@ -74,7 +89,10 @@ trait HasNemesisTokens
     }
 
     /**
-     * Delete all tokens permanently (force delete).
+     * Permanently delete all tokens for the model.
+     *
+     * Performs a force delete, removing tokens from the database completely.
+     * Use revokeNemesisTokens() for soft delete with audit trail.
      *
      * @return int Number of tokens permanently deleted
      */
@@ -84,7 +102,10 @@ trait HasNemesisTokens
     }
 
     /**
-     * Revoke (soft delete) all tokens.
+     * Revoke (soft delete) all tokens for the model.
+     *
+     * Performs a soft delete, setting the `deleted_at` timestamp.
+     * Revoked tokens can be restored later with restoreNemesisTokens().
      *
      * @return int Number of tokens revoked
      */
@@ -94,33 +115,56 @@ trait HasNemesisTokens
     }
 
     /**
-     * Delete current token permanently.
+     * Permanently delete the current token (from the request).
+     *
+     * Performs a force delete on the token used in the current request.
+     * The token cannot be recovered after this operation.
+     *
+     * @return bool True if the token was successfully deleted, false otherwise
      */
-    public function deleteCurrentNemesisToken(): void
+    public function deleteCurrentNemesisToken(): bool
     {
-        if ($token = $this->currentNemesisToken()) {
-            $token->forceDelete();
+        $token = $this->currentNemesisToken();
+
+        if ($token === null) {
+            return false;
         }
+
+        return (bool) $token->forceDelete();
     }
 
     /**
-     * Revoke (soft delete) current token.
+     * Revoke (soft delete) the current token (from the request).
+     *
+     * Performs a soft delete on the token used in the current request.
+     * The token can be restored later with restoreNemesisTokens().
+     *
+     * @return bool True if the token was successfully revoked, false otherwise
      */
-    public function revokeCurrentNemesisToken(): void
+    public function revokeCurrentNemesisToken(): bool
     {
-        if ($token = $this->currentNemesisToken()) {
-            $token->delete();
+        $token = $this->currentNemesisToken();
+
+        if ($token === null) {
+            return false;
         }
+
+        return (bool) $token->delete();
     }
 
     /**
-     * Get current access token.
+     * Get the current access token from the request.
+     *
+     * Extracts the bearer token from the Authorization header and retrieves
+     * the corresponding token model (excluding soft-deleted tokens by default).
+     *
+     * @return NemesisToken|null The token model or null if not found
      */
     public function currentNemesisToken(): ?NemesisToken
     {
         $bearerToken = request()->bearerToken();
 
-        if (! $bearerToken) {
+        if ($bearerToken === null) {
             return null;
         }
 
@@ -133,7 +177,10 @@ trait HasNemesisTokens
     }
 
     /**
-     * Check if model has tokens (including soft deleted).
+     * Check if the model has any tokens.
+     *
+     * @param bool $withTrashed Whether to include soft-deleted (revoked) tokens
+     * @return bool True if tokens exist, false otherwise
      */
     public function hasNemesisTokens(bool $withTrashed = false): bool
     {
@@ -147,10 +194,12 @@ trait HasNemesisTokens
     }
 
     /**
-     * Get token by plain text token.
+     * Get a token by its plain text value.
+     *
+     * Hashes the provided token and searches for a matching token_hash.
      *
      * @param string $plainToken The plain text token to search for
-     * @param bool $withTrashed Include soft deleted tokens
+     * @param bool $withTrashed Whether to include soft-deleted (revoked) tokens
      * @return NemesisToken|null The token model or null if not found
      */
     public function getNemesisToken(string $plainToken, bool $withTrashed = false): ?NemesisToken
@@ -169,13 +218,22 @@ trait HasNemesisTokens
     }
 
     /**
-     * Validate a token.
+     * Validate if a token is valid for this model.
+     *
+     * A token is considered valid if:
+     * - It exists and belongs to this model
+     * - It is not expired (or expiration is null)
+     * - It is not revoked (unless includeRevoked is true)
+     *
+     * @param string $token The plain text token to validate
+     * @param bool $includeRevoked Whether to consider revoked tokens as valid
+     * @return bool True if token is valid, false otherwise
      */
     public function validateNemesisToken(string $token, bool $includeRevoked = false): bool
     {
         $tokenModel = $this->getNemesisToken($token, $includeRevoked);
 
-        if (! $tokenModel) {
+        if ($tokenModel === null) {
             return false;
         }
 
@@ -187,17 +245,33 @@ trait HasNemesisTokens
     }
 
     /**
-     * Update last used timestamp.
+     * Update the last used timestamp of a token.
+     *
+     * Updates the `last_used_at` field to the current timestamp.
+     * Useful for tracking token usage and implementing inactivity timeouts.
+     *
+     * @param string $token The plain text token to touch
+     * @return bool True if the token was found and updated, false otherwise
      */
-    public function touchNemesisToken(string $token): void
+    public function touchNemesisToken(string $token): bool
     {
-        if ($tokenModel = $this->getNemesisToken($token)) {
-            $tokenModel->updateLastUsed();
+        $tokenModel = $this->getNemesisToken($token);
+
+        if ($tokenModel === null) {
+            return false;
         }
+
+        $tokenModel->updateLastUsed();
+
+        return true;
     }
 
     /**
-     * Get tokens by source.
+     * Get all tokens filtered by source.
+     *
+     * @param string $source The source to filter by (e.g., "web", "mobile", "api")
+     * @param bool $withTrashed Whether to include soft-deleted (revoked) tokens
+     * @return iterable<NemesisToken> Collection of tokens matching the source
      */
     public function getNemesisTokensBySource(string $source, bool $withTrashed = false): iterable
     {
@@ -214,6 +288,9 @@ trait HasNemesisTokens
     /**
      * Revoke (soft delete) all expired tokens.
      *
+     * Tokens with `expires_at` in the past will be soft-deleted.
+     * This preserves audit history while removing expired tokens from active queries.
+     *
      * @return int Number of expired tokens revoked
      */
     public function revokeExpiredNemesisTokens(): int
@@ -226,6 +303,9 @@ trait HasNemesisTokens
     /**
      * Permanently delete all expired tokens.
      *
+     * Tokens with `expires_at` in the past will be force-deleted.
+     * Use this for permanent cleanup without audit trail.
+     *
      * @return int Number of expired tokens permanently deleted
      */
     public function forceDeleteExpiredNemesisTokens(): int
@@ -236,7 +316,10 @@ trait HasNemesisTokens
     }
 
     /**
-     * Restore all revoked tokens.
+     * Restore all revoked (soft-deleted) tokens.
+     *
+     * Revokes the soft delete, making the tokens active again.
+     * Only affects tokens that were soft-deleted via revoke operations.
      *
      * @return int Number of tokens restored
      */
@@ -246,7 +329,6 @@ trait HasNemesisTokens
             return 0;
         }
 
-        // Get only soft-deleted tokens and restore them
         $query = $this->nemesisTokens()->onlyTrashed();
         $count = $query->count();
 
@@ -258,10 +340,12 @@ trait HasNemesisTokens
     }
 
     /**
-     * Check if the model uses SoftDeletes trait.
+     * Check if the model uses the SoftDeletes trait.
+     *
+     * @return bool True if SoftDeletes is used, false otherwise
      */
     private function isUsingSoftDeletes(): bool
     {
-        return in_array(SoftDeletes::class, class_uses_recursive($this));
+        return in_array(SoftDeletes::class, class_uses_recursive($this), true);
     }
 }

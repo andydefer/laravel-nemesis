@@ -23,8 +23,7 @@ interface MustNemesis extends CanBeFormatted
     /**
      * Get all tokens belonging to this model.
      *
-     * This defines a polymorphic one-to-many relationship where the model
-     * is the owner of the tokens.
+     * Defines a polymorphic one-to-many relationship where the model is the owner of the tokens.
      *
      * @return MorphMany<NemesisToken, static>
      */
@@ -54,7 +53,7 @@ interface MustNemesis extends CanBeFormatted
     /**
      * Permanently delete all tokens for the model.
      *
-     * This performs a force delete, removing tokens from the database completely.
+     * Performs a force delete, removing tokens from the database completely.
      * Use revokeNemesisTokens() for soft delete with audit trail.
      *
      * @return int Number of tokens permanently deleted
@@ -64,7 +63,7 @@ interface MustNemesis extends CanBeFormatted
     /**
      * Revoke (soft delete) all tokens for the model.
      *
-     * This performs a soft delete, setting the `deleted_at` timestamp.
+     * Performs a soft delete, setting the `deleted_at` timestamp.
      * Revoked tokens can be restored later with restoreNemesisTokens().
      *
      * @return int Number of tokens revoked
@@ -74,18 +73,22 @@ interface MustNemesis extends CanBeFormatted
     /**
      * Permanently delete the current token (from the request).
      *
-     * This performs a force delete on the token used in the current request.
+     * Performs a force delete on the token used in the current request.
      * The token cannot be recovered after this operation.
+     *
+     * @return bool True if the token was successfully deleted, false otherwise
      */
-    public function deleteCurrentNemesisToken(): void;
+    public function deleteCurrentNemesisToken(): bool;
 
     /**
      * Revoke (soft delete) the current token (from the request).
      *
-     * This performs a soft delete on the token used in the current request.
+     * Performs a soft delete on the token used in the current request.
      * The token can be restored later with restoreNemesisTokens().
+     *
+     * @return bool True if the token was successfully revoked, false otherwise
      */
-    public function revokeCurrentNemesisToken(): void;
+    public function revokeCurrentNemesisToken(): bool;
 
     /**
      * Get the current access token from the request.
@@ -137,8 +140,9 @@ interface MustNemesis extends CanBeFormatted
      * Useful for tracking token usage and implementing inactivity timeouts.
      *
      * @param string $token The plain text token to touch
+     * @return bool True if the token was found and updated, false otherwise
      */
-    public function touchNemesisToken(string $token): void;
+    public function touchNemesisToken(string $token): bool;
 
     /**
      * Get all tokens filtered by source.
