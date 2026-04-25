@@ -13,7 +13,7 @@
 ## 📦 Installation
 
 ```bash
-composer require kani/nemesis
+composer require andydefer/laravel-nemesis
 ```
 
 Publier les ressources du package :
