@@ -14,3 +14,4 @@ note.md
 /.phpunit.result.cache
 /.idea/
 /.vscode/
+rector.md

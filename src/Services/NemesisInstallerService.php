@@ -96,12 +96,16 @@ class NemesisInstallerService
     {
         if ($this->hasCoreTables()) {
             $command->warn('⚠️ Nemesis tables already exist. Skipping migrations.');
-
             return;
         }
 
         $command->info('📊 Running migrations...');
-        $command->call('migrate');
+
+        try {
+            $command->call('migrate');
+        } catch (\Exception $e) {
+            $command->error('   ❌ Migration failed: ' . $e->getMessage());
+        }
     }
 
     /**
