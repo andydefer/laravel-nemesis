@@ -147,7 +147,7 @@ final class NemesisManager
     }
 
     /**
-     * Revoke (soft delete) all tokens for an authenticatable model by source.
+     * Revoke all tokens for an authenticatable model by source.
      *
      * @param MustNemesis&Model $model The authenticatable model
      * @param string $source The source to filter by
@@ -161,6 +161,75 @@ final class NemesisManager
     public function revokeTokensBySource(MustNemesis&Model $model, string $source, bool $force = false): int
     {
         return $model->revokeNemesisTokensBySource($source, $force);
+    }
+
+    /**
+     * Revoke all tokens for an authenticatable model by name.
+     *
+     * @param MustNemesis&Model $model The authenticatable model
+     * @param string $name The token name to filter by
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * $revokedCount = $manager->revokeTokensByName($user, 'web_session');
+     */
+    public function revokeTokensByName(MustNemesis&Model $model, string $name, bool $force = false): int
+    {
+        return $model->revokeNemesisTokensByName($name, $force);
+    }
+
+    /**
+     * Revoke tokens for an authenticatable model by source and name.
+     *
+     * @param MustNemesis&Model $model The authenticatable model
+     * @param string $source The source to filter by
+     * @param string $name The token name to filter by
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * $revokedCount = $manager->revokeTokensBySourceAndName($user, 'web', 'web_session');
+     */
+    public function revokeTokensBySourceAndName(MustNemesis&Model $model, string $source, string $name, bool $force = false): int
+    {
+        return $model->revokeNemesisTokensBySourceAndName($source, $name, $force);
+    }
+
+    /**
+     * Revoke all tokens for an authenticatable model except those from a specific source.
+     *
+     * @param MustNemesis&Model $model The authenticatable model
+     * @param string $sourceToKeep The source to keep
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * // Keep mobile tokens, revoke everything else
+     * $revokedCount = $manager->revokeAllTokensExceptSource($user, 'mobile');
+     */
+    public function revokeAllTokensExceptSource(MustNemesis&Model $model, string $sourceToKeep, bool $force = false): int
+    {
+        return $model->revokeAllNemesisTokensExceptSource($sourceToKeep, $force);
+    }
+
+    /**
+     * Revoke tokens for an authenticatable model by custom criteria.
+     *
+     * @param MustNemesis&Model $model The authenticatable model
+     * @param array $criteria Array of where conditions
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * // Revoke tokens with operator
+     * $revokedCount = $manager->revokeTokensWhere($user, [
+     *     'created_at' => ['<', now()->subDays(30)]
+     * ]);
+     */
+    public function revokeTokensWhere(MustNemesis&Model $model, array $criteria, bool $force = false): int
+    {
+        return $model->revokeNemesisTokensWhere($criteria, $force);
     }
 
     /**

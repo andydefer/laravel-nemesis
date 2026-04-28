@@ -1,18 +1,18 @@
 # Pint Formatting Test Report
-*Generated: mar. 28 avril 2026 11:03:53 WAT*
+*Generated: mar. 28 avril 2026 14:40:48 WAT*
 
 
-  ⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.⨯
+  ⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.⨯
 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── Laravel  
-    FAIL   ................................................................................................................................................. 41 files, 36 style issues  
+    FAIL   ................................................................................................................................................. 42 files, 37 style issues  
   ⨯ database/migrations/2024_01_01_000001_create_nemesis_tokens_table.php                                            class_definition, phpdoc_no_package, braces_position, phpdoc_trim  
   ⨯ rector.php                                                                                                                              fully_qualified_strict_types, concat_space  
   ⨯ src/Commands/CleanTokensCommand.php                                   phpdoc_no_package, phpdoc_trim, not_operator_with_successor_space, blank_line_before_statement, phpdoc_align  
   ⨯ src/Commands/InstallNemesisCommand.php                                                                                                phpdoc_no_package, phpdoc_trim, phpdoc_align  
   ⨯ src/Commands/ListTokensCommand.php                     function_declaration, phpdoc_no_package, no_superfluous_phpdoc_tags, phpdoc_trim, blank_line_before_statement, phpdoc_align  
   ⨯ src/Contracts/CanBeFormatted.php                                                                                                                    phpdoc_no_package, phpdoc_trim  
-  ⨯ src/Contracts/MustNemesis.php                                                          phpdoc_no_package, fully_qualified_strict_types, phpdoc_trim, ordered_imports, phpdoc_align  
+  ⨯ src/Contracts/MustNemesis.php                                       phpdoc_no_package, fully_qualified_strict_types, phpdoc_separation, phpdoc_trim, ordered_imports, phpdoc_align  
   ⨯ src/Data/ErrorResponseData.php                            phpdoc_no_package, braces_position, phpdoc_trim, not_operator_with_successor_space, single_line_empty_body, phpdoc_align  
   ⨯ src/Enums/ErrorCode.php                                                                                                                             phpdoc_no_package, phpdoc_trim  
   ⨯ src/Exceptions/MetadataValidationException.php                         phpdoc_no_package, no_superfluous_phpdoc_tags, phpdoc_trim, not_operator_with_successor_space, phpdoc_align  
@@ -22,7 +22,7 @@
   ⨯ src/NemesisManager.php                                                                                                                phpdoc_no_package, phpdoc_trim, phpdoc_align  
   ⨯ src/NemesisServiceProvider.php                                                                                                                  new_with_parentheses, concat_space  
   ⨯ src/Services/NemesisInstallerService.php                                       concat_space, unary_operator_spaces, not_operator_with_successor_space, blank_line_before_statement  
-  ⨯ src/Traits/HasNemesisTokens.php                                                     fully_qualified_strict_types, not_operator_with_successor_space, ordered_imports, phpdoc_align  
+  ⨯ src/Traits/HasNemesisTokens.php      fully_qualified_strict_types, no_superfluous_phpdoc_tags, phpdoc_separation, not_operator_with_successor_space, ordered_imports, phpdoc_align  
   ⨯ src/helpers.php                                                                     fully_qualified_strict_types, concat_space, not_operator_with_successor_space, ordered_imports  
   ⨯ tests/Support/TestApiClient.php                                                                                                                     phpdoc_no_package, phpdoc_trim  
   ⨯ tests/Support/TestCheckPoint.php                                                                                                                    phpdoc_no_package, phpdoc_trim  
@@ -36,6 +36,7 @@
   ⨯ tests/Unit/Helpers/NemesisHelpersTest.php class_attributes_separation, function_declaration, phpdoc_no_package, concat_space, trailing_comma_in_multiline, phpdoc_trim, phpdoc_al…  
   ⨯ tests/Unit/Http/Middleware/NemesisAuthTest.php          concat_space, braces_position, statement_indentation, single_line_empty_body, blank_line_before_statement, ordered_imports  
   ⨯ tests/Unit/Models/NemesisTokenTest.php                                                                                                                 trailing_comma_in_multiline  
+  ⨯ tests/Unit/NemesisManagerTest.php                                                class_attributes_separation, new_with_parentheses, trailing_comma_in_multiline, no_unused_imports  
   ⨯ tests/Unit/Services/NemesisInstallerServiceTest.php class_attributes_separation, new_with_parentheses, phpdoc_no_package, concat_space, phpdoc_trim, not_operator_with_successor_…  
   ⨯ tests/Unit/Services/TokenMetadataServiceTest.php                                                                                                     increment_style, concat_space  
   ⨯ tests/Unit/Traits/HasNemesisTokensTest.php                                                                                 concat_space, trailing_comma_in_multiline, phpdoc_align  

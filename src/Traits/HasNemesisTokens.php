@@ -185,25 +185,63 @@ trait HasNemesisTokens
     /**
      * Revoke (soft delete) tokens by custom criteria.
      *
-     * Provides maximum flexibility for complex revocation scenarios.
+     * Supports multiple condition formats:
+     * - Simple equality: ['column' => 'value']
+     * - With operator: ['column' => ['operator', 'value']]
+     * - Array of conditions: [['column', 'operator', 'value']]
      *
-     * @param array<string, mixed> $criteria Array of where conditions
+     * @param array<string, mixed>|array<array{0: string, 1: string, 2: mixed}> $criteria Array of where conditions
      * @param bool $force Whether to force delete instead of soft delete
      * @return int Number of tokens revoked
      *
      * @example
-     * // Revoke all tokens created more than 30 days ago
+     * // Simple equality
+     * $user->revokeNemesisTokensWhere(['source' => 'web']);
+     *
+     * @example
+     * // With operator
      * $user->revokeNemesisTokensWhere(['created_at' => ['<', now()->subDays(30)]]);
+     *
+     * @example
+     * // Multiple conditions
+     * $user->revokeNemesisTokensWhere([
+     *     ['source', '=', 'web'],
+     *     ['created_at', '<', now()->subDays(30)]
+     * ]);
      */
     public function revokeNemesisTokensWhere(array $criteria, bool $force = false): int
     {
         $query = $this->nemesisTokens();
-
-        foreach ($criteria as $column => $value) {
-            $query->where($column, $value);
-        }
+        $query = $this->applyWhereConditions($query, $criteria);
 
         return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
+     * Apply where conditions to a query builder.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param array $criteria
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function applyWhereConditions($query, array $criteria): object
+    {
+        foreach ($criteria as $key => $value) {
+            // Case 1: Format ['column', 'operator', 'value']
+            if (is_array($value) && isset($value[0]) && isset($value[1]) && isset($value[2])) {
+                $query->where($value[0], $value[1], $value[2]);
+            }
+            // Case 2: Format ['column' => ['operator', 'value']]
+            elseif (is_array($value) && isset($value[0]) && isset($value[1]) && !is_numeric($key)) {
+                $query->where($key, $value[0], $value[1]);
+            }
+            // Case 3: Format ['column' => 'value'] (simple equality)
+            else {
+                $query->where($key, $value);
+            }
+        }
+
+        return $query;
     }
 
     /**

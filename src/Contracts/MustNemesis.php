@@ -139,15 +139,29 @@ interface MustNemesis extends CanBeFormatted
     /**
      * Revoke (soft delete) tokens by custom criteria.
      *
-     * Provides maximum flexibility for complex revocation scenarios.
+     * Supports multiple condition formats:
+     * - Simple equality: ['column' => 'value']
+     * - With operator: ['column' => ['operator', 'value']]
+     * - Array of conditions: [['column', 'operator', 'value']]
      *
-     * @param array<string, mixed> $criteria Array of where conditions
+     * @param array<string, mixed>|array<array{0: string, 1: string, 2: mixed}> $criteria Array of where conditions
      * @param bool $force Whether to force delete instead of soft delete
      * @return int Number of tokens revoked
      *
      * @example
-     * // Revoke all tokens created more than 30 days ago
+     * // Simple equality
+     * $user->revokeNemesisTokensWhere(['source' => 'web']);
+     *
+     * @example
+     * // With operator
      * $user->revokeNemesisTokensWhere(['created_at' => ['<', now()->subDays(30)]]);
+     *
+     * @example
+     * // Multiple conditions
+     * $user->revokeNemesisTokensWhere([
+     *     ['source', '=', 'web'],
+     *     ['created_at', '<', now()->subDays(30)]
+     * ]);
      */
     public function revokeNemesisTokensWhere(array $criteria, bool $force = false): int;
 

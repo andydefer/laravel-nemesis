@@ -3,7 +3,7 @@
 ![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-blue)
 ![Laravel Version](https://img.shields.io/badge/Laravel-12%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-241%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-271%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-92%25-green)
 
 **Nemesis** est un package Laravel complet pour l’authentification par **tokens multi-modèles**. Contrairement à Sanctum ou Passport, Nemesis permet à **n’importe quel modèle Eloquent** (`User`, `CheckPoint`, `ApiClient`, `Admin`, etc.) de générer, valider et gérer ses propres tokens d’API avec une sécurité renforcée : expiration, permissions (abilities), restrictions CORS par origine, métadonnées, soft delete pour révocation, et nettoyage automatique.
@@ -146,7 +146,7 @@ public function revokeCurrentToken(Request $request)
 
 ---
 
-## 🎯 Révocation granulaire des tokens (NOUVEAU)
+## 🎯 Révocation granulaire des tokens
 
 Nemesis 1.2+ introduit des méthodes puissantes pour révoquer sélectivement les tokens par source, nom ou critères personnalisés.
 
@@ -154,19 +154,41 @@ Nemesis 1.2+ introduit des méthodes puissantes pour révoquer sélectivement le
 
 | Méthode | Description | Valeur de retour |
 |---------|-------------|------------------|
-| `revokeNemesisTokensBySource(string $source, bool $force = false)` | Révoque tous les tokens d'une source spécifique | `int` (nombre de tokens révoqués) |
+| `revokeNemesisTokensBySource(string $source, bool $force = false)` | Révoque tous les tokens d'une source spécifique | `int` |
 | `revokeNemesisTokensByName(string $name, bool $force = false)` | Révoque tous les tokens avec un nom spécifique | `int` |
 | `revokeNemesisTokensBySourceAndName(string $source, string $name, bool $force = false)` | Révoque les tokens correspondant à source ET nom | `int` |
 | `revokeAllNemesisTokensExceptSource(string $source, bool $force = false)` | Garde les tokens d'une source, révoque tous les autres | `int` |
-| `revokeNemesisTokensWhere(array $criteria, bool $force = false)` | Révoque avec des critères personnalisés | `int` |
+| `revokeNemesisTokensWhere(array $criteria, bool $force = false)` | Révoque avec des critères personnalisés (supporte opérateurs) | `int` |
+
+### Formats supportés par `revokeNemesisTokensWhere`
+
+La méthode accepte trois formats différents pour les critères :
+
+```php
+// Format 1: Égalité simple
+$user->revokeNemesisTokensWhere(['source' => 'web']);
+
+// Format 2: Avec opérateur
+$user->revokeNemesisTokensWhere([
+    'created_at' => ['<', now()->subDays(30)],
+    'last_used_at' => ['>', now()->subDays(90)]
+]);
+
+// Format 3: Tableau de conditions
+$user->revokeNemesisTokensWhere([
+    ['source', '=', 'web'],
+    ['created_at', '<', now()->subDays(30)],
+    ['name', '!=', 'admin_token']
+]);
+```
 
 ### Cas d'usage concrets
 
 #### 1. Déconnexion de tous les navigateurs (garder l'app mobile active)
 
 ```php
-// Scénario : L'utiliteur est connecté sur 3 navigateurs et l'app mobile
-$user->revokeNemesisTokensBySource('web'); // Révoque uniquement les tokens web
+// Scénario : L'utilisateur est connecté sur 3 navigateurs et l'app mobile
+$user->revokeNemesisTokensBySource('web');
 
 // Résultat : 
 // ✅ Les 3 sessions navigateur sont terminées
@@ -208,9 +230,11 @@ $user->revokeNemesisTokensWhere([
     'created_at' => ['<', Carbon::create(2025, 1, 1)]
 ]);
 
-// Révoquer les tokens sans abilities spécifiques
+// Conditions multiples avec opérateurs
 $user->revokeNemesisTokensWhere([
-    'abilities' => null
+    ['source', '=', 'web'],
+    ['created_at', '<', now()->subMonths(3)],
+    ['last_used_at', '<', now()->subMonths(1)]
 ]);
 ```
 
@@ -231,6 +255,7 @@ $user->revokeAllNemesisTokensExceptSource('mobile', force: true);
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class SessionController extends Controller
 {
@@ -274,6 +299,21 @@ class SessionController extends Controller
         ]);
     }
     
+    // Nettoyage des vieux tokens
+    public function cleanupOldTokens(Request $request)
+    {
+        $user = current_authenticatable();
+        
+        $revokedCount = $user->revokeNemesisTokensWhere([
+            ['created_at', '<', Carbon::now()->subMonths(6)],
+            ['last_used_at', '<', Carbon::now()->subMonths(3)]
+        ]);
+        
+        return response()->json([
+            'message' => "{$revokedCount} ancien(s) token(s) supprimé(s)"
+        ]);
+    }
+    
     // Garder uniquement le token courant
     public function keepOnlyCurrentSession(Request $request)
     {
@@ -281,16 +321,28 @@ class SessionController extends Controller
         $currentToken = current_token();
         
         if ($currentToken && $currentToken->source === 'web') {
-            // Garder uniquement les tokens web courants
             $user->revokeNemesisTokensWhere([
-                'source' => 'web',
-                'token_hash' => ['!=', $currentToken->token_hash]
+                ['source', '=', 'web'],
+                ['token_hash', '!=', $currentToken->token_hash]
             ]);
         }
         
         return response()->json(['message' => 'Sessions nettoyées']);
     }
 }
+```
+
+### Utilisation via le Manager
+
+```php
+use Kani\Nemesis\Facades\Nemesis;
+
+// Via le manager
+Nemesis::revokeTokensBySource($user, 'web');
+Nemesis::revokeTokensByName($user, 'web_session');
+Nemesis::revokeTokensBySourceAndName($user, 'web', 'web_session');
+Nemesis::revokeAllTokensExceptSource($user, 'mobile');
+Nemesis::revokeTokensWhere($user, ['created_at' => ['<', now()->subDays(30)]]);
 ```
 
 ### Avantages de la révocation granulaire
@@ -300,7 +352,7 @@ class SessionController extends Controller
 | **UX améliorée** | Les utilisateurs peuvent se déconnecter de tous leurs navigateurs sans affecter l'application mobile |
 | **Contrôle granulaire** | Les développeurs peuvent cibler des types de tokens spécifiques |
 | **Sécurité renforcée** | Révoquer les tokens suspects par source sans affecter les autres |
-| **Flexibilité maximale** | Support des critères personnalisés pour des cas complexes |
+| **Flexibilité maximale** | Support des opérateurs (`<`, `>`, `<=`, `>=`, `=`, `!=`) et conditions multiples |
 | **Cohérence API** | Toutes les méthodes retournent le nombre de tokens affectés |
 | **Backward compatible** | Aucun breaking change, les méthodes existantes restent inchangées |
 
@@ -600,8 +652,11 @@ public function manageSessions(Request $request)
         'logout_web' => $user->revokeNemesisTokensBySource('web'),
         'logout_mobile' => $user->revokeNemesisTokensBySource('mobile'),
         'logout_all' => $user->revokeNemesisTokens(),
+        'logout_old' => $user->revokeNemesisTokensWhere([
+            'last_used_at' => ['<', now()->subDays(30)]
+        ]),
         'keep_only_current' => $user->revokeNemesisTokensWhere([
-            'token_hash' => ['!=', current_token()->token_hash]
+            ['token_hash', '!=', current_token()->token_hash]
         ]),
         default => null
     };
@@ -627,7 +682,7 @@ public function manageSessions(Request $request)
 | `revokeNemesisTokensByName()` | Soft delete des tokens par nom | `int` |
 | `revokeNemesisTokensBySourceAndName()` | Soft delete par source ET nom | `int` |
 | `revokeAllNemesisTokensExceptSource()` | Garde une source, supprime les autres | `int` |
-| `revokeNemesisTokensWhere()` | Soft delete avec critères personnalisés | `int` |
+| `revokeNemesisTokensWhere()` | Soft delete avec critères personnalisés (opérateurs supportés) | `int` |
 | `deleteCurrentNemesisToken()` | Supprime définitivement le token courant | `bool` |
 | `revokeCurrentNemesisToken()` | Soft delete du token courant | `bool` |
 | `currentNemesisToken()` | Récupère le modèle du token courant | `?NemesisToken` |
@@ -656,7 +711,13 @@ Nemesis::revokeExpiredTokens();
 
 // Nouvelles méthodes de révocation granulaire
 Nemesis::revokeTokensBySource($user, 'web');
-Nemesis::revokeTokensBySource($user, 'mobile', force: true);
+Nemesis::revokeTokensByName($user, 'web_session');
+Nemesis::revokeTokensBySourceAndName($user, 'web', 'web_session');
+Nemesis::revokeAllTokensExceptSource($user, 'mobile');
+Nemesis::revokeTokensWhere($user, ['created_at' => ['<', now()->subDays(30)]]);
+
+// Force delete
+Nemesis::revokeTokensBySource($user, 'web', force: true);
 ```
 
 ---
@@ -719,13 +780,14 @@ return [
 | Révocation granulaire par type de token | `revokeNemesisTokensByName()` |
 | Nettoyage des tokens inactifs | `revokeNemesisTokensWhere()` |
 | Garder certains tokens actifs | `revokeAllNemesisTokensExceptSource()` |
+| Révocation avec opérateurs personnalisés | `revokeNemesisTokensWhere()` avec opérateurs |
 | Un token ne doit servir que pour certaines origines | `allowed_origins` + validation middleware |
 | Une application mobile a moins de droits qu’un admin | `abilities` (ex: `scan_ticket` vs `delete_user`) |
 | Besoin de tracer le contexte (IP, device, version) | `metadata` validé et nettoyé |
 | Révocation sans perte d’audit | `softDeletes` |
 | Nettoyage des tokens obsolètes | Commande schedule + `auto_cleanup` |
 | Un token peut expirer après X minutes | `expires_at` + `isExpired()` |
-| Savoir si une opération a réussi (suppression/révocation) | Retour `bool` des méthodes concernées |
+| Savoir si une opération a réussi (suppression/révocation) | Retour `int`/`bool` des méthodes concernées |
 
 ---
 
@@ -736,20 +798,21 @@ return [
 | Multi-modèles (User + CheckPoint) | ❌ (seulement User) | ✅ (tout modèle) |
 | Contrôle explicite de l'exposition des données | ❌ | ✅ (méthode obligatoire) |
 | Révocation granulaire par source/nom | ❌ | ✅ |
+| Révocation avec opérateurs (<, >, <=, >=) | ❌ | ✅ |
 | Révocation par critères personnalisés | ❌ | ✅ |
 | Restrictions CORS par token | ❌ (globale) | ✅ (par token) |
 | Métadonnées enrichies | ❌ | ✅ (validation stricte) |
 | Soft delete des tokens | ❌ | ✅ |
 | Abilities sans user | ❌ | ✅ |
 | Nettoyage auto configurable | ❌ | ✅ |
-| Retour booléen sur les opérations de suppression | ❌ | ✅ |
+| Retour booléen/int sur les opérations | ❌ | ✅ |
 
 ---
 
 ## 🤝 Contribution
 
 1. Fork + branche `feature/ma-fonctionnalité`
-2. `composer test` (241 tests doivent passer)
+2. `composer test` (271 tests doivent passer)
 3. Pull request vers `main`
 
 ---
@@ -760,4 +823,4 @@ MIT © [Kani](https://github.com/kani)
 
 ---
 
-**Nemesis** – L’authentification par tokens multi-modèles pour Laravel, pensée pour les systèmes complexes où chaque acteur (utilisateur, point de contrôle, API client) a ses propres jetons, droits et origines, avec un **contrôle total sur les données exposées**, une **révocation granulaire**, et des **retours explicites sur les opérations critiques**. 🔐⚡
+**Nemesis** – L’authentification par tokens multi-modèles pour Laravel, pensée pour les systèmes complexes où chaque acteur (utilisateur, point de contrôle, API client) a ses propres jetons, droits et origines, avec un **contrôle total sur les données exposées**, une **révocation granulaire** (par source, nom ou critères personnalisés avec opérateurs), et des **retours explicites sur les opérations critiques**. 🔐⚡
