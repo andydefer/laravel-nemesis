@@ -32,6 +32,9 @@ if (!function_exists('current_token')) {
      * for the current request. Useful for checking token properties like
      * abilities, expiration, or metadata.
      *
+     * The middleware attaches the token to the request via $request->merge(),
+     * making it accessible through request()->input().
+     *
      * @return NemesisToken|null The current token model or null if not available
      *
      * @example
@@ -42,6 +45,14 @@ if (!function_exists('current_token')) {
      */
     function current_token(): ?NemesisToken
     {
+        // The middleware uses $request->merge(), so data is accessible via input()
+        $token = request()->input('currentNemesisToken');
+
+        if ($token instanceof NemesisToken) {
+            return $token;
+        }
+
+        // Fallback for backward compatibility with older versions
         return request()->route('currentNemesisToken');
     }
 }
@@ -52,6 +63,9 @@ if (!function_exists('current_authenticatable')) {
      *
      * Retrieves the authenticatable model (User, ApiClient, etc.) that owns
      * the current token. This is the model that was authenticated via the token.
+     *
+     * The middleware attaches the authenticatable model to the request via
+     * $request->merge(), making it accessible through request()->input().
      *
      * @return \Illuminate\Database\Eloquent\Model|null The authenticated model or null
      *
@@ -65,6 +79,14 @@ if (!function_exists('current_authenticatable')) {
     {
         $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
 
+        // The middleware uses $request->merge(), so data is accessible via input()
+        $authenticatable = request()->input($parameterName);
+
+        if ($authenticatable instanceof \Illuminate\Database\Eloquent\Model) {
+            return $authenticatable;
+        }
+
+        // Fallback for backward compatibility with older versions
         return request()->route($parameterName);
     }
 }
@@ -75,6 +97,9 @@ if (!function_exists('current_authenticatable_format')) {
      *
      * Returns the array defined by nemesisFormat() method on the model.
      * This forces developers to explicitly control what data is exposed.
+     *
+     * The middleware attaches the formatted data to the request via
+     * $request->merge(), making it accessible through request()->input().
      *
      * @return array<string, mixed>|null The formatted data or null if not authenticated
      *
@@ -88,6 +113,21 @@ if (!function_exists('current_authenticatable_format')) {
     function current_authenticatable_format(): ?array
     {
         $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
-        return request()->get($parameterName . 'Format');
+        $formatKey = $parameterName . 'Format';
+
+        // The middleware uses $request->merge(), so data is accessible via input()
+        $formatted = request()->input($formatKey);
+
+        if (is_array($formatted)) {
+            return $formatted;
+        }
+
+        // Fallback: generate from the model if available (backward compatibility)
+        $user = current_authenticatable();
+        if ($user && method_exists($user, 'nemesisFormat')) {
+            return $user->nemesisFormat();
+        }
+
+        return null;
     }
 }
