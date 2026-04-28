@@ -115,6 +115,98 @@ trait HasNemesisTokens
     }
 
     /**
+     * Revoke (soft delete) all tokens with a specific source.
+     *
+     * Useful for scenarios like "logout from all browsers" while keeping
+     * mobile or API tokens active.
+     *
+     * @param string $source The source to filter by (e.g., "web", "mobile", "api")
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     */
+    public function revokeNemesisTokensBySource(string $source, bool $force = false): int
+    {
+        $query = $this->nemesisTokens()->where('source', $source);
+
+        return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
+     * Revoke (soft delete) all tokens with a specific name.
+     *
+     * Useful for revoking specific token types across all sources.
+     *
+     * @param string $name The token name to filter by
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     */
+    public function revokeNemesisTokensByName(string $name, bool $force = false): int
+    {
+        $query = $this->nemesisTokens()->where('name', $name);
+
+        return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
+     * Revoke (soft delete) all tokens matching specific source and name.
+     *
+     * Provides the most granular control for token revocation.
+     *
+     * @param string $source The source to filter by
+     * @param string $name The token name to filter by
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     */
+    public function revokeNemesisTokensBySourceAndName(string $source, string $name, bool $force = false): int
+    {
+        $query = $this->nemesisTokens()
+            ->where('source', $source)
+            ->where('name', $name);
+
+        return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
+     * Revoke (soft delete) all tokens except those matching specific criteria.
+     *
+     * Useful for keeping specific token types while revoking all others.
+     *
+     * @param string $source The source to keep (tokens with this source will NOT be revoked)
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     */
+    public function revokeAllNemesisTokensExceptSource(string $source, bool $force = false): int
+    {
+        $query = $this->nemesisTokens()->where('source', '!=', $source);
+
+        return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
+     * Revoke (soft delete) tokens by custom criteria.
+     *
+     * Provides maximum flexibility for complex revocation scenarios.
+     *
+     * @param array<string, mixed> $criteria Array of where conditions
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * // Revoke all tokens created more than 30 days ago
+     * $user->revokeNemesisTokensWhere(['created_at' => ['<', now()->subDays(30)]]);
+     */
+    public function revokeNemesisTokensWhere(array $criteria, bool $force = false): int
+    {
+        $query = $this->nemesisTokens();
+
+        foreach ($criteria as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $force ? $query->forceDelete() : $query->delete();
+    }
+
+    /**
      * Permanently delete the current token (from the request).
      *
      * Performs a force delete on the token used in the current request.
