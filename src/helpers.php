@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Eloquent\Model;
+use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\NemesisManager;
 
@@ -67,7 +69,7 @@ if (!function_exists('current_authenticatable')) {
      * The middleware attaches the authenticatable model to the request via
      * $request->merge(), making it accessible through request()->input().
      *
-     * @return \Illuminate\Database\Eloquent\Model|null The authenticated model or null
+     * @return MustNemesis&Model|null The authenticated model or null
      *
      * @example
      * $user = current_authenticatable();
@@ -75,19 +77,25 @@ if (!function_exists('current_authenticatable')) {
      *     $name = $user->name;
      * }
      */
-    function current_authenticatable(): ?\Illuminate\Database\Eloquent\Model
+    function current_authenticatable(): ?MustNemesis
     {
         $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
 
         // The middleware uses $request->merge(), so data is accessible via input()
         $authenticatable = request()->input($parameterName);
 
-        if ($authenticatable instanceof \Illuminate\Database\Eloquent\Model) {
+        if ($authenticatable instanceof MustNemesis) {
             return $authenticatable;
         }
 
         // Fallback for backward compatibility with older versions
-        return request()->route($parameterName);
+        $routeAuthenticatable = request()->route($parameterName);
+
+        if ($routeAuthenticatable instanceof MustNemesis) {
+            return $routeAuthenticatable;
+        }
+
+        return null;
     }
 }
 
@@ -124,7 +132,7 @@ if (!function_exists('current_authenticatable_format')) {
 
         // Fallback: generate from the model if available (backward compatibility)
         $user = current_authenticatable();
-        if ($user && method_exists($user, 'nemesisFormat')) {
+        if ($user instanceof MustNemesis && method_exists($user, 'nemesisFormat')) {
             return $user->nemesisFormat();
         }
 

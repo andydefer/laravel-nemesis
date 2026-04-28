@@ -1,5 +1,5 @@
 # Pint Formatting Test Report
-*Generated: mar. 28 avril 2026 14:55:27 WAT*
+*Generated: mar. 28 avril 2026 15:05:59 WAT*
 
 
   ⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.⨯
@@ -23,7 +23,7 @@
   ⨯ src/NemesisServiceProvider.php                                                                                                                  new_with_parentheses, concat_space  
   ⨯ src/Services/NemesisInstallerService.php                                       concat_space, unary_operator_spaces, not_operator_with_successor_space, blank_line_before_statement  
   ⨯ src/Traits/HasNemesisTokens.php      fully_qualified_strict_types, no_superfluous_phpdoc_tags, phpdoc_separation, not_operator_with_successor_space, ordered_imports, phpdoc_align  
-  ⨯ src/helpers.php                                                                     fully_qualified_strict_types, concat_space, not_operator_with_successor_space, ordered_imports  
+  ⨯ src/helpers.php                                                                                                                    concat_space, not_operator_with_successor_space  
   ⨯ tests/Support/TestApiClient.php                                                                                                                     phpdoc_no_package, phpdoc_trim  
   ⨯ tests/Support/TestCheckPoint.php                                                                                                                    phpdoc_no_package, phpdoc_trim  
   ⨯ tests/Support/TestCustomFormatUser.php                                                                           phpdoc_no_package, phpdoc_trim, not_operator_with_successor_space  
