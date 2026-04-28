@@ -1,11 +1,265 @@
 # Rector Refactoring Report
-*Generated: sam. 25 avril 2026 07:34:37 WAT*
+*Generated: mar. 28 avril 2026 11:03:55 WAT*
 
 
-16 files with changes
+18 files with changes
 =====================
 
-1) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Commands/ListTokensCommand.php:108
+1) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Services/NemesisInstallerServiceTest.php:4
+
+    ---------- begin diff ----------
+@@ Line 4 @@
+
+ namespace Kani\Nemesis\Tests\Unit\Services;
+
++use Exception;
++use ReflectionClass;
+ use Illuminate\Console\Command;
+ use Illuminate\Support\Facades\Schema;
+ use Kani\Nemesis\Services\NemesisInstallerService;
+@@ Line 18 @@
+ final class NemesisInstallerServiceTest extends TestCase
+ {
+     private NemesisInstallerService $installerService;
++
+     private Command $command;
+
+     protected function setUp(): void
+@@ Line 179 @@
+     {
+         // Arrange: Create table to simulate existing installation
+         if (!Schema::hasTable('nemesis_tokens')) {
+-            Schema::create('nemesis_tokens', function ($table) {
++            Schema::create('nemesis_tokens', function ($table): void {
+                 $table->id();
+             });
+         }
+@@ Line 319 @@
+         $this->command->shouldReceive('call')
+             ->with('migrate')
+             ->once()
+-            ->andReturnUsing(function () {
+-                throw new \Exception('Migration failed');
++            ->andReturnUsing(function (): never {
++                throw new Exception('Migration failed');
+             });
+         $this->command->shouldReceive('error')
+             ->with(Mockery::pattern('/❌ Migration failed/'))
+@@ Line 329 @@
+         // Act: Execute installation with failing migration
+         try {
+             $this->installerService->install($this->command, force: false);
+-        } catch (\Exception $e) {
+-            $this->fail('Exception should not be propagated: ' . $e->getMessage());
++        } catch (Exception $exception) {
++            $this->fail('Exception should not be propagated: ' . $exception->getMessage());
+         }
+
+         // Assert: Error was handled gracefully
+@@ Line 344 @@
+     {
+         // Arrange: Create table to simulate existing installation
+         if (!Schema::hasTable('nemesis_tokens')) {
+-            Schema::create('nemesis_tokens', function ($table) {
++            Schema::create('nemesis_tokens', function ($table): void {
+                 $table->id();
+             });
+         }
+
+-        $reflection = new \ReflectionClass($this->installerService);
++        $reflection = new ReflectionClass($this->installerService);
+         $method = $reflection->getMethod('hasCoreTables');
+         $method->setAccessible(true);
+
+@@ Line 370 @@
+             Schema::drop('nemesis_tokens');
+         }
+
+-        $reflection = new \ReflectionClass($this->installerService);
++        $reflection = new ReflectionClass($this->installerService);
+         $method = $reflection->getMethod('hasCoreTables');
+         $method->setAccessible(true);
+
+@@ Line 387 @@
+     public function test_generate_token_example_produces_valid_token(): void
+     {
+         // Arrange: Access protected method via reflection
+-        $reflection = new \ReflectionClass($this->installerService);
++        $reflection = new ReflectionClass($this->installerService);
+         $method = $reflection->getMethod('generateTokenExample');
+         $method->setAccessible(true);
+
+@@ Line 407 @@
+     public function test_display_success_message_shows_correct_content(): void
+     {
+         // Arrange: Access protected method via reflection
+-        $reflection = new \ReflectionClass($this->installerService);
++        $reflection = new ReflectionClass($this->installerService);
+         $method = $reflection->getMethod('displaySuccessMessage');
+         $method->setAccessible(true);
+    ----------- end diff -----------
+
+Applied rules:
+ * CatchExceptionNameMatchingTypeRector
+ * NewlineBetweenClassLikeStmtsRector
+ * AddClosureNeverReturnTypeRector
+ * AddClosureVoidReturnTypeWhereNoReturnRector
+
+
+2) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Traits/HasNemesisTokensTest.php:171
+
+    ---------- begin diff ----------
+@@ Line 171 @@
+
+         // Assert: Token is permanently deleted and method returns true
+         $this->assertTrue($result);
+-        $this->assertNull($this->testUser->currentNemesisToken());
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
+         $this->assertEquals(0, $this->testUser->nemesisTokens()->withTrashed()->count());
+     }
+
+@@ Line 207 @@
+
+         // Assert: Token is soft deleted and method returns true
+         $this->assertTrue($result);
+-        $this->assertNull($this->testUser->currentNemesisToken());
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
+         $this->assertEquals(1, $this->testUser->nemesisTokens()->withTrashed()->count());
+     }
+
+@@ Line 300 @@
+         $tokenModel = $this->testUser->getNemesisToken('invalid-token');
+
+         // Assert: Null is returned
+-        $this->assertNull($tokenModel);
++        $this->assertNotInstanceOf(NemesisToken::class, $tokenModel);
+     }
+
+     /**
+@@ Line 317 @@
+         $tokenModel->delete();
+
+         // Assert: Without trashed returns null
+-        $this->assertNull($this->testUser->getNemesisToken($plainToken));
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken));
+
+         // Assert: With trashed returns the soft deleted token
+         $foundToken = $this->testUser->getNemesisToken($plainToken, withTrashed: true);
+@@ Line 338 @@
+         $plainToken = $this->testUser->createNemesisToken('Test Token');
+         $tokenModel = $this->testUser->getNemesisToken($plainToken);
+         $tokenModel->expires_at = now()->addDays(10);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+         $tokenModel->save();
+
+         // Assert: Token is valid
+@@ Line 362 @@
+         $plainToken = $this->testUser->createNemesisToken('Test Token');
+         $tokenModel = $this->testUser->getNemesisToken($plainToken);
+         $tokenModel->expires_at = now()->addDays(10);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+         $tokenModel->save();
+         $tokenModel->delete();
+
+@@ Line 378 @@
+         $plainToken = $this->testUser->createNemesisToken('Test Token');
+         $tokenModel = $this->testUser->getNemesisToken($plainToken);
+         $tokenModel->expires_at = now()->addDays(10);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+         $tokenModel->save();
+         $tokenModel->delete();
+
+@@ Line 394 @@
+         $plainToken = $this->testUser->createNemesisToken('Test Token');
+         $tokenModel = $this->testUser->getNemesisToken($plainToken);
+         $tokenModel->expires_at = now()->subDay();
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+         $tokenModel->save();
+         $tokenModel->delete();
+
+@@ Line 423 @@
+
+         // Assert: Method returns true and last_used_at was updated
+         $this->assertTrue($result);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
+         $tokenModel->refresh();
+         $this->assertNotEquals($originalLastUsed, $tokenModel->last_used_at);
+     }
+@@ Line 509 @@
+         // Arrange: Expire the first token
+         $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
+         $expiredTokenModel->expires_at = now()->subDay();
++        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
+         $expiredTokenModel->save();
+
+         // Arrange: Set valid token to future expiration
+         $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
+         $validTokenModel->expires_at = now()->addDays(10);
++        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
+         $validTokenModel->save();
+
+         // Act: Revoke expired tokens
+@@ Line 542 @@
+         $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
+         $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
+         $validTokenModel->expires_at = now()->addDays(10);
++        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
+         $validTokenModel->save();
+
+         // Act: Revoke expired tokens
+@@ Line 569 @@
+         // Arrange: Expire the first token
+         $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
+         $expiredTokenModel->expires_at = now()->subDay();
++        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
+         $expiredTokenModel->save();
+
+         // Act: Permanently delete expired tokens
+@@ Line 576 @@
+
+         // Assert: Only expired token is permanently deleted
+         $this->assertSame(1, $deletedCount);
+-        $this->assertNull($this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true));
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true));
+         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
+     }
+
+@@ Line 596 @@
+         // Arrange: Soft delete both tokens
+         $tokenModel1 = $this->testUser->getNemesisToken($token1);
+         $tokenModel2 = $this->testUser->getNemesisToken($token2);
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel1);
+         $tokenModel1->delete();
++        $this->assertInstanceOf(NemesisToken::class, $tokenModel2);
+         $tokenModel2->delete();
+
+         // Arrange: Verify they are soft deleted
+@@ Line 657 @@
+
+         // Arrange: Verify state: 1 active, 1 soft deleted
+         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
+-        $this->assertNull($this->testUser->getNemesisToken($revokedPlainToken));
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken));
+         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken, withTrashed: true));
+         $this->assertEquals(1, $this->testUser->nemesisTokens()->count());
+         $this->assertEquals(1, $this->testUser->nemesisTokens()->onlyTrashed()->count());
+@@ Line 691 @@
+         $this->testUser->revokeNemesisTokens();
+
+         // Assert: Token is soft deleted
+-        $this->assertNull($this->testUser->getNemesisToken($plainToken));
++        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken));
+         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken, withTrashed: true));
+
+         // Act: Restore the token
+    ----------- end diff -----------
+
+Applied rules:
+ * AddInstanceofAssertForNullableInstanceRector
+ * AssertEmptyNullableObjectToAssertInstanceofRector
+
+
+3) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Commands/ListTokensCommand.php:108
 
     ---------- begin diff ----------
 @@ Line 108 @@
@@ -73,7 +327,7 @@ Applied rules:
  * RemoveUselessReturnTagRector
 
 
-2) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Contracts/MustNemesis.php:4
+4) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Contracts/MustNemesis.php:4
 
     ---------- begin diff ----------
 @@ Line 4 @@
@@ -98,7 +352,7 @@ Applied rules:
 Applied rules:
 
 
-3) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Data/ErrorResponseData.php:98
+5) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Data/ErrorResponseData.php:98
 
     ---------- begin diff ----------
 @@ Line 98 @@
@@ -125,7 +379,7 @@ Applied rules:
  * DisallowedEmptyRuleFixerRector
 
 
-4) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Enums/ErrorCode.php:162
+6) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Enums/ErrorCode.php:162
 
     ---------- begin diff ----------
 @@ Line 162 @@
@@ -152,7 +406,7 @@ Applied rules:
  * SingleInArrayToCompareRector
 
 
-5) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Exceptions/MetadataValidationException.php:22
+7) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Exceptions/MetadataValidationException.php:22
 
     ---------- begin diff ----------
 @@ Line 22 @@
@@ -180,7 +434,7 @@ Applied rules:
  * DisallowedEmptyRuleFixerRector
 
 
-6) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Http/Middleware/NemesisAuth.php:52
+8) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Http/Middleware/NemesisAuth.php:52
 
     ---------- begin diff ----------
 @@ Line 52 @@
@@ -210,7 +464,7 @@ Applied rules:
  * FlipTypeControlToUseExclusiveTypeRector
 
 
-7) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Models/NemesisToken.php:94
+9) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Models/NemesisToken.php:94
 
     ---------- begin diff ----------
 @@ Line 94 @@
@@ -226,7 +480,7 @@ Applied rules:
  * NewlineAfterStatementRector
 
 
-8) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/NemesisManager.php:99
+10) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/NemesisManager.php:99
 
     ---------- begin diff ----------
 @@ Line 99 @@
@@ -288,7 +542,34 @@ Applied rules:
  * FlipTypeControlToUseExclusiveTypeRector
 
 
-9) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/TokenMetadataService.php:465
+11) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/NemesisInstallerService.php:6
+
+    ---------- begin diff ----------
+@@ Line 6 @@
+
+ namespace Kani\Nemesis\Services;
+
++use Exception;
+ use Illuminate\Console\Command;
+ use Illuminate\Support\Facades\Schema;
+ use Kani\Nemesis\NemesisServiceProvider;
+@@ Line 103 @@
+
+         try {
+             $command->call('migrate');
+-        } catch (\Exception $e) {
+-            $command->error('   ❌ Migration failed: ' . $e->getMessage());
++        } catch (Exception $exception) {
++            $command->error('   ❌ Migration failed: ' . $exception->getMessage());
+         }
+     }
+    ----------- end diff -----------
+
+Applied rules:
+ * CatchExceptionNameMatchingTypeRector
+
+
+12) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/TokenMetadataService.php:465
 
     ---------- begin diff ----------
 @@ Line 465 @@
@@ -305,7 +586,7 @@ Applied rules:
  * NewlineAfterStatementRector
 
 
-10) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Traits/HasNemesisTokens.php:4
+13) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Traits/HasNemesisTokens.php:4
 
     ---------- begin diff ----------
 @@ Line 4 @@
@@ -330,7 +611,7 @@ Applied rules:
 Applied rules:
 
 
-11) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/helpers.php:2
+14) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/helpers.php:2
 
     ---------- begin diff ----------
 @@ Line 2 @@
@@ -341,16 +622,16 @@ Applied rules:
  use Kani\Nemesis\Models\NemesisToken;
  use Kani\Nemesis\NemesisManager;
 
-@@ Line 53 @@
-      * Retrieves the authenticatable model (User, ApiClient, etc.) that owns
-      * the current token. This is the model that was authenticated via the token.
+@@ Line 67 @@
+      * The middleware attaches the authenticatable model to the request via
+      * $request->merge(), making it accessible through request()->input().
       *
 -     * @return \Illuminate\Database\Eloquent\Model|null The authenticated model or null
 +     * @return Model|null The authenticated model or null
       *
       * @example
       * $user = current_authenticatable();
-@@ Line 61 @@
+@@ Line 75 @@
       *     $name = $user->name;
       * }
       */
@@ -358,12 +639,31 @@ Applied rules:
 +    function current_authenticatable(): ?Model
      {
          $parameterName = config('nemesis.middleware.parameter_name', 'nemesisAuth');
+
+@@ Line 82 @@
+         // The middleware uses $request->merge(), so data is accessible via input()
+         $authenticatable = request()->input($parameterName);
+
+-        if ($authenticatable instanceof \Illuminate\Database\Eloquent\Model) {
++        if ($authenticatable instanceof Model) {
+             return $authenticatable;
+         }
+
+@@ Line 124 @@
+
+         // Fallback: generate from the model if available (backward compatibility)
+         $user = current_authenticatable();
+-        if ($user && method_exists($user, 'nemesisFormat')) {
++        if ($user instanceof Model && method_exists($user, 'nemesisFormat')) {
+             return $user->nemesisFormat();
+         }
     ----------- end diff -----------
 
 Applied rules:
+ * BinaryOpNullableToInstanceofRector
 
 
-12) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Commands/CleanTokensCommandTest.php:98
+15) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Commands/CleanTokensCommandTest.php:98
 
     ---------- begin diff ----------
 @@ Line 98 @@
@@ -608,7 +908,7 @@ Applied rules:
  * AssertEmptyNullableObjectToAssertInstanceofRector
 
 
-13) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Commands/ListTokensCommandTest.php:20
+16) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Commands/ListTokensCommandTest.php:20
 
     ---------- begin diff ----------
 @@ Line 20 @@
@@ -743,7 +1043,7 @@ Applied rules:
  * StringClassNameToClassConstantRector
 
 
-14) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Helpers/NemesisHelpersTest.php:4
+17) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Helpers/NemesisHelpersTest.php:4
 
     ---------- begin diff ----------
 @@ Line 4 @@
@@ -786,8 +1086,8 @@ Applied rules:
          $route->bind($request);
 
          return $request;
-@@ Line 107 @@
-      * Simulate an authenticated request with model, token, and formatted data.
+@@ Line 111 @@
+      * - route parameters for backward compatibility
       *
       * @param mixed $model The authenticatable model
 -     * @param string $token The plain text token
@@ -798,7 +1098,7 @@ Applied rules:
      {
          $request = $this->createFreshRequest();
 
-@@ Line 192 @@
+@@ Line 200 @@
 
          // Assert: Token is a 64-character string
          $this->assertIsString($newToken);
@@ -807,7 +1107,7 @@ Applied rules:
 
          // Assert: Token is correctly stored in database
          $tokenModel = $this->user->getNemesisToken($newToken);
-@@ Line 212 @@
+@@ Line 220 @@
      public function test_current_token_helper_returns_token_model(): void
      {
          // Arrange: Simulate an authenticated request
@@ -816,7 +1116,7 @@ Applied rules:
 
          // Act: Get the current token
          $token = current_token();
-@@ Line 235 @@
+@@ Line 243 @@
          $token = current_token();
 
          // Assert: Null is returned
@@ -825,7 +1125,7 @@ Applied rules:
      }
 
      /**
-@@ Line 250 @@
+@@ Line 258 @@
              ['read', 'write', 'delete']
          );
          $tokenModel = $this->user->getNemesisToken($tokenWithAbilities);
@@ -837,7 +1137,7 @@ Applied rules:
 
          // Act: Get the current token
          $token = current_token();
-@@ Line 279 @@
+@@ Line 287 @@
              ['user_agent' => 'Mozilla/5.0', 'ip' => '127.0.0.1']
          );
          $tokenModel = $this->user->getNemesisToken($metadataToken);
@@ -849,7 +1149,7 @@ Applied rules:
 
          // Act: Get the current token
          $token = current_token();
-@@ Line 302 @@
+@@ Line 310 @@
      public function test_current_authenticatable_helper_returns_user(): void
      {
          // Arrange: Simulate an authenticated request with user
@@ -858,7 +1158,7 @@ Applied rules:
 
          // Act: Get the current authenticatable
          $authenticatable = current_authenticatable();
-@@ Line 322 @@
+@@ Line 330 @@
          // Arrange: Create token for API client
          $token = $this->apiClient->createNemesisToken('API Token', 'api');
          $tokenModel = $this->apiClient->getNemesisToken($token);
@@ -870,7 +1170,7 @@ Applied rules:
 
          // Act: Get the current authenticatable
          $authenticatable = current_authenticatable();
-@@ Line 343 @@
+@@ Line 351 @@
          // Arrange: Create token for checkpoint
          $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
          $tokenModel = $this->checkpoint->getNemesisToken($token);
@@ -882,7 +1182,7 @@ Applied rules:
 
          // Act: Get the current authenticatable
          $authenticatable = current_authenticatable();
-@@ Line 365 @@
+@@ Line 373 @@
          // Arrange: Create token for custom user
          $token = $this->customUser->createNemesisToken('Custom Token', 'web');
          $tokenModel = $this->customUser->getNemesisToken($token);
@@ -894,7 +1194,7 @@ Applied rules:
 
          // Act: Get the current authenticatable
          $authenticatable = current_authenticatable();
-@@ Line 391 @@
+@@ Line 399 @@
          $authenticatable = current_authenticatable();
 
          // Assert: Null is returned
@@ -903,7 +1203,7 @@ Applied rules:
      }
 
      // ============================================================================
-@@ Line 404 @@
+@@ Line 412 @@
      public function test_current_authenticatable_format_helper_returns_formatted_user(): void
      {
          // Arrange: Simulate an authenticated request with user
@@ -912,7 +1212,7 @@ Applied rules:
 
          // Act: Get the formatted authenticatable data
          $formatted = current_authenticatable_format();
-@@ Line 425 @@
+@@ Line 433 @@
          // Arrange: Create token for API client
          $token = $this->apiClient->createNemesisToken('API Token', 'api');
          $tokenModel = $this->apiClient->getNemesisToken($token);
@@ -924,7 +1224,7 @@ Applied rules:
 
          // Act: Get the formatted authenticatable data
          $formatted = current_authenticatable_format();
-@@ Line 450 @@
+@@ Line 458 @@
          // Arrange: Create token for checkpoint
          $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
          $tokenModel = $this->checkpoint->getNemesisToken($token);
@@ -936,7 +1236,7 @@ Applied rules:
 
          // Act: Get the formatted authenticatable data
          $formatted = current_authenticatable_format();
-@@ Line 479 @@
+@@ Line 487 @@
          // Arrange: Create token for custom user
          $token = $this->customUser->createNemesisToken('Custom Token', 'web');
          $tokenModel = $this->customUser->getNemesisToken($token);
@@ -948,7 +1248,7 @@ Applied rules:
 
          // Act: Get the formatted authenticatable data
          $formatted = current_authenticatable_format();
-@@ Line 530 @@
+@@ Line 538 @@
      public function test_all_helpers_work_together_for_user(): void
      {
          // Arrange: Simulate an authenticated request with user
@@ -957,7 +1257,7 @@ Applied rules:
 
          // Act & Assert: nemesis helper returns manager and validates token
          $manager = nemesis();
-@@ Line 564 @@
+@@ Line 572 @@
          // Arrange: Create token for checkpoint
          $token = $this->checkpoint->createNemesisToken('Checkpoint Token', 'kiosk');
          $tokenModel = $this->checkpoint->getNemesisToken($token);
@@ -969,7 +1269,7 @@ Applied rules:
 
          // Act & Assert: nemesis validates token
          $manager = nemesis();
-@@ Line 596 @@
+@@ Line 604 @@
          // Arrange: Simulate user authentication
          $userToken = $this->user->createNemesisToken('User Token', 'web');
          $userTokenModel = $this->user->getNemesisToken($userToken);
@@ -987,7 +1287,7 @@ Applied rules:
          $checkpointFormatted = current_authenticatable_format();
 
          // Assert: User has email, CheckPoint does not
-@@ Line 626 @@
+@@ Line 634 @@
          // Arrange: Simulate regular user authentication
          $userToken = $this->user->createNemesisToken('User Token', 'web');
          $userTokenModel = $this->user->getNemesisToken($userToken);
@@ -1018,7 +1318,7 @@ Applied rules:
  * AddMethodCallBasedStrictParamTypeRector
 
 
-15) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Http/Middleware/NemesisAuthTest.php:1488
+18) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Http/Middleware/NemesisAuthTest.php:1488
 
     ---------- begin diff ----------
 @@ Line 1488 @@
@@ -1048,158 +1348,5 @@ Applied rules:
  * EncapsedStringsToSprintfRector
 
 
-16) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Traits/HasNemesisTokensTest.php:171
-
-    ---------- begin diff ----------
-@@ Line 171 @@
-
-         // Assert: Token is permanently deleted and method returns true
-         $this->assertTrue($result);
--        $this->assertNull($this->testUser->currentNemesisToken());
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
-         $this->assertEquals(0, $this->testUser->nemesisTokens()->withTrashed()->count());
-     }
-
-@@ Line 207 @@
-
-         // Assert: Token is soft deleted and method returns true
-         $this->assertTrue($result);
--        $this->assertNull($this->testUser->currentNemesisToken());
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->currentNemesisToken());
-         $this->assertEquals(1, $this->testUser->nemesisTokens()->withTrashed()->count());
-     }
-
-@@ Line 300 @@
-         $tokenModel = $this->testUser->getNemesisToken('invalid-token');
-
-         // Assert: Null is returned
--        $this->assertNull($tokenModel);
-+        $this->assertNotInstanceOf(NemesisToken::class, $tokenModel);
-     }
-
-     /**
-@@ Line 317 @@
-         $tokenModel->delete();
-
-         // Assert: Without trashed returns null
--        $this->assertNull($this->testUser->getNemesisToken($plainToken));
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken));
-
-         // Assert: With trashed returns the soft deleted token
-         $foundToken = $this->testUser->getNemesisToken($plainToken, withTrashed: true);
-@@ Line 338 @@
-         $plainToken = $this->testUser->createNemesisToken('Test Token');
-         $tokenModel = $this->testUser->getNemesisToken($plainToken);
-         $tokenModel->expires_at = now()->addDays(10);
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-         $tokenModel->save();
-
-         // Assert: Token is valid
-@@ Line 362 @@
-         $plainToken = $this->testUser->createNemesisToken('Test Token');
-         $tokenModel = $this->testUser->getNemesisToken($plainToken);
-         $tokenModel->expires_at = now()->addDays(10);
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-         $tokenModel->save();
-         $tokenModel->delete();
-
-@@ Line 378 @@
-         $plainToken = $this->testUser->createNemesisToken('Test Token');
-         $tokenModel = $this->testUser->getNemesisToken($plainToken);
-         $tokenModel->expires_at = now()->addDays(10);
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-         $tokenModel->save();
-         $tokenModel->delete();
-
-@@ Line 394 @@
-         $plainToken = $this->testUser->createNemesisToken('Test Token');
-         $tokenModel = $this->testUser->getNemesisToken($plainToken);
-         $tokenModel->expires_at = now()->subDay();
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-         $tokenModel->save();
-         $tokenModel->delete();
-
-@@ Line 423 @@
-
-         // Assert: Method returns true and last_used_at was updated
-         $this->assertTrue($result);
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel);
-         $tokenModel->refresh();
-         $this->assertNotEquals($originalLastUsed, $tokenModel->last_used_at);
-     }
-@@ Line 509 @@
-         // Arrange: Expire the first token
-         $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
-         $expiredTokenModel->expires_at = now()->subDay();
-+        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
-         $expiredTokenModel->save();
-
-         // Arrange: Set valid token to future expiration
-         $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
-         $validTokenModel->expires_at = now()->addDays(10);
-+        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
-         $validTokenModel->save();
-
-         // Act: Revoke expired tokens
-@@ Line 542 @@
-         $validPlainToken = $this->testUser->createNemesisToken('Valid Token');
-         $validTokenModel = $this->testUser->getNemesisToken($validPlainToken);
-         $validTokenModel->expires_at = now()->addDays(10);
-+        $this->assertInstanceOf(NemesisToken::class, $validTokenModel);
-         $validTokenModel->save();
-
-         // Act: Revoke expired tokens
-@@ Line 569 @@
-         // Arrange: Expire the first token
-         $expiredTokenModel = $this->testUser->getNemesisToken($expiredPlainToken);
-         $expiredTokenModel->expires_at = now()->subDay();
-+        $this->assertInstanceOf(NemesisToken::class, $expiredTokenModel);
-         $expiredTokenModel->save();
-
-         // Act: Permanently delete expired tokens
-@@ Line 576 @@
-
-         // Assert: Only expired token is permanently deleted
-         $this->assertSame(1, $deletedCount);
--        $this->assertNull($this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true));
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($expiredPlainToken, withTrashed: true));
-         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
-     }
-
-@@ Line 596 @@
-         // Arrange: Soft delete both tokens
-         $tokenModel1 = $this->testUser->getNemesisToken($token1);
-         $tokenModel2 = $this->testUser->getNemesisToken($token2);
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel1);
-         $tokenModel1->delete();
-+        $this->assertInstanceOf(NemesisToken::class, $tokenModel2);
-         $tokenModel2->delete();
-
-         // Arrange: Verify they are soft deleted
-@@ Line 657 @@
-
-         // Arrange: Verify state: 1 active, 1 soft deleted
-         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($validPlainToken));
--        $this->assertNull($this->testUser->getNemesisToken($revokedPlainToken));
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken));
-         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($revokedPlainToken, withTrashed: true));
-         $this->assertEquals(1, $this->testUser->nemesisTokens()->count());
-         $this->assertEquals(1, $this->testUser->nemesisTokens()->onlyTrashed()->count());
-@@ Line 691 @@
-         $this->testUser->revokeNemesisTokens();
-
-         // Assert: Token is soft deleted
--        $this->assertNull($this->testUser->getNemesisToken($plainToken));
-+        $this->assertNotInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken));
-         $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($plainToken, withTrashed: true));
-
-         // Act: Restore the token
-    ----------- end diff -----------
-
-Applied rules:
- * AddInstanceofAssertForNullableInstanceRector
- * AssertEmptyNullableObjectToAssertInstanceofRector
-
-
- [OK] 16 files would have been changed (dry-run) by Rector                                                              
+ [OK] 18 files would have been changed (dry-run) by Rector                                                              
 

@@ -106,6 +106,10 @@ final class NemesisHelpersTest extends TestCase
     /**
      * Simulate an authenticated request with model, token, and formatted data.
      *
+     * This mimics exactly what the NemesisAuth middleware does:
+     * - $request->merge() for input data (primary access method)
+     * - route parameters for backward compatibility
+     *
      * @param mixed $model The authenticatable model
      * @param string $token The plain text token
      * @param NemesisToken $tokenModel The token model
@@ -114,12 +118,16 @@ final class NemesisHelpersTest extends TestCase
     {
         $request = $this->createFreshRequest();
 
-        $request->route()->setParameter($this->parameterName, $model);
-        $request->route()->setParameter('currentNemesisToken', $tokenModel);
-
+        // Simulate middleware's $request->merge() (primary method)
         $request->merge([
+            $this->parameterName => $model,
+            'currentNemesisToken' => $tokenModel,
             $this->parameterName . 'Format' => $model->nemesisFormat(),
         ]);
+
+        // Simulate route parameters for backward compatibility (fallback)
+        $request->route()->setParameter($this->parameterName, $model);
+        $request->route()->setParameter('currentNemesisToken', $tokenModel);
 
         $this->app->instance('request', $request);
     }
