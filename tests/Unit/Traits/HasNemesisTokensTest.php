@@ -724,6 +724,273 @@ final class HasNemesisTokensTest extends TestCase
     }
 
     // ============================================================================
+    // Token Revocation by Source/Name Tests
+    // ============================================================================
+
+    /**
+     * Test that revokeNemesisTokensBySource revokes only tokens with matching source.
+     */
+    public function test_revoke_nemesis_tokens_by_source_revokes_only_matching_source(): void
+    {
+        // Arrange: Create tokens with different sources
+        $this->testUser->createNemesisToken('Web Token 1', 'web');
+        $this->testUser->createNemesisToken('Web Token 2', 'web');
+        $mobileToken = $this->testUser->createNemesisToken('Mobile Token', 'mobile');
+        $apiToken = $this->testUser->createNemesisToken('API Token', 'api');
+
+        // Act: Revoke all web tokens
+        $revokedCount = $this->testUser->revokeNemesisTokensBySource('web');
+
+        // Assert: Only web tokens are revoked
+        $this->assertEquals(2, $revokedCount);
+
+        // Web tokens should be soft deleted
+        $webTokens = $this->testUser->getNemesisTokensBySource('web', withTrashed: true);
+        $this->assertCount(2, $webTokens);
+        foreach ($webTokens as $token) {
+            $this->assertTrue($token->trashed());
+        }
+
+        // Mobile token should remain active
+        $mobileTokenModel = $this->testUser->getNemesisToken($mobileToken);
+        $this->assertInstanceOf(NemesisToken::class, $mobileTokenModel);
+        $this->assertFalse($mobileTokenModel->trashed());
+
+        // API token should remain active
+        $apiTokenModel = $this->testUser->getNemesisToken($apiToken);
+        $this->assertInstanceOf(NemesisToken::class, $apiTokenModel);
+        $this->assertFalse($apiTokenModel->trashed());
+    }
+
+    /**
+     * Test that revokeNemesisTokensByName revokes only tokens with matching name.
+     */
+    public function test_revoke_nemesis_tokens_by_name_revokes_only_matching_name(): void
+    {
+        // Arrange: Create tokens with different names
+        $this->testUser->createNemesisToken('web_session', 'web');
+        $this->testUser->createNemesisToken('web_session', 'mobile');
+        $this->testUser->createNemesisToken('api_key', 'api');
+
+        // Act: Revoke all 'web_session' tokens
+        $revokedCount = $this->testUser->revokeNemesisTokensByName('web_session');
+
+        // Assert: Both web and mobile 'web_session' tokens are revoked
+        $this->assertEquals(2, $revokedCount);
+
+        // 'api_key' token should remain active
+        $apiKeyToken = $this->testUser->getNemesisTokensBySource('api')->first();
+        $this->assertInstanceOf(NemesisToken::class, $apiKeyToken);
+        $this->assertFalse($apiKeyToken->trashed());
+    }
+
+    /**
+     * Test that revokeNemesisTokensBySourceAndName revokes only specific tokens.
+     */
+    public function test_revoke_nemesis_tokens_by_source_and_name_revokes_specific_tokens(): void
+    {
+        // Arrange: Create various tokens
+        $this->testUser->createNemesisToken('web_session', 'web');
+        $this->testUser->createNemesisToken('web_session', 'mobile');
+        $this->testUser->createNemesisToken('web_admin', 'web');
+        $mobileToken = $this->testUser->createNemesisToken('mobile_session', 'mobile');
+
+        // Act: Revoke only web_session tokens from web source
+        $revokedCount = $this->testUser->revokeNemesisTokensBySourceAndName('web', 'web_session');
+
+        // Assert: Only one token revoked
+        $this->assertEquals(1, $revokedCount);
+
+        // Other tokens should remain active
+        $allActiveTokens = $this->testUser->nemesisTokens()->get();
+        $this->assertEquals(3, $allActiveTokens->count());
+
+        // Mobile token should be active
+        $mobileTokenModel = $this->testUser->getNemesisToken($mobileToken);
+        $this->assertInstanceOf(NemesisToken::class, $mobileTokenModel);
+        $this->assertFalse($mobileTokenModel->trashed());
+    }
+
+    /**
+     * Test that revokeAllNemesisTokensExceptSource keeps specified source tokens.
+     */
+    public function test_revoke_all_nemesis_tokens_except_source_keeps_specified_source(): void
+    {
+        // Arrange: Create tokens with different sources
+        $webToken1 = $this->testUser->createNemesisToken('Web Token 1', 'web');
+        $webToken2 = $this->testUser->createNemesisToken('Web Token 2', 'web');
+        $mobileToken = $this->testUser->createNemesisToken('Mobile Token', 'mobile');
+        $apiToken = $this->testUser->createNemesisToken('API Token', 'api');
+
+        // Act: Revoke all tokens except mobile
+        $revokedCount = $this->testUser->revokeAllNemesisTokensExceptSource('mobile');
+
+        // Assert: 3 tokens revoked (2 web + 1 api)
+        $this->assertEquals(3, $revokedCount);
+
+        // Only mobile token remains active
+        $activeTokens = $this->testUser->nemesisTokens()->get();
+        $this->assertEquals(1, $activeTokens->count());
+        $this->assertEquals('Mobile Token', $activeTokens->first()->name);
+
+        // Mobile token should be active
+        $mobileTokenModel = $this->testUser->getNemesisToken($mobileToken);
+        $this->assertInstanceOf(NemesisToken::class, $mobileTokenModel);
+        $this->assertFalse($mobileTokenModel->trashed());
+    }
+
+    /**
+     * Test that revokeNemesisTokensWhere with custom criteria works.
+     */
+    public function test_revoke_nemesis_tokens_where_with_custom_criteria(): void
+    {
+        // Arrange: Create tokens with different names
+        $tokenToRevoke = $this->testUser->createNemesisToken('token_to_revoke', 'web');
+        $tokenToKeep = $this->testUser->createNemesisToken('token_to_keep', 'web');
+        $anotherToken = $this->testUser->createNemesisToken('another_token', 'web');
+
+        // Act: Revoke tokens with specific name
+        $revokedCount = $this->testUser->revokeNemesisTokensWhere([
+            'name' => 'token_to_revoke'
+        ]);
+
+        // Assert: Only matching token is revoked
+        $this->assertEquals(1, $revokedCount);
+
+        // Get the token models using the actual token values
+        $revokedToken = $this->testUser->getNemesisToken($tokenToRevoke, withTrashed: true);
+        $keptToken = $this->testUser->getNemesisToken($tokenToKeep);
+        $anotherKeptToken = $this->testUser->getNemesisToken($anotherToken);
+
+        $this->assertNotNull($revokedToken);
+        $this->assertNotNull($keptToken);
+        $this->assertNotNull($anotherKeptToken);
+
+        $this->assertTrue($revokedToken->trashed());
+        $this->assertFalse($keptToken->trashed());
+        $this->assertFalse($anotherKeptToken->trashed());
+
+        // Verify the revoked token has the correct name
+        $this->assertEquals('token_to_revoke', $revokedToken->name);
+        $this->assertEquals('token_to_keep', $keptToken->name);
+        $this->assertEquals('another_token', $anotherKeptToken->name);
+    }
+
+    /**
+     * Test real-world scenario: logout from all browsers but keep mobile app.
+     */
+    public function test_real_world_scenario_logout_from_all_browsers_keep_mobile(): void
+    {
+        // Arrange: Simulate user with multiple sessions
+        // User is logged in on 3 different browsers (web_session tokens)
+        $browserTokens = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $browserTokens[] = $this->testUser->createNemesisToken(
+                name: 'web_session',
+                source: 'web'
+            );
+        }
+
+        // User also has a mobile app token
+        $mobileToken = $this->testUser->createNemesisToken(
+            name: 'mobile_session',
+            source: 'mobile'
+        );
+
+        // User also has an API token for integrations
+        $apiToken = $this->testUser->createNemesisToken(
+            name: 'api_key',
+            source: 'api'
+        );
+
+        // Act: User clicks "Logout from all browsers"
+        $revokedCount = $this->testUser->revokeNemesisTokensBySource('web');
+
+        // Assert: Only web tokens were revoked
+        $this->assertEquals(3, $revokedCount);
+
+        // All web tokens should be invalid/revoked
+        foreach ($browserTokens as $browserToken) {
+            $this->assertFalse($this->testUser->validateNemesisToken($browserToken));
+            $token = $this->testUser->getNemesisToken($browserToken, withTrashed: true);
+            $this->assertTrue($token->trashed());
+        }
+
+        // Mobile token should still be valid
+        $this->assertTrue($this->testUser->validateNemesisToken($mobileToken));
+
+        // API token should still be valid
+        $this->assertTrue($this->testUser->validateNemesisToken($apiToken));
+
+        // Active tokens count should be 2 (mobile + api)
+        $activeTokens = $this->testUser->nemesisTokens()->get();
+        $this->assertEquals(2, $activeTokens->count());
+    }
+
+    /**
+     * Test force delete variants.
+     */
+    public function test_force_delete_variants_permanently_delete_tokens(): void
+    {
+        // Arrange: Create tokens
+        $webToken = $this->testUser->createNemesisToken('Web Token', 'web');
+        $mobileToken = $this->testUser->createNemesisToken('Mobile Token', 'mobile');
+
+        // Act: Force delete web tokens by source
+        $deletedCount = $this->testUser->revokeNemesisTokensBySource('web', force: true);
+
+        // Assert: Web token is permanently deleted
+        $this->assertEquals(1, $deletedCount);
+        $this->assertNull($this->testUser->getNemesisToken($webToken, withTrashed: true));
+
+        // Mobile token remains
+        $this->assertInstanceOf(NemesisToken::class, $this->testUser->getNemesisToken($mobileToken));
+    }
+
+    /**
+     * Test that revokeNemesisTokensBySource returns 0 when no matching tokens exist.
+     */
+    public function test_revoke_nemesis_tokens_by_source_returns_zero_when_no_matching_tokens(): void
+    {
+        // Arrange: Create only mobile token
+        $this->testUser->createNemesisToken('Mobile Token', 'mobile');
+
+        // Act: Try to revoke web tokens
+        $revokedCount = $this->testUser->revokeNemesisTokensBySource('web');
+
+        // Assert: No tokens were revoked
+        $this->assertEquals(0, $revokedCount);
+
+        // Mobile token still active
+        $this->assertEquals(1, $this->testUser->nemesisTokens()->count());
+    }
+
+    /**
+     * Test chaining revoke operations.
+     */
+    public function test_chaining_revoke_operations(): void
+    {
+        // Arrange: Create multiple tokens
+        $this->testUser->createNemesisToken('web_session', 'web');
+        $this->testUser->createNemesisToken('web_admin', 'web');
+        $this->testUser->createNemesisToken('mobile_session', 'mobile');
+        $this->testUser->createNemesisToken('api_key', 'api');
+
+        // Act: First revoke all web tokens, then revoke mobile tokens
+        $webRevoked = $this->testUser->revokeNemesisTokensBySource('web');
+        $mobileRevoked = $this->testUser->revokeNemesisTokensBySource('mobile');
+
+        // Assert: Correct counts
+        $this->assertEquals(2, $webRevoked);
+        $this->assertEquals(1, $mobileRevoked);
+
+        // Only API token remains active
+        $activeTokens = $this->testUser->nemesisTokens()->get();
+        $this->assertEquals(1, $activeTokens->count());
+        $this->assertEquals('api', $activeTokens->first()->source);
+    }
+
+    // ============================================================================
     // Helper Methods
     // ============================================================================
 

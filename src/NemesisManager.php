@@ -147,6 +147,23 @@ final class NemesisManager
     }
 
     /**
+     * Revoke (soft delete) all tokens for an authenticatable model by source.
+     *
+     * @param MustNemesis&Model $model The authenticatable model
+     * @param string $source The source to filter by
+     * @param bool $force Whether to force delete instead of soft delete
+     * @return int Number of tokens revoked
+     *
+     * @example
+     * // Logout from all web sessions
+     * $revokedCount = $manager->revokeTokensBySource($user, 'web');
+     */
+    public function revokeTokensBySource(MustNemesis&Model $model, string $source, bool $force = false): int
+    {
+        return $model->revokeNemesisTokensBySource($source, $force);
+    }
+
+    /**
      * Revoke (soft delete) all expired tokens across all models.
      *
      * @return int Number of expired tokens revoked
