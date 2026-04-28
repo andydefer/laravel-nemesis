@@ -1,5 +1,5 @@
 # Pint Formatting Test Report
-*Generated: mar. 28 avril 2026 14:40:48 WAT*
+*Generated: mar. 28 avril 2026 14:55:27 WAT*
 
 
   ⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.⨯
@@ -39,7 +39,7 @@
   ⨯ tests/Unit/NemesisManagerTest.php                                                class_attributes_separation, new_with_parentheses, trailing_comma_in_multiline, no_unused_imports  
   ⨯ tests/Unit/Services/NemesisInstallerServiceTest.php class_attributes_separation, new_with_parentheses, phpdoc_no_package, concat_space, phpdoc_trim, not_operator_with_successor_…  
   ⨯ tests/Unit/Services/TokenMetadataServiceTest.php                                                                                                     increment_style, concat_space  
-  ⨯ tests/Unit/Traits/HasNemesisTokensTest.php                                                                                 concat_space, trailing_comma_in_multiline, phpdoc_align  
+  ⨯ tests/Unit/Traits/HasNemesisTokensTest.php                                                    class_attributes_separation, concat_space, trailing_comma_in_multiline, phpdoc_align  
   ⨯ tests/database/migrations/2024_01_01_000001_create_test_users_table.php                                          class_definition, phpdoc_no_package, braces_position, phpdoc_trim  
   ⨯ tests/database/migrations/2024_01_01_000002_create_invalid_models_table.php                                      class_definition, phpdoc_no_package, braces_position, phpdoc_trim  
   ⨯ tests/database/migrations/2024_01_01_000003_create_test_checkpoints_table.php                                    class_definition, phpdoc_no_package, braces_position, phpdoc_trim  

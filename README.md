@@ -148,7 +148,7 @@ public function revokeCurrentToken(Request $request)
 
 ## 🎯 Révocation granulaire des tokens
 
-Nemesis 1.2+ introduit des méthodes puissantes pour révoquer sélectivement les tokens par source, nom ou critères personnalisés.
+Nemesis 1.3+ introduit des méthodes puissantes pour révoquer sélectivement les tokens par source, nom ou critères personnalisés.
 
 ### Méthodes de révocation
 
