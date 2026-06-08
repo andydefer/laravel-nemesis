@@ -4,8 +4,168 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c892b00d6b35ae9d8490561c0b8bebca",
+    "content-hash": "70dfa5c34a9275eeffccb2ce68d9c5e3",
     "packages": [
+        {
+            "name": "andydefer/domain-structures",
+            "version": "v1.17.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/domain-structures.git",
+                "reference": "4445f0e595a9961aed3f8807c1473c8add957dd5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/domain-structures/zipball/4445f0e595a9961aed3f8807c1473c8add957dd5",
+                "reference": "4445f0e595a9961aed3f8807c1473c8add957dd5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "barryvdh/laravel-ide-helper": "^3.6",
+                "composer/composer": "^2.0",
+                "larastan/larastan": "^3.8",
+                "laravel/pint": "^1.26",
+                "orchestra/testbench": "^10.8",
+                "phpunit/phpunit": "^12.5",
+                "rector/rector": "*",
+                "symfony/var-dumper": "^7.0",
+                "vimeo/psalm": "^6.14"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\DomainStructures\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A complete domain structures package for PHP: Records, Value Objects, Data DTOs, and TypedCollections. Brings type safety and clean architecture to your application.",
+            "support": {
+                "issues": "https://github.com/andydefer/domain-structures/issues",
+                "source": "https://github.com/andydefer/domain-structures/tree/v1.17.0"
+            },
+            "time": "2026-06-07T12:56:29+00:00"
+        },
+        {
+            "name": "andydefer/laravel-directive",
+            "version": "v3.6.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/laravel-directive.git",
+                "reference": "ae4b57e383e75026db4f1639e457e829f3a10a5f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/ae4b57e383e75026db4f1639e457e829f3a10a5f",
+                "reference": "ae4b57e383e75026db4f1639e457e829f3a10a5f",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/domain-structures": "^1.14",
+                "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "barryvdh/laravel-ide-helper": "^3.6",
+                "composer/composer": "^2.0",
+                "larastan/larastan": "^3.8",
+                "laravel/pint": "^1.26",
+                "orchestra/testbench": "^10.8",
+                "phpunit/phpunit": "^12.5",
+                "rector/rector": "*",
+                "symfony/var-dumper": "^7.0",
+                "vimeo/psalm": "^6.14"
+            },
+            "bin": [
+                "bin/directive"
+            ],
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "AndyDefer\\Directive\\DirectiveServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\Directive\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A flexible CLI command system for Laravel that breaks free from Artisan's constraints. Directives introduces a clean separation between what your command does (business logic) and how it's presented (output/UI).",
+            "support": {
+                "issues": "https://github.com/andydefer/laravel-directive/issues",
+                "source": "https://github.com/andydefer/laravel-directive/tree/v3.6.4"
+            },
+            "time": "2026-06-04T07:13:10+00:00"
+        },
+        {
+            "name": "andydefer/php-vo",
+            "version": "0.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/andydefer/php-vo.git",
+                "reference": "b7175428f50261d1166decd4561206ee3137dcf5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/andydefer/php-vo/zipball/b7175428f50261d1166decd4561206ee3137dcf5",
+                "reference": "b7175428f50261d1166decd4561206ee3137dcf5",
+                "shasum": ""
+            },
+            "require": {
+                "andydefer/domain-structures": "^1.3",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^10.5|^11.0|^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AndyDefer\\PhpVo\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andy Defer",
+                    "email": "andykanidimbu@gmail.com"
+                }
+            ],
+            "description": "A collection of reusable Value Objects and Enums for PHP applications (Email, Money, Address, PostalCode, Iso8601DateTime, Currency, etc.)",
+            "support": {
+                "issues": "https://github.com/andydefer/php-vo/issues",
+                "source": "https://github.com/andydefer/php-vo/tree/0.7.2"
+            },
+            "time": "2026-06-08T03:19:23+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.14.8",
