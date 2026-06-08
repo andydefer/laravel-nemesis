@@ -1,0 +1,386 @@
+
+// ==== ./tests/Fixtures/Models/TestCustomFormatUser.php ===
+
+<?php
+
+declare(strict_types=1);
+
+
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for users with custom nemesisFormat implementation.
+ *
+ * This model demonstrates a custom format for API responses,
+ * different from the standard TestUser format.
+ *
+ * @package Kani\Nemesis\Tests\FIxtures\Model
+ */
+final class TestCustomFormatUser extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    use SoftDeletes;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'test_users';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'remember_token',
+        'email_verified_at',  // ← Ajouter ce champ
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',  // ← S'assurer du cast
+        'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = true;
+
+    /**
+     * Define custom format for authenticated API responses.
+     * This format excludes email and adds custom fields.
+     *
+     * @return array<string, mixed>
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'user_id' => $this->id,
+            'full_name' => $this->name,
+            'is_verified' => !is_null($this->email_verified_at),
+            'custom_field' => 'only_for_api',
+            'type' => 'custom_user',
+        ];
+    }
+}
+
+// ==== ./tests/Fixtures/Models/TestCheckPoint.php ===
+
+<?php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for checkpoints (billeterie) that can authenticate with tokens.
+ *
+ * This model represents a physical checkpoint (turnstile, gate, etc.)
+ * that needs to authenticate with Nemesis tokens for ticket validation.
+ *
+ * @package Kani\Nemesis\Tests\FIxtures\Model
+ */
+final class TestCheckPoint extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    use SoftDeletes;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'test_checkpoints';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'location',
+        'is_active',
+        'last_ping_at',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_active' => 'boolean',
+        'last_ping_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = true;
+
+    /**
+     * Define the format for authenticated API responses.
+     *
+     * @return array<string, mixed>
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'location' => $this->location,
+            'status' => $this->is_active ? 'active' : 'inactive',
+            'last_seen' => $this->last_ping_at?->toIso8601String(),
+            'type' => 'checkpoint',
+        ];
+    }
+}
+
+// ==== ./tests/Fixtures/Models/TestInvalidModel.php ===
+
+<?php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
+
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Test model that does NOT implement MustNemesis interface.
+ *
+ * This model is specifically designed for testing the middleware's
+ * contract validation. It intentionally omits the MustNemesis interface
+ * to verify that the middleware correctly rejects models that don't
+ * implement the required contract.
+ *
+ * @package Kani\Nemesis\Tests\FIxtures\Model
+ */
+final class TestInvalidModel extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'invalid_models';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+    ];
+
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = true;
+}
+
+// ==== ./tests/Fixtures/Models/TestUser.php ===
+
+<?php
+
+declare(strict_types=1);
+
+
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for users that can authenticate with Nemesis tokens.
+ *
+ * This model represents a typical User model in a Laravel application
+ * and demonstrates the correct implementation of the MustNemesis interface.
+ * Used for testing token authentication in a realistic context.
+ *
+ * @package Kani\Nemesis\Tests\FIxtures\Model
+ */
+final class TestUser extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    use SoftDeletes;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'test_users';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = true;
+
+    /**
+     * Define the format for authenticated API responses.
+     *
+     * @return array<string, mixed>
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'type' => 'user',
+        ];
+    }
+}
+
+// ==== ./tests/Fixtures/Models/TestApiClient.php ===
+
+<?php
+
+declare(strict_types=1);
+
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Traits\HasNemesisTokens;
+
+/**
+ * Test model for API clients that can authenticate with tokens.
+ *
+ * This model is used exclusively for testing the Nemesis package.
+ * It implements the MustNemesis contract and uses the HasNemesisTokens trait
+ * to provide full token management capabilities for API client testing.
+ *
+ * @package Kani\Nemesis\Tests\FIxtures\Model
+ */
+final class TestApiClient extends Model implements MustNemesis
+{
+    use HasNemesisTokens;
+    use SoftDeletes;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'test_api_clients';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'name',
+        'api_key',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'api_key',
+    ];
+
+    /**
+     * Define the format for authenticated API responses.
+     *
+     * @return array<string, mixed>
+     */
+    public function nemesisFormat(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'type' => 'api_client',
+        ];
+    }
+}

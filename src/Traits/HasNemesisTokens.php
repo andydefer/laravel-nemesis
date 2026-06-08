@@ -13,13 +13,49 @@ use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\Services\TokenMetadataService;
 
 /**
- * Trait for models that can own Nemesis tokens.
- *
- * Provides full token management capabilities for any Eloquent model.
- * The using class should implement MustNemesis interface.
- *
- * @mixin Model
+ * @deprecated 
+ * ⚠️ CE TRAIT EST DÉPRÉCIÉ - Sera supprimé dans v3.0 ⚠️
+ * 
+ * RAISONS :
+ * - Couplage implicite (héritage au lieu d'injection)
+ * - Modèle devient un God Object
+ * - Non testable sans base de données
+ * - Appels à config() et now() (état global)
+ * - Violation des principes SOLID
+ * 
+ * ALTERNATIVE :
+ * Utiliser NemesisService avec injection de dépendances
+ * 
+ * @see \Kani\Nemesis\Services\NemesisService
+ * 
+ * EXEMPLE :
+ * 
+ * // ❌ À ÉVITER (ancienne approche)
+ * class User extends Model
+ * {
+ *     use HasNemesisTokens;
+ * }
+ * 
+ * $user = User::find(1);
+ * $token = $user->createNemesisToken('API Token');
+ * $user->revokeNemesisTokens();
+ * 
+ * // ✅ À PRIVILÉGIER (nouvelle approche)
+ * class UserService
+ * {
+ *     public function __construct(
+ *         private readonly NemesisService $nemesisService,
+ *     ) {}
+ *     
+ *     public function createToken(User $user): string
+ *     {
+ *         $record = NemesisTokenRecord::from(['name' => 'API Token']);
+ *         [$token, $plain] = $this->nemesisService->createWithPlainToken($record, $user);
+ *         return $plain;
+ *     }
+ * }
  */
+
 trait HasNemesisTokens
 {
     /**

@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Support;
+namespace Kani\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Tests\Fixtures\Records\TestUserRecord;
 use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
@@ -16,7 +17,7 @@ use Kani\Nemesis\Traits\HasNemesisTokens;
  * and demonstrates the correct implementation of the MustNemesis interface.
  * Used for testing token authentication in a realistic context.
  *
- * @package Kani\Nemesis\Tests\Support
+ * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestUser extends Model implements MustNemesis
 {
@@ -25,25 +26,20 @@ final class TestUser extends Model implements MustNemesis
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'test_users';
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
     ];
 
     /**
      * The attributes that should be cast to native types.
-     *
-     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -52,8 +48,6 @@ final class TestUser extends Model implements MustNemesis
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -62,23 +56,36 @@ final class TestUser extends Model implements MustNemesis
 
     /**
      * Indicates if the model should be timestamped.
-     *
-     * @var bool
      */
     public $timestamps = true;
 
     /**
-     * Define the format for authenticated API responses.
-     *
-     * @return array<string, mixed>
+     * Get the full name (getter explicite).
      */
-    public function nemesisFormat(): array
+    public function getFullName(): string
     {
-        return [
+        return $this->name ?? '';
+    }
+
+    /**
+     * Check if email is verified.
+     */
+    public function isEmailVerified(): bool
+    {
+        return $this->email_verified_at !== null;
+    }
+
+    /**
+     * Define the format for authenticated API responses.
+     * Returns a Record, not an array.
+     */
+    public function nemesisFormat(): TestUserRecord
+    {
+        return TestUserRecord::from([
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'type' => 'user',
-        ];
+            'email_verified_at' => $this->email_verified_at,
+        ]);
     }
 }

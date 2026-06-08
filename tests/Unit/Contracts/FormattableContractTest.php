@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kani\Nemesis\Tests\Unit\Contracts;
 
 use Kani\Nemesis\Contracts\CanBeFormatted;
-use Kani\Nemesis\Tests\Support\TestApiClient;
-use Kani\Nemesis\Tests\Support\TestCheckPoint;
-use Kani\Nemesis\Tests\Support\TestCustomFormatUser;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestApiClient;
+use Kani\Nemesis\Tests\FIxtures\Models\TestCheckPoint;
+use Kani\Nemesis\Tests\FIxtures\Models\TestCustomFormatUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

@@ -9,9 +9,10 @@ use Kani\Nemesis\Commands\CleanTokensCommand;
 use Kani\Nemesis\Commands\InstallNemesisCommand;
 use Kani\Nemesis\Commands\ListTokensCommand;
 use Kani\Nemesis\Config\NemesisConfig;
-use Kani\Nemesis\Http\Middleware\NemesisAuth;
-use Kani\Nemesis\NemesisManager;
-use Kani\Nemesis\NemesisServiceProvider;
+use Kani\Nemesis\Http\Middleware\NemesisTokenMiddleware;
+use Kani\Nemesis\Providers\NemesisServiceProvider;
+use Kani\Nemesis\Services\NemesisAuthenticationService;
+use Kani\Nemesis\Services\NemesisService;
 use Kani\Nemesis\Tests\TestCase;
 
 /**
@@ -34,13 +35,14 @@ final class NemesisServiceProviderTest extends TestCase
         $provider->register();
         $provider->boot();
 
-        // Assert: The nemesis binding should exist in the container and return a NemesisManager instance
-        $this->assertTrue($this->app->bound('nemesis'));
-        $this->assertInstanceOf(NemesisManager::class, $this->app->make('nemesis'));
+        // Assert: Key services should be bound in the container
+        $this->assertTrue($this->app->bound(NemesisConfig::class));
+        $this->assertTrue($this->app->bound(NemesisService::class));
+        $this->assertTrue($this->app->bound(NemesisAuthenticationService::class));
     }
 
     /**
-     * Test that the service provider registers the nemesis.auth middleware.
+     * Test that the service provider registers the nemesis.token middleware.
      */
     public function test_service_provider_registers_middleware(): void
     {
@@ -55,8 +57,8 @@ final class NemesisServiceProviderTest extends TestCase
         /** @var Router $router */
         $router = $this->app['router'];
 
-        $this->assertArrayHasKey('nemesis.auth', $router->getMiddleware());
-        $this->assertEquals(NemesisAuth::class, $router->getMiddleware()['nemesis.auth']);
+        $this->assertArrayHasKey('nemesis.token', $router->getMiddleware());
+        $this->assertEquals(NemesisTokenMiddleware::class, $router->getMiddleware()['nemesis.token']);
     }
 
     /**
@@ -71,12 +73,12 @@ final class NemesisServiceProviderTest extends TestCase
         $provider->register();
         $provider->boot();
 
-        // Assert: The middleware group should contain the NemesisAuth middleware
+        // Assert: The middleware group should contain the NemesisTokenMiddleware
         /** @var Router $router */
         $router = $this->app['router'];
 
         $this->assertArrayHasKey('nemesis', $router->getMiddlewareGroups());
-        $this->assertContains(NemesisAuth::class, $router->getMiddlewareGroups()['nemesis']);
+        $this->assertContains(NemesisTokenMiddleware::class, $router->getMiddlewareGroups()['nemesis']);
     }
 
     /**
@@ -146,8 +148,8 @@ final class NemesisServiceProviderTest extends TestCase
         $provider->boot();
 
         // Assert: Package configuration and migration files exist and are ready for publishing
-        $configPath = __DIR__.'/../../config/nemesis.php';
-        $migrationPath = __DIR__.'/../../database/migrations/';
+        $configPath = __DIR__ . '/../../config/nemesis.php';
+        $migrationPath = __DIR__ . '/../../database/migrations/';
 
         $this->assertFileExists($configPath);
         $this->assertDirectoryExists($migrationPath);
@@ -171,14 +173,14 @@ final class NemesisServiceProviderTest extends TestCase
         $this->assertInstanceOf(NemesisConfig::class, $config);
 
         // Assert config values are loaded correctly
-        $this->assertSame('Authorization', $config->tokenHeader);
-        $this->assertSame('sha256', $config->hashAlgorithm);
-        $this->assertSame('nemesisAuth', $config->parameterName);
-        $this->assertTrue($config->validateOrigin);
-        $this->assertTrue($config->securityHeaders);
-        $this->assertTrue($config->allowCredentials);
-        $this->assertSame(86400, $config->maxAge);
-        $this->assertFalse($config->exposeTokenInfo);
+        $this->assertSame('Authorization', $config->getTokenHeader());
+        $this->assertSame('sha256', $config->getHashAlgorithm());
+        $this->assertSame('nemesisAuth', $config->getParameterName());
+        $this->assertTrue($config->getValidateOrigin());
+        $this->assertTrue($config->getSecurityHeaders());
+        $this->assertTrue($config->getAllowCredentials());
+        $this->assertSame(86400, $config->getMaxAge());
+        $this->assertFalse($config->getExposeTokenInfo());
     }
 
     /**
@@ -200,21 +202,39 @@ final class NemesisServiceProviderTest extends TestCase
     }
 
     /**
-     * Test that NemesisAuth receives the NemesisConfig dependency via constructor injection.
+     * Test that NemesisService is a singleton.
      */
-    public function test_nemesis_auth_receives_config_dependency(): void
+    public function test_nemesis_service_is_singleton(): void
     {
         // Arrange: Create service provider instance
         $provider = new NemesisServiceProvider($this->app);
 
-        // Act: Register the service provider and resolve NemesisAuth
+        // Act: Register the service provider and resolve service twice
         $provider->register();
 
-        /** @var NemesisAuth $middleware */
-        $middleware = $this->app->make(NemesisAuth::class);
+        $firstInstance = $this->app->make(NemesisService::class);
+        $secondInstance = $this->app->make(NemesisService::class);
+
+        // Assert: Both instances should be the same object
+        $this->assertSame($firstInstance, $secondInstance);
+    }
+
+    /**
+     * Test that NemesisTokenMiddleware receives dependencies via constructor injection.
+     */
+    public function test_nemesis_token_middleware_receives_dependencies(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve NemesisTokenMiddleware
+        $provider->register();
+
+        /** @var NemesisTokenMiddleware $middleware */
+        $middleware = $this->app->make(NemesisTokenMiddleware::class);
 
         // Assert: Middleware should be instantiated without errors
-        $this->assertInstanceOf(NemesisAuth::class, $middleware);
+        $this->assertInstanceOf(NemesisTokenMiddleware::class, $middleware);
     }
 
     /**
@@ -239,13 +259,13 @@ final class NemesisServiceProviderTest extends TestCase
         // Assert: Custom values should be reflected in the config object
         $config = $this->app->make(NemesisConfig::class);
 
-        $this->assertEquals('X-Custom-Token', $config->tokenHeader);
-        $this->assertEquals('sha512', $config->hashAlgorithm);
-        $this->assertEquals('customAuth', $config->parameterName);
-        $this->assertFalse($config->validateOrigin);
-        $this->assertFalse($config->securityHeaders);
-        $this->assertFalse($config->allowCredentials);
-        $this->assertEquals(3600, $config->maxAge);
-        $this->assertTrue($config->exposeTokenInfo);
+        $this->assertEquals('X-Custom-Token', $config->getTokenHeader());
+        $this->assertEquals('sha512', $config->getHashAlgorithm());
+        $this->assertEquals('customAuth', $config->getParameterName());
+        $this->assertFalse($config->getValidateOrigin());
+        $this->assertFalse($config->getSecurityHeaders());
+        $this->assertFalse($config->getAllowCredentials());
+        $this->assertEquals(3600, $config->getMaxAge());
+        $this->assertTrue($config->getExposeTokenInfo());
     }
 }

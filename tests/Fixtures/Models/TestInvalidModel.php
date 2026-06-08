@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Support;
+namespace Kani\Nemesis\Tests\Fixtures\Models;
+
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * to verify that the middleware correctly rejects models that don't
  * implement the required contract.
  *
- * @package Kani\Nemesis\Tests\Support
+ * @package Kani\Nemesis\Tests\FIxtures\Model
  */
 final class TestInvalidModel extends Model
 {

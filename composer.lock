@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "920a997ba0c8c4225b47ee304e1bdfaf",
+    "content-hash": "654810089deec4c16fc3d5bcb0e56c44",
     "packages": [
         {
             "name": "andydefer/domain-structures",
@@ -122,20 +122,21 @@
         },
         {
             "name": "andydefer/laravel-repository",
-            "version": "v2.2.0",
+            "version": "v2.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-repository.git",
-                "reference": "3d5dab3aa8f514376e23e4ccfc645387acfb7fcc"
+                "reference": "0b2cbd0cc13a7a094229f5eb4306cdaff31f4503"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/3d5dab3aa8f514376e23e4ccfc645387acfb7fcc",
-                "reference": "3d5dab3aa8f514376e23e4ccfc645387acfb7fcc",
+                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/0b2cbd0cc13a7a094229f5eb4306cdaff31f4503",
+                "reference": "0b2cbd0cc13a7a094229f5eb4306cdaff31f4503",
                 "shasum": ""
             },
             "require": {
                 "andydefer/domain-structures": "^1.14",
+                "andydefer/php-vo": "^0.8.0",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.1"
             },
@@ -171,9 +172,9 @@
             "description": "A lightweight, type-safe repository pattern implementation for Laravel",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-repository/issues",
-                "source": "https://github.com/andydefer/laravel-repository/tree/v2.2.0"
+                "source": "https://github.com/andydefer/laravel-repository/tree/v2.5.0"
             },
-            "time": "2026-06-07T14:25:19+00:00"
+            "time": "2026-06-08T05:28:14+00:00"
         },
         {
             "name": "andydefer/php-services",

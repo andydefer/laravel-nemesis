@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\NemesisManager;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Enums;
 
+use AndyDefer\PhpVo\Enums\HttpStatusCode;
+
 /**
  * Error codes for the Nemesis authentication system.
  *
@@ -98,30 +100,30 @@ enum ErrorCode: string
     /**
      * Get the HTTP status code for this error.
      *
-     * @return int The HTTP status code
+     * @return HttpStatusCode The HTTP status code enum
      */
-    public function httpStatusCode(): int
+    public function httpStatusCode(): HttpStatusCode
     {
         return match ($this) {
-            // Authentication errors
+            // Authentication errors (HTTP 401)
             self::MISSING_TOKEN,
             self::INVALID_TOKEN,
-            self::TOKEN_EXPIRED => 401,
+            self::TOKEN_EXPIRED => HttpStatusCode::UNAUTHORIZED,
 
-            // Authorization errors
+            // Authorization errors (HTTP 403)
             self::INSUFFICIENT_PERMISSIONS,
-            self::ORIGIN_NOT_ALLOWED => 403,
+            self::ORIGIN_NOT_ALLOWED => HttpStatusCode::FORBIDDEN,
 
-            // Server configuration error
-            self::INVALID_AUTHENTICATABLE_MODEL => 500,
+            // Server configuration error (HTTP 500)
+            self::INVALID_AUTHENTICATABLE_MODEL => HttpStatusCode::INTERNAL_SERVER_ERROR,
 
-            // Metadata validation errors
+            // Metadata validation errors (HTTP 400)
             self::METADATA_SIZE_EXCEEDED,
             self::METADATA_NESTING_TOO_DEEP,
             self::METADATA_TOO_MANY_KEYS,
             self::METADATA_INVALID_KEY,
             self::METADATA_INVALID_VALUE,
-            self::METADATA_KEY_TOO_LONG => 400,
+            self::METADATA_KEY_TOO_LONG => HttpStatusCode::BAD_REQUEST,
         };
     }
 
@@ -162,7 +164,7 @@ enum ErrorCode: string
      */
     public function isAuthenticationError(): bool
     {
-        return in_array($this->httpStatusCode(), [401], true);
+        return $this->httpStatusCode() === HttpStatusCode::UNAUTHORIZED;
     }
 
     /**
@@ -172,7 +174,7 @@ enum ErrorCode: string
      */
     public function isAuthorizationError(): bool
     {
-        return in_array($this->httpStatusCode(), [403], true);
+        return $this->httpStatusCode() === HttpStatusCode::FORBIDDEN;
     }
 
     /**
@@ -182,7 +184,7 @@ enum ErrorCode: string
      */
     public function isClientError(): bool
     {
-        return $this->httpStatusCode() === 400;
+        return $this->httpStatusCode() === HttpStatusCode::BAD_REQUEST;
     }
 
     /**
@@ -192,7 +194,7 @@ enum ErrorCode: string
      */
     public function isServerError(): bool
     {
-        return $this->httpStatusCode() === 500;
+        return $this->httpStatusCode() === HttpStatusCode::INTERNAL_SERVER_ERROR;
     }
 
     /**
@@ -203,10 +205,10 @@ enum ErrorCode: string
     public function getCategory(): string
     {
         return match ($this->httpStatusCode()) {
-            401 => 'authentication',
-            403 => 'authorization',
-            400 => 'client',
-            500 => 'server',
+            HttpStatusCode::UNAUTHORIZED => 'authentication',
+            HttpStatusCode::FORBIDDEN => 'authorization',
+            HttpStatusCode::BAD_REQUEST => 'client',
+            HttpStatusCode::INTERNAL_SERVER_ERROR => 'server',
             default => 'unknown',
         };
     }
@@ -219,9 +221,10 @@ enum ErrorCode: string
     public function isRecoverable(): bool
     {
         return match ($this->httpStatusCode()) {
-            401, 403 => true,  // Client can retry with different credentials
-            400 => true,       // Client can fix the request
-            500 => false,      // Server error, not recoverable by client
+            HttpStatusCode::UNAUTHORIZED,
+            HttpStatusCode::FORBIDDEN,
+            HttpStatusCode::BAD_REQUEST => true,  // Client can retry or fix the request
+            HttpStatusCode::INTERNAL_SERVER_ERROR => false, // Server error, not recoverable by client
             default => false,
         };
     }

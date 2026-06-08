@@ -6,7 +6,7 @@ namespace Kani\Nemesis\Tests\Unit\Traits;
 
 use Carbon\Carbon;
 use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

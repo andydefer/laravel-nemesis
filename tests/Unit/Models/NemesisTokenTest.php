@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kani\Nemesis\Tests\Unit\Models;
 
 use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

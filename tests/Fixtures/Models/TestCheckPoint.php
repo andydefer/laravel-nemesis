@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Support;
+namespace Kani\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Tests\Fixtures\Records\TestCheckPointRecord;
 use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
@@ -15,7 +16,7 @@ use Kani\Nemesis\Traits\HasNemesisTokens;
  * This model represents a physical checkpoint (turnstile, gate, etc.)
  * that needs to authenticate with Nemesis tokens for ticket validation.
  *
- * @package Kani\Nemesis\Tests\Support
+ * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestCheckPoint extends Model implements MustNemesis
 {
@@ -24,15 +25,11 @@ final class TestCheckPoint extends Model implements MustNemesis
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'test_checkpoints';
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
@@ -43,8 +40,6 @@ final class TestCheckPoint extends Model implements MustNemesis
 
     /**
      * The attributes that should be cast to native types.
-     *
-     * @var array<string, string>
      */
     protected $casts = [
         'is_active' => 'boolean',
@@ -54,25 +49,62 @@ final class TestCheckPoint extends Model implements MustNemesis
 
     /**
      * Indicates if the model should be timestamped.
-     *
-     * @var bool
      */
     public $timestamps = true;
 
     /**
-     * Define the format for authenticated API responses.
-     *
-     * @return array<string, mixed>
+     * Get the checkpoint name (getter explicite).
      */
-    public function nemesisFormat(): array
+    public function getName(): string
     {
-        return [
+        return $this->name ?? '';
+    }
+
+    /**
+     * Get the checkpoint location.
+     */
+    public function getLocation(): string
+    {
+        return $this->location ?? '';
+    }
+
+    /**
+     * Check if checkpoint is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->is_active === true;
+    }
+
+    /**
+     * Get the status as string.
+     */
+    public function getStatus(): string
+    {
+        return $this->isActive() ? 'active' : 'inactive';
+    }
+
+    /**
+     * Get last ping time.
+     */
+    public function getLastSeen(): ?string
+    {
+        return $this->last_ping_at?->toIso8601String();
+    }
+
+    /**
+     * Define the format for authenticated API responses.
+     * Returns a Record, not an array.
+     */
+    public function nemesisFormat(): TestCheckPointRecord
+    {
+        return TestCheckPointRecord::from([
             'id' => $this->id,
-            'name' => $this->name,
-            'location' => $this->location,
-            'status' => $this->is_active ? 'active' : 'inactive',
-            'last_seen' => $this->last_ping_at?->toIso8601String(),
+            'name' => $this->getName(),
+            'location' => $this->getLocation(),
+            'status' => $this->getStatus(),
+            'last_seen' => $this->getLastSeen(),
             'type' => 'checkpoint',
-        ];
+        ]);
     }
 }

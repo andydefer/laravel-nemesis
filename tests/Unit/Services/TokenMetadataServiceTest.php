@@ -7,7 +7,7 @@ namespace Kani\Nemesis\Tests\Unit\Services;
 use Kani\Nemesis\Exceptions\MetadataValidationException;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\Services\TokenMetadataService;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

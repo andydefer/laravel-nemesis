@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Contracts;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+
 /**
  * Contract for models that can format themselves for API responses.
  *
@@ -18,22 +20,11 @@ interface CanBeFormatted
     /**
      * Define the format for authenticated API responses.
      *
-     * This method MUST return an array of data to expose.
+     * This method MUST return a Record of data to expose.
      * It gives developers full control over what information
      * is sent to the client.
      *
-     * @return array<string, mixed> The formatted data array
-     *
-     * @example
-     * // In your User model:
-     * public function nemesisFormat(): array
-     * {
-     *     return [
-     *         'id' => $this->id,
-     *         'name' => $this->name,
-     *         'email' => $this->email,
-     *     ];
-     * }
+     * @return AbstractRecord The formatted data record
      */
-    public function nemesisFormat(): array;
+    public function nemesisFormat(): AbstractRecord;
 }

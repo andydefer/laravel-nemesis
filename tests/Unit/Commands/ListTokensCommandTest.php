@@ -8,8 +8,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Kani\Nemesis\Commands\ListTokensCommand;
 use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Tests\Support\TestApiClient;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestApiClient;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**

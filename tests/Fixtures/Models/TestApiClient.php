@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Support;
+namespace Kani\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
+use Kani\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
 use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
@@ -16,7 +17,7 @@ use Kani\Nemesis\Traits\HasNemesisTokens;
  * It implements the MustNemesis contract and uses the HasNemesisTokens trait
  * to provide full token management capabilities for API client testing.
  *
- * @package Kani\Nemesis\Tests\Support
+ * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestApiClient extends Model implements MustNemesis
 {
@@ -25,15 +26,11 @@ final class TestApiClient extends Model implements MustNemesis
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'test_api_clients';
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
@@ -42,8 +39,6 @@ final class TestApiClient extends Model implements MustNemesis
 
     /**
      * The attributes that should be cast to native types.
-     *
-     * @var array<string, string>
      */
     protected $casts = [
         'deleted_at' => 'datetime',
@@ -51,24 +46,42 @@ final class TestApiClient extends Model implements MustNemesis
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'api_key',
     ];
 
     /**
-     * Define the format for authenticated API responses.
-     *
-     * @return array<string, mixed>
+     * Indicates if the model should be timestamped.
      */
-    public function nemesisFormat(): array
+    public $timestamps = true;
+
+    /**
+     * Get the client name (getter explicite).
+     */
+    public function getName(): string
     {
-        return [
+        return $this->name ?? '';
+    }
+
+    /**
+     * Get the API key (getter explicite).
+     */
+    public function getApiKey(): string
+    {
+        return $this->api_key ?? '';
+    }
+
+    /**
+     * Define the format for authenticated API responses.
+     * Returns a Record, not an array.
+     */
+    public function nemesisFormat(): TestApiClientRecord
+    {
+        return TestApiClientRecord::from([
             'id' => $this->id,
-            'name' => $this->name,
+            'name' => $this->getName(),
             'type' => 'api_client',
-        ];
+        ]);
     }
 }

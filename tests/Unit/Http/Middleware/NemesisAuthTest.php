@@ -15,11 +15,11 @@ use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Enums\ErrorCode;
 use Kani\Nemesis\Http\Middleware\NemesisAuth;
 use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Tests\Support\TestApiClient;
-use Kani\Nemesis\Tests\Support\TestCheckPoint;
-use Kani\Nemesis\Tests\Support\TestCustomFormatUser;
-use Kani\Nemesis\Tests\Support\TestInvalidModel;
-use Kani\Nemesis\Tests\Support\TestUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestApiClient;
+use Kani\Nemesis\Tests\FIxtures\Models\TestCheckPoint;
+use Kani\Nemesis\Tests\FIxtures\Models\TestCustomFormatUser;
+use Kani\Nemesis\Tests\FIxtures\Models\TestInvalidModel;
+use Kani\Nemesis\Tests\FIxtures\Models\TestUser;
 use Kani\Nemesis\Tests\TestCase;
 
 /**
