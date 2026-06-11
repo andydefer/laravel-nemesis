@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\Schema;
  *
  * This table stores authentication tokens for multiple models (users, API clients, etc.)
  * with support for expiration, abilities, metadata, CORS restrictions, and soft deletes.
- *
- * @package Kani\Nemesis\Database\Migrations
  */
 return new class extends Migration
 {

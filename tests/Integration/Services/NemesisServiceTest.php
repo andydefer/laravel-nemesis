@@ -1,4 +1,5 @@
 <?php
+
 // tests/Integration/Services/NemesisServiceTest.php
 
 declare(strict_types=1);
@@ -6,9 +7,14 @@ declare(strict_types=1);
 namespace Kani\Nemesis\Tests\Integration\Services;
 
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Kani\Nemesis\Configs\NemesisConfig;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\Records\NemesisTokenFilterRecord;
 use Kani\Nemesis\Records\NemesisTokenRecord;
@@ -16,13 +22,13 @@ use Kani\Nemesis\Repositories\NemesisTokenRepository;
 use Kani\Nemesis\Services\NemesisService;
 use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
 use Kani\Nemesis\Tests\IntegrationTestCase;
-use Illuminate\Support\Collection;
 
 final class NemesisServiceTest extends IntegrationTestCase
 {
     private NemesisService $service;
     private TestUser $user;
     private NemesisTokenRepository $repository;
+    private HydrationService $hydration;
 
     protected function setUp(): void
     {
@@ -30,11 +36,14 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
 
+        $this->hydration = new HydrationService();
         $this->repository = new NemesisTokenRepository();
         $this->service = new NemesisService(
-            $this->repository,
-            $this->app->make(\Kani\Nemesis\Config\NemesisConfig::class),
-            new \Illuminate\Support\Str(),
+            repository: $this->repository,
+            config: $this->app->make(NemesisConfigInterface::class),
+            str: new Str(),
+            metadataValidator: $this->app->make(\AndyDefer\DataValidator\Services\MetadataValidator::class),
+            hydration: $this->hydration,
         );
 
         $this->user = TestUser::create([
@@ -56,7 +65,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     private function createBasicToken(): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Basic Token',
             'source' => 'web',
@@ -67,7 +76,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     private function createTokenWithHash(string $plainToken): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => hash('sha256', $plainToken),
             'name' => 'Custom Token',
             'source' => 'web',
@@ -87,7 +96,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_create_creates_token(): void
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'API Token',
             'source' => 'api',
@@ -104,7 +113,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_create_with_plain_token_returns_token_and_plain_token(): void
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'name' => 'Plain Token',
             'source' => 'cli',
         ]);
@@ -163,7 +172,7 @@ final class NemesisServiceTest extends IntegrationTestCase
     {
         $token = $this->createBasicToken();
 
-        $updateRecord = NemesisTokenRecord::from([
+        $updateRecord = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'name' => 'Updated Name',
             'source' => 'mobile',
         ]);
@@ -208,6 +217,208 @@ final class NemesisServiceTest extends IntegrationTestCase
         $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token->id]);
     }
 
+    public function test_delete_bulk_soft_deletes_matching_tokens(): void
+    {
+        $token1 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 1',
+        ]), $this->user);
+
+        $token2 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 2',
+        ]), $this->user);
+
+        $token3 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'mobile',
+            'name' => 'Token 3',
+        ]), $this->user);
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
+
+        $deletedCount = $this->service->deleteBulk($filters);
+
+        $this->assertSame(2, $deletedCount);
+        $this->assertNull($this->service->find($token1->id));
+        $this->assertNull($this->service->find($token2->id));
+        $this->assertNotNull($this->service->find($token3->id));
+        $this->assertDatabaseHas('nemesis_tokens', ['id' => $token1->id]);
+        $this->assertDatabaseHas('nemesis_tokens', ['id' => $token2->id]);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token1->id, 'deleted_at' => null]);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token2->id, 'deleted_at' => null]);
+    }
+
+    public function test_delete_bulk_returns_zero_when_no_tokens_match(): void
+    {
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'nonexistent']);
+
+        $deletedCount = $this->service->deleteBulk($filters);
+
+        $this->assertSame(0, $deletedCount);
+    }
+
+    public function test_delete_bulk_with_empty_filters_deletes_all_tokens(): void
+    {
+        $this->createBasicToken();
+        $this->createBasicToken();
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, []);
+
+        $deletedCount = $this->service->deleteBulk($filters);
+
+        $this->assertSame(2, $deletedCount);
+        $this->assertCount(0, $this->service->getTokensFor($this->user));
+    }
+
+    public function test_force_delete_bulk_permanently_deletes_matching_tokens(): void
+    {
+        $token1 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 1',
+        ]), $this->user);
+
+        $token2 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 2',
+        ]), $this->user);
+
+        $token3 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'mobile',
+            'name' => 'Token 3',
+        ]), $this->user);
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
+
+        $deletedCount = $this->service->forceDeleteBulk($filters);
+
+        $this->assertSame(2, $deletedCount);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token1->id]);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token2->id]);
+        $this->assertDatabaseHas('nemesis_tokens', ['id' => $token3->id]);
+    }
+
+    public function test_force_delete_bulk_on_soft_deleted_tokens_permanently_deletes_them(): void
+    {
+        $token1 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 1',
+        ]), $this->user);
+
+        $token2 = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Token 2',
+        ]), $this->user);
+
+        $this->service->delete($token1->id);
+        $this->service->delete($token2->id);
+
+        $this->assertDatabaseHas('nemesis_tokens', ['id' => $token1->id]);
+        $this->assertDatabaseHas('nemesis_tokens', ['id' => $token2->id]);
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
+            'source' => 'web',
+            'is_revoked' => true,
+        ]);
+
+        $deletedCount = $this->service->forceDeleteBulk($filters);
+
+        $this->assertSame(2, $deletedCount);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token1->id]);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token2->id]);
+    }
+
+    public function test_force_delete_bulk_returns_zero_when_no_tokens_match(): void
+    {
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'nonexistent']);
+
+        $deletedCount = $this->service->forceDeleteBulk($filters);
+
+        $this->assertSame(0, $deletedCount);
+    }
+
+    public function test_delete_bulk_and_force_delete_bulk_with_multiple_filters(): void
+    {
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'Admin Token',
+        ]), $this->user);
+
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'web',
+            'name' => 'User Token',
+        ]), $this->user);
+
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'source' => 'mobile',
+            'name' => 'Admin Token',
+        ]), $this->user);
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
+            'source' => 'web',
+            'name' => 'Admin Token',
+        ]);
+
+        $deletedCount = $this->service->forceDeleteBulk($filters);
+
+        $this->assertSame(1, $deletedCount);
+    }
+
+    public function test_delete_bulk_with_expired_filter(): void
+    {
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'expires_at' => $expiredDate,
+            'name' => 'Expired Token 1',
+        ]), $this->user);
+
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'expires_at' => $expiredDate,
+            'name' => 'Expired Token 2',
+        ]), $this->user);
+
+        $this->createBasicToken();
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['is_expired' => true]);
+
+        $deletedCount = $this->service->deleteBulk($filters);
+
+        $this->assertSame(2, $deletedCount);
+    }
+
+    public function test_force_delete_bulk_with_created_before_filter(): void
+    {
+        $oldDate = new DateTimeVO(Carbon::getTestNow()->subDays(30)->format('Y-m-d\TH:i:sP'));
+
+        $oldToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
+            'token_hash' => $this->generateUniqueHash(),
+            'name' => 'Old Token',
+        ]), $this->user);
+
+        NemesisToken::where('id', $oldToken->id)->update(['created_at' => Carbon::getTestNow()->subDays(31)]);
+
+        $this->createBasicToken();
+
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['created_before' => $oldDate]);
+
+        $deletedCount = $this->service->forceDeleteBulk($filters);
+
+        $this->assertSame(1, $deletedCount);
+        $this->assertDatabaseMissing('nemesis_tokens', ['id' => $oldToken->id]);
+    }
+
     // ============================================================================
     // Tokenable Operations (Bulk)
     // ============================================================================
@@ -235,15 +446,15 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_get_tokens_by_source_returns_filtered_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
         ]), $this->user);
@@ -257,15 +468,15 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_get_tokens_by_name_returns_filtered_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Admin Token',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Admin Token',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'User Token',
         ]), $this->user);
@@ -352,19 +563,19 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_tokens_by_source_soft_deletes_matching_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $webToken = $this->service->create(NemesisTokenRecord::from([
+        $webToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
         ]), $this->user);
@@ -377,7 +588,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_tokens_by_source_with_force_permanently_deletes(): void
     {
-        $webToken = $this->service->create(NemesisTokenRecord::from([
+        $webToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
@@ -390,19 +601,19 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_tokens_by_name_soft_deletes_matching_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Admin',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Admin',
         ]), $this->user);
-        $adminToken = $this->service->create(NemesisTokenRecord::from([
+        $adminToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Admin',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'User',
         ]), $this->user);
@@ -415,22 +626,22 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_tokens_by_source_and_name_soft_deletes_matching_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
             'name' => 'Admin',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
             'name' => 'Admin',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
             'name' => 'User',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
             'name' => 'Admin',
@@ -443,15 +654,15 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_all_tokens_except_source_keeps_specified_source(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $mobileToken = $this->service->create(NemesisTokenRecord::from([
+        $mobileToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
         ]), $this->user);
@@ -464,11 +675,11 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_all_tokens_except_source_with_force_permanently_deletes(): void
     {
-        $webToken = $this->service->create(NemesisTokenRecord::from([
+        $webToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $mobileToken = $this->service->create(NemesisTokenRecord::from([
+        $mobileToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
         ]), $this->user);
@@ -491,7 +702,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         $this->withBearerToken($plainToken);
 
-        $currentToken = $this->service->getCurrentToken($this->user);
+        $request = $this->app->make(Request::class);
+        $currentToken = $this->service->getCurrentToken($this->user, $request);
 
         $this->assertNotNull($currentToken);
         $this->assertSame($token->id, $currentToken->id);
@@ -504,7 +716,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         $this->withBearerToken($plainToken);
 
-        $revoked = $this->service->revokeCurrentToken($this->user);
+        $request = $this->app->make(Request::class);
+        $revoked = $this->service->revokeCurrentToken($this->user, $request);
 
         $this->assertTrue($revoked);
         $this->assertNull($this->service->find($token->id));
@@ -518,7 +731,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         $this->withBearerToken($plainToken);
 
-        $deleted = $this->service->deleteCurrentToken($this->user);
+        $request = $this->app->make(Request::class);
+        $deleted = $this->service->deleteCurrentToken($this->user, $request);
 
         $this->assertTrue($deleted);
         $this->assertDatabaseMissing('nemesis_tokens', ['id' => $token->id]);
@@ -600,14 +814,14 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_expired_tokens_soft_deletes_expired_tokens(): void
     {
-        $futureDate = DateTimeVO::from(Carbon::getTestNow()->addDay()->toIso8601String());
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
+        $futureDate = new DateTimeVO(Carbon::getTestNow()->addDay()->format('Y-m-d\TH:i:sP'));
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
 
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $futureDate,
         ]), $this->user);
-        $expiredToken = $this->service->create(NemesisTokenRecord::from([
+        $expiredToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -621,14 +835,14 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_force_delete_expired_tokens_permanently_deletes_expired_tokens(): void
     {
-        $futureDate = DateTimeVO::from(Carbon::getTestNow()->addDay()->toIso8601String());
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
+        $futureDate = new DateTimeVO(Carbon::getTestNow()->addDay()->format('Y-m-d\TH:i:sP'));
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
 
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $futureDate,
         ]), $this->user);
-        $expiredToken = $this->service->create(NemesisTokenRecord::from([
+        $expiredToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -683,8 +897,8 @@ final class NemesisServiceTest extends IntegrationTestCase
     {
         $this->createBasicToken();
 
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
-        $this->service->create(NemesisTokenRecord::from([
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -696,12 +910,12 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_all_expired_returns_only_expired_tokens(): void
     {
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
-        $this->service->create(NemesisTokenRecord::from([
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -725,12 +939,12 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_all_expired_tokens_globally_soft_deletes_all_expired_tokens(): void
     {
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
-        $this->service->create(NemesisTokenRecord::from([
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -743,8 +957,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_force_delete_all_expired_tokens_globally_permanently_deletes(): void
     {
-        $expiredDate = DateTimeVO::from(Carbon::getTestNow()->subDay()->toIso8601String());
-        $expiredToken = $this->service->create(NemesisTokenRecord::from([
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+        $expiredToken = $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'expires_at' => $expiredDate,
         ]), $this->user);
@@ -766,7 +980,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $abilities->add('read');
         $abilities->add('write');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'abilities' => $abilities,
         ]);
@@ -779,7 +993,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_returns_true_when_abilities_are_null_unrestricted(): void
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'abilities' => null,
         ]);
@@ -797,7 +1011,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $abilities->add('write');
         $abilities->add('delete');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'abilities' => $abilities,
         ]);
@@ -813,7 +1027,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $abilities->add('read');
         $abilities->add('write');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'abilities' => $abilities,
         ]);
@@ -829,11 +1043,10 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_add_allowed_origin_appends_origin(): void
     {
-        // Créer un token avec une origine existante au lieu de createBasicToken()
         $origins = new StringTypedCollection();
         $origins->add('https://example.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
             'name' => 'Origin Test Token',
@@ -853,7 +1066,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins = new StringTypedCollection();
         $origins->add('https://example.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -870,7 +1083,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins->add('https://example.com');
         $origins->add('https://api.example.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -888,7 +1101,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins = new StringTypedCollection();
         $origins->add('https://old.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -927,8 +1140,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_has_metadata_checks_key_existence(): void
     {
-        $metadata = StrictDataObject::from(['existing' => 'value']);
-        $record = NemesisTokenRecord::from([
+        $metadata = new StrictDataObject(['existing' => 'value']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'metadata' => $metadata,
         ]);
@@ -940,8 +1153,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_remove_metadata_deletes_key(): void
     {
-        $metadata = StrictDataObject::from(['key1' => 'value1', 'key2' => 'value2']);
-        $record = NemesisTokenRecord::from([
+        $metadata = new StrictDataObject(['key1' => 'value1', 'key2' => 'value2']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'metadata' => $metadata,
         ]);
@@ -955,8 +1168,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_merge_metadata_merges_with_existing(): void
     {
-        $metadata = StrictDataObject::from(['key1' => 'value1', 'key2' => 'value2']);
-        $record = NemesisTokenRecord::from([
+        $metadata = new StrictDataObject(['key1' => 'value1', 'key2' => 'value2']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'metadata' => $metadata,
         ]);
@@ -971,8 +1184,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_set_all_metadata_replaces_all_metadata(): void
     {
-        $metadata = StrictDataObject::from(['old' => 'value']);
-        $record = NemesisTokenRecord::from([
+        $metadata = new StrictDataObject(['old' => 'value']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'metadata' => $metadata,
         ]);
@@ -987,8 +1200,8 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_clear_metadata_removes_all_metadata(): void
     {
-        $metadata = StrictDataObject::from(['key1' => 'value1', 'key2' => 'value2']);
-        $record = NemesisTokenRecord::from([
+        $metadata = new StrictDataObject(['key1' => 'value1', 'key2' => 'value2']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'metadata' => $metadata,
         ]);
@@ -1005,7 +1218,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_origin_allows_null_origin(): void
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => ['https://example.com'],
         ]);
@@ -1016,7 +1229,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_origin_allows_when_no_restrictions(): void
     {
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => null,
         ]);
@@ -1031,7 +1244,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins->add('https://example.com');
         $origins->add('https://api.example.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -1047,7 +1260,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins->add('https://*.example.com');
         $origins->add('https://*.api.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -1064,7 +1277,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins = new StringTypedCollection();
         $origins->add('https://example.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
@@ -1079,17 +1292,18 @@ final class NemesisServiceTest extends IntegrationTestCase
         $origins = new StringTypedCollection();
         $origins->add('https://allowed.com');
 
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'allowed_origins' => $origins,
         ]);
         $token = $this->service->create($record, $this->user);
 
-        $this->app['request']->headers->set('Origin', 'https://allowed.com');
-        $this->assertTrue($this->service->canUseFromCurrentRequest($token));
+        $request = $this->app->make(Request::class);
+        $request->headers->set('Origin', 'https://allowed.com');
+        $this->assertTrue($this->service->canUseFromCurrentRequest($token, $request));
 
-        $this->app['request']->headers->set('Origin', 'https://evil.com');
-        $this->assertFalse($this->service->canUseFromCurrentRequest($token));
+        $request->headers->set('Origin', 'https://evil.com');
+        $this->assertFalse($this->service->canUseFromCurrentRequest($token, $request));
     }
 
     // ============================================================================
@@ -1099,13 +1313,13 @@ final class NemesisServiceTest extends IntegrationTestCase
     public function test_force_expire_by_minutes_sets_expiration_to_past(): void
     {
         $minutes = 30;
-        $record = NemesisTokenRecord::from([
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
         ]);
         $token = $this->service->create($record, $this->user);
 
-        $futureDate = DateTimeVO::from(Carbon::getTestNow()->addMinutes($minutes)->toIso8601String());
-        $this->service->update($token->id, NemesisTokenRecord::from(['expires_at' => $futureDate]));
+        $futureDate = new DateTimeVO(Carbon::getTestNow()->addMinutes($minutes)->format('Y-m-d\TH:i:sP'));
+        $this->service->update($token->id, $this->hydration->hydrate(NemesisTokenRecord::class, ['expires_at' => $futureDate]));
 
         $token->refresh();
         $this->assertFalse($token->isExpired());
@@ -1121,23 +1335,23 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_by_filters_returns_filtered_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
             'name' => 'Token 1',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
             'name' => 'Token 2',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
             'name' => 'Token 3',
         ]), $this->user);
 
-        $filters = new NemesisTokenFilterRecord(source: 'web');
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
         $tokens = $this->service->findByFilters($filters);
 
         $this->assertCount(2, $tokens);
@@ -1145,16 +1359,16 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_by_filters_with_limit_limits_results(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
 
-        $filters = new NemesisTokenFilterRecord(source: 'web');
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
         $tokens = $this->service->findByFilters($filters, limit: 1);
 
         $this->assertCount(1, $tokens);
@@ -1162,16 +1376,16 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_by_filters_with_sort_by_sorts_results(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'B Token',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'A Token',
         ]), $this->user);
 
-        $filters = new NemesisTokenFilterRecord();
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, []);
         $tokens = $this->service->findByFilters($filters, sortBy: 'name');
 
         $this->assertSame('A Token', $tokens->first()->name);
@@ -1179,13 +1393,13 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_by_filters_with_columns_selects_specific_columns(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'Test Token',
             'source' => 'web',
         ]), $this->user);
 
-        $filters = new NemesisTokenFilterRecord();
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, []);
         $tokens = $this->service->findByFilters($filters, columns: ['id', 'name']);
 
         $token = $tokens->first();
@@ -1198,7 +1412,7 @@ final class NemesisServiceTest extends IntegrationTestCase
     {
         $this->createBasicToken();
 
-        $filters = new NemesisTokenFilterRecord(source: 'web');
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
         $exists = $this->service->exists($filters);
 
         $this->assertTrue($exists);
@@ -1206,7 +1420,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_exists_returns_false_when_no_tokens_match(): void
     {
-        $filters = new NemesisTokenFilterRecord(source: 'nonexistent');
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'nonexistent']);
         $exists = $this->service->exists($filters);
 
         $this->assertFalse($exists);
@@ -1214,20 +1428,20 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_count_returns_number_of_matching_tokens(): void
     {
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'web',
         ]), $this->user);
-        $this->service->create(NemesisTokenRecord::from([
+        $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'source' => 'mobile',
         ]), $this->user);
 
-        $filters = new NemesisTokenFilterRecord(source: 'web');
+        $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, ['source' => 'web']);
         $count = $this->service->count($filters);
 
         $this->assertSame(2, $count);

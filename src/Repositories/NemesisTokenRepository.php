@@ -1,4 +1,5 @@
 <?php
+
 // src/Repositories/NemesisTokenRepository.php
 
 declare(strict_types=1);
@@ -7,7 +8,6 @@ namespace Kani\Nemesis\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\Repository\AbstractRepository;
-use AndyDefer\Repository\Records\FindByRecord;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Kani\Nemesis\Models\NemesisToken;
@@ -69,7 +69,7 @@ final class NemesisTokenRepository extends AbstractRepository
 
     protected function applyFilters(Builder $query, AbstractRecord $filters): void
     {
-        if (!$filters instanceof NemesisTokenFilterRecord) {
+        if (! $filters instanceof NemesisTokenFilterRecord) {
             return;
         }
 
@@ -86,7 +86,7 @@ final class NemesisTokenRepository extends AbstractRepository
         }
 
         if ($filters->name !== null) {
-            $query->where('name', 'like', '%' . $filters->name . '%');
+            $query->where('name', 'like', '%'.$filters->name.'%');
         }
 
         if ($filters->source !== null) {
@@ -105,6 +105,10 @@ final class NemesisTokenRepository extends AbstractRepository
             $query->onlyTrashed();
         } elseif ($filters->is_revoked === false) {
             $query->withoutTrashed();
+        }
+
+        if ($filters->created_before !== null) {
+            $query->where('created_at', '<', $filters->created_before->toDateTimeString());
         }
     }
 }

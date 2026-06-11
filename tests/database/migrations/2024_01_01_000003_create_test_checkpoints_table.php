@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\Schema;
  *
  * This table is used for testing checkpoint/turnstile authentication
  * with the Nemesis package.
- *
- * @package Kani\Nemesis\Tests\Database\Migrations
  */
 return new class extends Migration
 {

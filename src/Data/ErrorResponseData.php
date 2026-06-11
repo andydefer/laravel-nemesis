@@ -15,8 +15,6 @@ use Kani\Nemesis\Enums\ErrorCode;
  * Provides a consistent structure for all error responses returned by the
  * Nemesis authentication system, ensuring predictable JSON formatting
  * and proper HTTP status codes.
- *
- * @package Kani\Nemesis\Data
  */
 final class ErrorResponseData extends AbstractData
 {

@@ -16,12 +16,9 @@ use Kani\Nemesis\Traits\HasNemesisTokens;
  * This model is used exclusively for testing the Nemesis package.
  * It implements the MustNemesis contract and uses the HasNemesisTokens trait
  * to provide full token management capabilities for API client testing.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestApiClient extends Model implements MustNemesis
 {
-    use HasNemesisTokens;
     use SoftDeletes;
 
     /**

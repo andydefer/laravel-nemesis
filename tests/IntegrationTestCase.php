@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Tests;
 
+use AndyDefer\Directive\DirectiveServiceProvider;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Kani\Nemesis\NemesisServiceProvider;
@@ -41,12 +42,13 @@ abstract class IntegrationTestCase extends Orchestra
     /**
      * Get the package service providers to register.
      *
-     * @param Application $app
+     * @param  Application  $app
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
     {
         return [
+            DirectiveServiceProvider::class,
             NemesisServiceProvider::class,
         ];
     }
@@ -54,7 +56,7 @@ abstract class IntegrationTestCase extends Orchestra
     /**
      * Configure the test environment.
      *
-     * @param Application $app
+     * @param  Application  $app
      */
     protected function getEnvironmentSetUp($app): void
     {
@@ -80,13 +82,13 @@ abstract class IntegrationTestCase extends Orchestra
     protected function runMigrations(): void
     {
         // Load package migrations
-        $packageMigrationsPath = __DIR__ . '/../database/migrations';
+        $packageMigrationsPath = __DIR__.'/../database/migrations';
         if (is_dir($packageMigrationsPath)) {
             $this->loadMigrationsFrom($packageMigrationsPath);
         }
 
         // Load test-specific migrations
-        $testMigrationsPath = __DIR__ . '/database/migrations';
+        $testMigrationsPath = __DIR__.'/database/migrations';
         if (is_dir($testMigrationsPath)) {
             $this->loadMigrationsFrom($testMigrationsPath);
         }

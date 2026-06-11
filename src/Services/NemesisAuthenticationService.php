@@ -1,41 +1,45 @@
 <?php
 
+// src/Services/NemesisAuthenticationService.php
+
 declare(strict_types=1);
 
 namespace Kani\Nemesis\Services;
 
+use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpServices\Services\RecordTransformableService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Config\NemesisConfig;
-use Kani\Nemesis\Contracts\CanBeFormatted;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Enums\ErrorCode;
 use Kani\Nemesis\Models\NemesisToken;
 use Kani\Nemesis\Records\AuthenticationResultRecord;
 use Kani\Nemesis\Records\NemesisTokenRecord;
 use Kani\Nemesis\ValueObjects\AuthenticationResultVO;
 
-final class NemesisAuthenticationService
+class NemesisAuthenticationService
 {
+
     public function __construct(
-        private readonly NemesisConfig $config,
+        private readonly NemesisConfigInterface $config,
         private readonly NemesisService $nemesisService,
         private readonly RecordTransformableService $recordTransformableService,
         private readonly DatabaseManager $db,
+        private readonly MetadataValidator $metadataValidator,
+        private readonly HydrationService $hydration,
     ) {}
 
-    /**
-     * Authenticate a request and return the result as a Value Object.
-     */
     public function authenticate(Request $request, ?string $requiredAbility = null): AuthenticationResultVO
     {
         // Extract token
         $token = $this->extractToken($request);
 
         if ($token === null) {
-            return AuthenticationResultVO::from([
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::MISSING_TOKEN,
                 'token_record' => null,
@@ -47,7 +51,7 @@ final class NemesisAuthenticationService
         $tokenModel = $this->findToken($token);
 
         if ($tokenModel === null) {
-            return AuthenticationResultVO::from([
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INVALID_TOKEN,
                 'token_record' => null,
@@ -56,8 +60,8 @@ final class NemesisAuthenticationService
         }
 
         // Check expiration
-        if ($tokenModel->is_expired) {
-            return AuthenticationResultVO::from([
+        if ($tokenModel->isExpired()) {
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::TOKEN_EXPIRED,
                 'token_record' => null,
@@ -73,11 +77,11 @@ final class NemesisAuthenticationService
 
         // Check ability
         if ($requiredAbility !== null && !$this->nemesisService->can($tokenModel, $requiredAbility)) {
-            return AuthenticationResultVO::from([
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INSUFFICIENT_PERMISSIONS,
                 'token_record' => null,
-                'additional_data' => StrictDataObject::from([
+                'additional_data' => new StrictDataObject([
                     'required_ability' => $requiredAbility,
                 ]),
             ]);
@@ -87,7 +91,7 @@ final class NemesisAuthenticationService
         $authenticatable = $this->getAuthenticatableFromToken($tokenModel);
 
         if ($authenticatable === null) {
-            return AuthenticationResultVO::from([
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INVALID_TOKEN,
                 'token_record' => null,
@@ -96,25 +100,36 @@ final class NemesisAuthenticationService
         }
 
         // Validate authenticatable implements required interface
-        if (!$authenticatable instanceof CanBeFormatted) {
-            return AuthenticationResultVO::from([
+        if (!$authenticatable instanceof MustNemesis) {
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INVALID_AUTHENTICATABLE_MODEL,
                 'token_record' => null,
-                'additional_data' => StrictDataObject::from([
+                'additional_data' => new StrictDataObject([
                     'model_class' => get_class($authenticatable),
-                    'expected_interface' => CanBeFormatted::class,
+                    'expected_interface' => MustNemesis::class,
                 ]),
             ]);
         }
 
-        // Update token usage
+        // Update token usage and add tracking metadata
         $this->nemesisService->updateLastUsed($tokenModel);
+
+        // Add tracking metadata
+        $trackingMetadata = $this->metadataValidator->process([
+            'last_auth_ip' => $request->ip(),
+            'last_auth_ua' => $request->userAgent(),
+            'auth_count' => ($tokenModel->metadata['auth_count'] ?? 0) + 1,
+        ]);
+
+        if ($trackingMetadata !== null) {
+            $this->nemesisService->mergeMetadata($tokenModel, $trackingMetadata);
+        }
 
         // Convert token model to record
         $tokenRecord = $this->recordTransformableService->toRecord($tokenModel, NemesisTokenRecord::class);
 
-        return AuthenticationResultVO::from([
+        return $this->hydration->hydrate(AuthenticationResultVO::class, [
             'success' => true,
             'error_code' => null,
             'token_record' => $tokenRecord,
@@ -122,29 +137,20 @@ final class NemesisAuthenticationService
         ]);
     }
 
-    /**
-     * Authenticate and return the result as a Record.
-     */
     public function authenticateToRecord(Request $request, ?string $requiredAbility = null): AuthenticationResultRecord
     {
         return $this->authenticate($request, $requiredAbility)->getValue();
     }
 
-    /**
-     * Get the formatted authenticatable record for response.
-     */
     public function getFormattedAuthenticatable(mixed $authenticatable): ?AbstractRecord
     {
-        if (!$authenticatable instanceof CanBeFormatted) {
+        if (!$authenticatable instanceof MustNemesis) {
             return null;
         }
 
         return $authenticatable->nemesisFormat();
     }
 
-    /**
-     * Get the authenticatable model from token using tokenable_type and tokenable_id.
-     */
     private function getAuthenticatableFromToken(NemesisToken $tokenModel): mixed
     {
         $tokenableType = $tokenModel->tokenable_type;
@@ -154,25 +160,22 @@ final class NemesisAuthenticationService
             return null;
         }
 
-        // Check if the model class exists
         if (!class_exists($tokenableType)) {
             return null;
         }
 
-        // Get the table name from the model
         $modelInstance = new $tokenableType();
         $table = $modelInstance->getTable();
 
-        // Use injected database connection
         $result = $this->db->table($table)
             ->where('id', $tokenableId)
+            ->whereNull('deleted_at')
             ->first();
 
         if ($result === null) {
             return null;
         }
 
-        // Convert to Eloquent model
         $eloquentModel = new $tokenableType();
         $eloquentModel->forceFill((array) $result);
         $eloquentModel->exists = true;
@@ -182,26 +185,31 @@ final class NemesisAuthenticationService
 
     private function extractToken(Request $request): ?string
     {
+        // ✅ Utilisation de la nouvelle API avec middlewareConfig()
         if ($this->config->isUsingCustomHeader()) {
-            $token = $request->header($this->config->getTokenHeader());
+            $token = $request->header($this->config->middlewareConfig()->token_header);
             if ($token !== null && trim($token) !== '') {
                 return $token;
             }
         }
 
         $token = $request->bearerToken();
+
         return $token !== null && trim($token) !== '' ? $token : null;
     }
 
     private function findToken(string $rawToken): ?NemesisToken
     {
-        $hashedToken = hash($this->config->getHashAlgorithm(), $rawToken);
+        // ✅ Utilisation de la nouvelle API avec tokenConfig()
+        $hashedToken = hash($this->config->tokenConfig()->hash_algorithm, $rawToken);
+
         return $this->nemesisService->findByHash($hashedToken);
     }
 
     private function checkOriginRestriction(NemesisToken $tokenModel, Request $request): ?AuthenticationResultVO
     {
-        if (!$this->config->getValidateOrigin()) {
+        // ✅ Utilisation de la nouvelle API avec middlewareConfig()
+        if (!$this->config->middlewareConfig()->validate_origin) {
             return null;
         }
 
@@ -212,11 +220,11 @@ final class NemesisAuthenticationService
         }
 
         if (!$this->nemesisService->canUseFromOrigin($tokenModel, $origin)) {
-            return AuthenticationResultVO::from([
+            return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::ORIGIN_NOT_ALLOWED,
                 'token_record' => null,
-                'additional_data' => StrictDataObject::from([
+                'additional_data' => new StrictDataObject([
                     'origin' => $origin,
                 ]),
             ]);

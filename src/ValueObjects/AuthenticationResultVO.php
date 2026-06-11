@@ -13,9 +13,9 @@ use Kani\Nemesis\Records\NemesisTokenRecord;
 
 /**
  * Result of an authentication attempt.
- * 
+ *
  * Pure Value Object - immutable, self-validating, no identity.
- * 
+ *
  * States:
  * - Success: success = true, error_code = null, token_record provided
  * - Failure: success = false, error_code provided, token_record = null
@@ -81,7 +81,7 @@ final class AuthenticationResultVO extends AbstractValueObject
      */
     public function isFailure(): bool
     {
-        return !$this->success;
+        return ! $this->success;
     }
 
     /**

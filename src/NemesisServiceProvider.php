@@ -1,19 +1,34 @@
 <?php
+
 // src/NemesisServiceProvider.php
 
 declare(strict_types=1);
 
 namespace Kani\Nemesis;
 
+use AndyDefer\DataValidator\Services\MetadataValidator;
+use AndyDefer\Directive\Contexts\DirectiveContext;
+use AndyDefer\Directive\Services\DirectiveInteractionService;
+use AndyDefer\Directive\Services\FileSystemService;
+use AndyDefer\DomainStructures\Services\HydrationService;
+use AndyDefer\PhpServices\Services\RecordTransformableService;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\ServiceProvider;
-use Kani\Nemesis\Config\NemesisConfig;
+use Illuminate\Support\Str;
+use Kani\Nemesis\Configs\NemesisConfig;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use Kani\Nemesis\Directives\CleanTokensDirective;
+use Kani\Nemesis\Directives\InstallNemesisDirective;
+use Kani\Nemesis\Directives\ListTokensDirective;
+use Kani\Nemesis\Directives\NemesisCleanDirective;
+use Kani\Nemesis\Helpers\NemesisHelper;
 use Kani\Nemesis\Http\Middleware\NemesisTokenMiddleware;
 use Kani\Nemesis\Repositories\NemesisTokenRepository;
 use Kani\Nemesis\Services\HttpHeaderService;
 use Kani\Nemesis\Services\NemesisAuthenticationService;
 use Kani\Nemesis\Services\NemesisService;
-use AndyDefer\PhpServices\Services\RecordTransformableService;
 
 final class NemesisServiceProvider extends ServiceProvider
 {
@@ -24,8 +39,16 @@ final class NemesisServiceProvider extends ServiceProvider
             'nemesis'
         );
 
+        $this->app->singleton(NemesisHelper::class, function (Application $app) {
+            return new NemesisHelper(
+                $app->make('request'),
+                $app->make(NemesisConfigInterface::class),
+            );
+        });
+
         $this->registerNemesisConfig();
         $this->registerServices();
+        $this->registerDirectives();
         $this->registerMiddleware();
     }
 
@@ -33,20 +56,19 @@ final class NemesisServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../../config/nemesis.php' => config_path('nemesis.php'),
+                __DIR__ . '/../config/nemesis.php' => config_path('nemesis.php'),
             ], 'nemesis-config');
 
             $this->publishes([
-                __DIR__ . '/../../database/migrations/' => database_path('migrations'),
+                __DIR__ . '/../database/migrations/' => database_path('migrations'),
             ], 'nemesis-migrations');
         }
     }
 
     private function registerNemesisConfig(): void
     {
-        $this->app->singleton(NemesisConfig::class, function (): NemesisConfig {
-            return new NemesisConfig();
-        });
+        // ✅ Binder l'interface avec l'implémentation concrète
+        $this->app->singleton(NemesisConfigInterface::class, NemesisConfig::class);
     }
 
     private function registerServices(): void
@@ -61,41 +83,92 @@ final class NemesisServiceProvider extends ServiceProvider
             return new RecordTransformableService();
         });
 
-        // HttpHeaderService
+        // HttpHeaderService - utilise l'interface
         $this->app->singleton(HttpHeaderService::class, function (Application $app): HttpHeaderService {
             return new HttpHeaderService(
-                $app->make(NemesisConfig::class),
+                $app->make(NemesisConfigInterface::class),
                 $app,
             );
         });
 
-        // NemesisAuthenticationService
+        // ✅ NemesisAuthenticationService - avec les 6 arguments
         $this->app->singleton(NemesisAuthenticationService::class, function (Application $app): NemesisAuthenticationService {
             return new NemesisAuthenticationService(
-                $app->make(NemesisConfig::class),
-                $app->make(NemesisService::class),
-                $app->make(RecordTransformableService::class),
-                $app->make('db'),
+                config: $app->make(NemesisConfigInterface::class),
+                nemesisService: $app->make(NemesisService::class),
+                recordTransformableService: $app->make(RecordTransformableService::class),
+                db: $app->make(DatabaseManager::class),
+                metadataValidator: $app->make(MetadataValidator::class),
+                hydration: $app->make(HydrationService::class),
             );
         });
 
-        // NemesisService - Service principal
+        // ✅ NemesisService - Service principal (toutes les dépendances injectées)
         $this->app->singleton(NemesisService::class, function (Application $app): NemesisService {
             return new NemesisService(
+                repository: $app->make(NemesisTokenRepository::class),
+                config: $app->make(NemesisConfigInterface::class),
+                str: $app->make(Str::class),
+                metadataValidator: $app->make(MetadataValidator::class),
+                hydration: $app->make(HydrationService::class),
+            );
+        });
+    }
+
+    private function registerDirectives(): void
+    {
+        // InstallNemesisDirective - avec toutes les dépendances injectées
+        $this->app->singleton(InstallNemesisDirective::class, function (Application $app): InstallNemesisDirective {
+            return new InstallNemesisDirective(
+                $app->make(DirectiveContext::class),
+                $app->make(DirectiveInteractionService::class),
+                $app->make(Kernel::class),
+                $app,
+                $app->make(FileSystemService::class),
+                $app->make(DatabaseManager::class),
+                $app->make(NemesisConfigInterface::class),
+            );
+        });
+
+        // ListTokensDirective
+        $this->app->singleton(ListTokensDirective::class, function (Application $app): ListTokensDirective {
+            return new ListTokensDirective(
+                $app->make(DirectiveContext::class),
+                $app->make(DirectiveInteractionService::class),
+                $app->make(NemesisService::class),
+            );
+        });
+
+        // CleanTokensDirective - utilise l'interface
+        $this->app->singleton(CleanTokensDirective::class, function (Application $app): CleanTokensDirective {
+            return new CleanTokensDirective(
+                $app->make(DirectiveContext::class),
+                $app->make(DirectiveInteractionService::class),
+                $app->make(NemesisConfigInterface::class),
+                $app->make(NemesisService::class),
+            );
+        });
+
+        // NemesisCleanDirective
+        $this->app->singleton(NemesisCleanDirective::class, function (Application $app): NemesisCleanDirective {
+            return new NemesisCleanDirective(
+                $app->make(DirectiveContext::class),
+                $app->make(DirectiveInteractionService::class),
+                $app->make(NemesisConfigInterface::class),
                 $app->make(NemesisTokenRepository::class),
-                $app->make(NemesisConfig::class),
-                new \Illuminate\Support\Str(),
             );
         });
     }
 
     private function registerMiddleware(): void
     {
+        // NemesisTokenMiddleware - utilise l'interface
         $this->app->singleton(NemesisTokenMiddleware::class, function (Application $app): NemesisTokenMiddleware {
             return new NemesisTokenMiddleware(
-                $app->make(NemesisConfig::class),
+                $app->make(NemesisConfigInterface::class),
                 $app->make(NemesisAuthenticationService::class),
                 $app->make(HttpHeaderService::class),
+                $app->make(HydrationService::class),
             );
         });
 

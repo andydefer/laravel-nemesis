@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Tests\Fixtures\Records\TestUserRecord;
-use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
  * Test model for users that can authenticate with Nemesis tokens.
@@ -16,12 +15,9 @@ use Kani\Nemesis\Traits\HasNemesisTokens;
  * This model represents a typical User model in a Laravel application
  * and demonstrates the correct implementation of the MustNemesis interface.
  * Used for testing token authentication in a realistic context.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestUser extends Model implements MustNemesis
 {
-    use HasNemesisTokens;
     use SoftDeletes;
 
     /**

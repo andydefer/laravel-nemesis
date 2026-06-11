@@ -1,6 +1,6 @@
 <?php
 
-// src/Directives/NemesisCleanDirective.php
+// src/Directives/CleanTokensDirective.php
 
 declare(strict_types=1);
 
@@ -15,11 +15,11 @@ use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Models\NemesisToken;
+use Kani\Nemesis\Records\CleanupStatisticsRecord;
 use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Repositories\NemesisTokenRepository;
+use Kani\Nemesis\Services\NemesisService;
 
-final class NemesisCleanDirective extends AbstractDirective
+final class CleanTokensDirective extends AbstractDirective
 {
     private HydrationService $hydration;
 
@@ -27,7 +27,7 @@ final class NemesisCleanDirective extends AbstractDirective
         DirectiveContext $context,
         DirectiveInteractionService $interaction,
         private readonly NemesisConfigInterface $config,
-        private readonly NemesisTokenRepository $repository,
+        private readonly NemesisService $service,
     ) {
         parent::__construct($context, $interaction);
         $this->hydration = new HydrationService();
@@ -35,7 +35,7 @@ final class NemesisCleanDirective extends AbstractDirective
 
     public function getSignature(): string
     {
-        return 'nemesis-clean {--days= : Delete tokens older than X days} {--force : Force execution} {--keep-expired : Keep expired tokens}';
+        return 'clean-tokens {--days=} {--force} {--keep-expired}';
     }
 
     public function getDescription(): string
@@ -46,8 +46,9 @@ final class NemesisCleanDirective extends AbstractDirective
     public function getAliases(): StringTypedCollection
     {
         $aliases = new StringTypedCollection;
-        $aliases->add('token-clean');
         $aliases->add('tokens-clean');
+        $aliases->add('token-clean');
+        $aliases->add('clean-expired');
 
         return $aliases;
     }
@@ -59,7 +60,7 @@ final class NemesisCleanDirective extends AbstractDirective
 
     public function execute(): ExitCode
     {
-        if (!$this->shouldProceed()) {
+        if (! $this->shouldProceed()) {
             return ExitCode::SUCCESS;
         }
 
@@ -72,7 +73,7 @@ final class NemesisCleanDirective extends AbstractDirective
 
     private function shouldProceed(): bool
     {
-        if ($this->option('force')) {
+        if ($this->hasOption('force')) {
             return true;
         }
 
@@ -81,37 +82,33 @@ final class NemesisCleanDirective extends AbstractDirective
         );
     }
 
-    private function performCleanup(): array
+    private function performCleanup(): CleanupStatisticsRecord
     {
-        $statistics = [
-            'expired' => 0,
-            'old' => 0,
-            'total' => 0,
-        ];
+        $expiredCount = $this->cleanExpiredTokens();
+        $oldCount = $this->cleanOldTokens();
 
-        $statistics['expired'] = $this->cleanExpiredTokens();
-        $statistics['old'] = $this->cleanOldTokens();
-        $statistics['total'] = $statistics['expired'] + $statistics['old'];
-
-        return $statistics;
+        return $this->hydration->hydrate(CleanupStatisticsRecord::class, [
+            'expired' => $expiredCount,
+            'old' => $oldCount,
+            'total' => $expiredCount + $oldCount,
+        ]);
     }
 
     private function cleanExpiredTokens(): int
     {
-        if ($this->option('keep-expired')) {
+        if ($this->hasOption('keep-expired')) {
             $this->warn('Keeping expired tokens as requested (--keep-expired)');
+
             return 0;
         }
 
-        // ✅ Utilisation du repository avec filter
         $filter = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
             'is_expired' => true,
         ]);
-
-        $count = $this->repository->count($filter);
+        $count = $this->service->count($filter);
 
         if ($count > 0) {
-            $this->repository->forceDeleteBulk($filter);
+            $this->service->forceDeleteBulk($filter);
             $this->info(sprintf('Deleted %d expired tokens', $count));
         }
 
@@ -124,20 +121,19 @@ final class NemesisCleanDirective extends AbstractDirective
 
         if ($retentionDays <= 0) {
             $this->info('Retention period is set to 0 or negative, skipping old token cleanup');
+
             return 0;
         }
 
         $cutoffDate = $this->getCutoffDate($retentionDays);
-
-        // ✅ Utilisation du repository avec filter created_before
         $filter = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
             'created_before' => $cutoffDate,
         ]);
 
-        $count = $this->repository->count($filter);
+        $count = $this->service->count($filter);
 
         if ($count > 0) {
-            $this->repository->deleteBulk($filter);
+            $this->service->forceDeleteBulk($filter);
             $this->info(sprintf('Deleted %d old tokens (older than %d days)', $count, $retentionDays));
         }
 
@@ -153,13 +149,14 @@ final class NemesisCleanDirective extends AbstractDirective
     {
         $daysOption = $this->option('days');
 
-        if ($daysOption !== null) {
+        if ($daysOption !== null && $daysOption !== '') {
             $days = (int) $daysOption;
             $this->info(sprintf('Using retention period from command line: %d days', $days));
+
             return $days;
         }
 
-        // ✅ Utilisation de la config injectée
+        // ✅ Utilisation de la nouvelle API avec Record
         $cleanupConfig = $this->config->cleanupConfig();
         $configDays = $cleanupConfig->keep_expired_for_days;
         $this->info(sprintf('Using retention period from config: %d days', $configDays));
@@ -167,55 +164,63 @@ final class NemesisCleanDirective extends AbstractDirective
         return $configDays;
     }
 
-    private function displayResults(array $statistics): void
+    private function displayResults(CleanupStatisticsRecord $statistics): void
     {
         $this->newLine();
-        $this->line('═══════════════════════════════════════════════════════');
-        $this->info('🧹 TOKEN CLEANUP COMPLETED');
-        $this->line('═══════════════════════════════════════════════════════');
-
+        $this->displayHeader();
         $this->displayStatisticsTable($statistics);
-
-        if ($statistics['total'] === 0) {
-            $this->info('✨ No tokens needed cleaning. Database is clean!');
-        } else {
-            $this->info('✅ Cleanup completed successfully!');
-        }
-
+        $this->displayStatusMessage($statistics);
         $this->displayConfigurationSummary();
     }
 
-    private function displayStatisticsTable(array $statistics): void
+    private function displayHeader(): void
+    {
+        $this->line('═══════════════════════════════════════════════════════');
+        $this->info('🧹 TOKEN CLEANUP COMPLETED');
+        $this->line('═══════════════════════════════════════════════════════');
+    }
+
+    private function displayStatisticsTable(CleanupStatisticsRecord $statistics): void
     {
         $headers = new StringTypedCollection;
         $headers->add('Metric', 'Count');
 
         $rows = new RowCollection;
 
-        $row1 = new RowCollection;
-        $row1->add('Expired tokens deleted', (string) $statistics['expired']);
-        $rows->add($row1);
+        $expiredRow = new RowCollection;
+        $expiredRow->add('Expired tokens deleted', (string) $statistics->expired);
+        $rows->add($expiredRow);
 
-        $row2 = new RowCollection;
-        $row2->add('Old tokens deleted', (string) $statistics['old']);
-        $rows->add($row2);
+        $oldRow = new RowCollection;
+        $oldRow->add('Old tokens deleted', (string) $statistics->old);
+        $rows->add($oldRow);
 
-        $row3 = new RowCollection;
-        $row3->add('━━━━━━━━━━━━━━━━━━━━━', '━━━━━━━━━');
-        $rows->add($row3);
+        $separatorRow = new RowCollection;
+        $separatorRow->add('━━━━━━━━━━━━━━━━━━━━━', '━━━━━━━━━');
+        $rows->add($separatorRow);
 
-        $row4 = new RowCollection;
-        $row4->add('Total tokens deleted', (string) $statistics['total']);
-        $rows->add($row4);
+        $totalRow = new RowCollection;
+        $totalRow->add('Total tokens deleted', (string) $statistics->total);
+        $rows->add($totalRow);
 
         $this->table($headers, $rows);
         $this->newLine();
     }
 
+    private function displayStatusMessage(CleanupStatisticsRecord $statistics): void
+    {
+        if ($statistics->total === 0) {
+            $this->info('✨ No tokens needed cleaning. Database is clean!');
+        } else {
+            $this->info('✅ Cleanup completed successfully!');
+        }
+    }
+
     private function displayConfigurationSummary(): void
     {
-        // ✅ Utilisation de la config injectée
+        // ✅ Utilisation de la nouvelle API avec Records
         $cleanupConfig = $this->config->cleanupConfig();
+        $middlewareConfig = $this->config->middlewareConfig();
 
         $this->newLine();
         $this->line('📋 Current Configuration:');
@@ -231,8 +236,17 @@ final class NemesisCleanDirective extends AbstractDirective
             '   • Retention period: %d days',
             $this->getRetentionDays()
         ));
+        $this->line(sprintf(
+            '   • Validate origin: %s',
+            $middlewareConfig->validate_origin ? '✅ Enabled' : '❌ Disabled'
+        ));
 
-        if (!$this->option('keep-expired')) {
+        $this->displayExpiredTokensStatus();
+    }
+
+    private function displayExpiredTokensStatus(): void
+    {
+        if (! $this->hasOption('keep-expired')) {
             $this->line('   • Expired tokens: ✅ Removed');
         } else {
             $this->line('   • Expired tokens: ⏸️  Kept (--keep-expired flag used)');

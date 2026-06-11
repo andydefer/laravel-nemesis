@@ -8,19 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Tests\Fixtures\Records\TestCustomFormatUserRecord;
-use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
  * Test model for users with custom nemesisFormat implementation.
  *
  * This model demonstrates a custom format for API responses,
  * different from the standard TestUser format.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestCustomFormatUser extends Model implements MustNemesis
 {
-    use HasNemesisTokens;
     use SoftDeletes;
 
     /**

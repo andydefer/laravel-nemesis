@@ -13,53 +13,58 @@ use Kani\Nemesis\Records\TokenGenerationRecord;
 /**
  * Configuration for the Nemesis token authentication system.
  *
- * This immutable configuration class provides all settings for:
- * - Token generation (length, hash algorithm, expiration)
- * - Middleware behavior (parameter names, headers, security)
- * - CORS validation and headers
- * - Automatic cleanup of expired tokens
- *
- * All values are hardcoded or loaded from environment variables.
- * No properties, no state, only methods.
+ * @deprecated This class is deprecated and will be removed in version 3.0.0.
+ * 
+ *             ❌ WHY DEPRECATED?
+ *             
+ *             This class violates the Dependency Inversion Principle (DIP)
+ *             by providing a concrete implementation that services couple to.
+ *             
+ *             ✅ NEW APPROACH:
+ *             
+ *             Use the interface Kani\Nemesis\Contracts\Configs\NemesisConfigInterface
+ *             with the implementation Kani\Nemesis\Configs\NemesisConfig
+ *             
+ *             The new approach uses Records to group configuration values:
+ *             - tokenConfig(): TokenConfigRecord
+ *             - middlewareConfig(): MiddlewareConfigRecord
+ *             - corsConfig(): CorsConfigRecord
+ *             - cleanupConfig(): CleanupConfigRecord
+ *             
+ *             @see \Kani\Nemesis\Contracts\Configs\NemesisConfigInterface
+ *             @see \Kani\Nemesis\Configs\NemesisConfig
+ * 
+ * @author Andy Defer
+ * @deprecated since 2.0.0, will be removed in 3.0.0
  */
 final class NemesisConfig extends AbstractConfig
 {
-    // ============================================================================
-    // Token Generation Configuration
-    // ============================================================================
-
     /**
-     * Length of generated tokens in bytes.
-     * Longer tokens are more secure but larger in size.
-     * Recommended: 64 or higher for production.
+     * @deprecated Use NemesisConfigInterface::tokenConfig()->token_length instead
      */
     public function getTokenLength(): int
     {
-        return (int) (getenv('NEMESIS_TOKEN_LENGTH') ?: 64);
+        return (int) config('nemesis.token_length', 64);
     }
 
     /**
-     * Hash algorithm used to hash tokens before storage.
-     * Supported: 'sha256', 'sha512', 'md5' (not recommended).
-     * Recommended: 'sha256' or 'sha512' for production.
+     * @deprecated Use NemesisConfigInterface::tokenConfig()->hash_algorithm instead
      */
     public function getHashAlgorithm(): string
     {
-        $algorithm = getenv('NEMESIS_HASH_ALGORITHM') ?: 'sha256';
+        $algorithm = config('nemesis.hash_algorithm', 'sha256');
 
         return in_array($algorithm, hash_algos(), true) ? $algorithm : 'sha256';
     }
 
     /**
-     * Token expiration time in minutes.
-     * Set to null for tokens that never expire (not recommended for production).
-     * Default: 60 minutes (1 hour)
+     * @deprecated Use NemesisConfigInterface::tokenConfig()->expiration_minutes instead
      */
     public function getExpiration(): ?int
     {
-        $expiration = getenv('NEMESIS_EXPIRATION');
+        $expiration = config('nemesis.expiration');
 
-        if ($expiration === false || $expiration === '' || $expiration === 'null') {
+        if ($expiration === null) {
             return null;
         }
 
@@ -68,151 +73,96 @@ final class NemesisConfig extends AbstractConfig
         return $value > 0 ? $value : 60;
     }
 
-    // ============================================================================
-    // Middleware Configuration
-    // ============================================================================
-
     /**
-     * Parameter name used to inject the authenticated model into the route.
-     * Access via: $request->nemesisAuth
+     * @deprecated Use NemesisConfigInterface::middlewareConfig()->parameter_name instead
      */
     public function getParameterName(): string
     {
-        return getenv('NEMESIS_PARAMETER_NAME') ?: 'nemesisAuth';
+        return config('nemesis.middleware.parameter_name', 'nemesisAuth');
     }
 
     /**
-     * Header name that contains the bearer token.
-     * Standard is 'Authorization' with 'Bearer ' prefix.
+     * @deprecated Use NemesisConfigInterface::middlewareConfig()->token_header instead
      */
     public function getTokenHeader(): string
     {
-        return getenv('NEMESIS_TOKEN_HEADER') ?: 'Authorization';
+        return config('nemesis.middleware.token_header', 'Authorization');
     }
 
     /**
-     * Enable security headers on successful responses.
-     * Adds X-Frame-Options, X-XSS-Protection, X-Content-Type-Options, Referrer-Policy.
+     * @deprecated Use NemesisConfigInterface::middlewareConfig()->security_headers instead
      */
     public function getSecurityHeaders(): bool
     {
-        $value = getenv('NEMESIS_SECURITY_HEADERS');
-
-        if ($value === false) {
-            return true;
-        }
-
-        return $value === 'true';
+        return (bool) config('nemesis.middleware.security_headers', true);
     }
 
     /**
-     * Enable CORS origin validation.
-     * When enabled, tokens can restrict which origins can use them.
+     * @deprecated Use NemesisConfigInterface::middlewareConfig()->validate_origin instead
      */
     public function getValidateOrigin(): bool
     {
-        $value = getenv('NEMESIS_VALIDATE_ORIGIN');
-
-        if ($value === false) {
-            return true;
-        }
-
-        return $value === 'true';
+        return (bool) config('nemesis.middleware.validate_origin', true);
     }
 
     /**
-     * Check if using a custom header instead of standard Bearer token.
+     * @deprecated Use NemesisConfigInterface::isUsingCustomHeader() instead
      */
     public function isUsingCustomHeader(): bool
     {
-        $header = $this->getTokenHeader();
-
-        return $header !== 'Authorization';
+        return $this->getTokenHeader() !== 'Authorization';
     }
 
-    // ============================================================================
-    // CORS Configuration
-    // ============================================================================
-
     /**
-     * Whether to allow credentials (cookies, authorization headers) in CORS requests.
+     * @deprecated Use NemesisConfigInterface::corsConfig()->allow_credentials instead
      */
     public function getAllowCredentials(): bool
     {
-        $value = getenv('NEMESIS_CORS_ALLOW_CREDENTIALS');
-
-        if ($value === false) {
-            return true;
-        }
-
-        return $value === 'true';
+        return (bool) config('nemesis.cors.allow_credentials', true);
     }
 
     /**
-     * Maximum age (in seconds) for preflight requests caching.
-     * Default: 86400 (24 hours)
+     * @deprecated Use NemesisConfigInterface::corsConfig()->max_age instead
      */
     public function getMaxAge(): int
     {
-        return (int) (getenv('NEMESIS_CORS_MAX_AGE') ?: 86400);
+        return (int) config('nemesis.cors.max_age', 86400);
     }
 
     /**
-     * Whether to expose token information in CORS responses.
-     * When true, adds 'X-Token-Expires-At' and 'X-Token-Abilities' headers.
+     * @deprecated Use NemesisConfigInterface::corsConfig()->expose_token_info instead
      */
     public function getExposeTokenInfo(): bool
     {
-        $value = getenv('NEMESIS_CORS_EXPOSE_TOKEN_INFO');
-
-        return $value === 'true';
+        return (bool) config('nemesis.cors.expose_token_info', false);
     }
 
-    // ============================================================================
-    // Cleanup Configuration
-    // ============================================================================
-
     /**
-     * Whether to automatically clean expired tokens.
-     * Recommended: true for production to keep database size manageable.
+     * @deprecated Use NemesisConfigInterface::cleanupConfig()->auto_cleanup instead
      */
     public function getAutoCleanup(): bool
     {
-        $value = getenv('NEMESIS_AUTO_CLEANUP');
-
-        if ($value === false) {
-            return true;
-        }
-
-        return $value === 'true';
+        return (bool) config('nemesis.cleanup.auto_cleanup', true);
     }
 
     /**
-     * Frequency of cleanup in minutes.
-     * Uses Laravel's scheduling system.
-     * Default: 60 minutes (run every hour)
+     * @deprecated Use NemesisConfigInterface::cleanupConfig()->frequency instead
      */
     public function getCleanupFrequency(): int
     {
-        return (int) (getenv('NEMESIS_CLEANUP_FREQUENCY') ?: 60);
+        return (int) config('nemesis.cleanup.frequency', 60);
     }
 
     /**
-     * Delete tokens older than this many days after expiration.
-     * Keep for audit purposes before permanent deletion.
-     * Default: 30 days
+     * @deprecated Use NemesisConfigInterface::cleanupConfig()->keep_expired_for_days instead
      */
     public function getKeepExpiredForDays(): int
     {
-        return (int) (getenv('NEMESIS_KEEP_EXPIRED_DAYS') ?: 30);
+        return (int) config('nemesis.cleanup.keep_expired_for_days', 30);
     }
 
-    // ============================================================================
-    // Helper Methods - Questions
-    // ============================================================================
-
     /**
-     * Check if tokens should expire (has expiration set).
+     * @deprecated Use NemesisConfigInterface::shouldExpire() instead
      */
     public function shouldExpire(): bool
     {
@@ -220,7 +170,7 @@ final class NemesisConfig extends AbstractConfig
     }
 
     /**
-     * Check if cleanup is enabled and has valid configuration.
+     * @deprecated Use NemesisConfigInterface::shouldCleanup() instead
      */
     public function shouldCleanup(): bool
     {
@@ -228,20 +178,15 @@ final class NemesisConfig extends AbstractConfig
     }
 
     /**
-     * Check if CORS is enabled (origin validation active).
+     * @deprecated Use NemesisConfigInterface::isCorsEnabled() instead
      */
     public function isCorsEnabled(): bool
     {
         return $this->getValidateOrigin();
     }
 
-    // ============================================================================
-    // Record Getters - Using ::from() for automatic hydration
-    // ============================================================================
-
     /**
-     * Get token generation configuration as a Record.
-     * Uses ::from() for automatic hydration.
+     * @deprecated Use NemesisConfigInterface::tokenConfig() instead
      */
     public function getTokenGenerationRecord(): TokenGenerationRecord
     {
@@ -253,8 +198,7 @@ final class NemesisConfig extends AbstractConfig
     }
 
     /**
-     * Get middleware configuration as a Record.
-     * Uses ::from() for automatic hydration.
+     * @deprecated Use NemesisConfigInterface::middlewareConfig() instead
      */
     public function getMiddlewareConfigRecord(): MiddlewareConfigRecord
     {
@@ -267,8 +211,7 @@ final class NemesisConfig extends AbstractConfig
     }
 
     /**
-     * Get CORS configuration as a Record.
-     * Uses ::from() for automatic hydration.
+     * @deprecated Use NemesisConfigInterface::corsConfig() instead
      */
     public function getCorsConfigRecord(): CorsConfigRecord
     {
@@ -280,8 +223,7 @@ final class NemesisConfig extends AbstractConfig
     }
 
     /**
-     * Get cleanup configuration as a Record.
-     * Uses ::from() for automatic hydration.
+     * @deprecated Use NemesisConfigInterface::cleanupConfig() instead
      */
     public function getCleanupConfigRecord(): CleanupConfigRecord
     {

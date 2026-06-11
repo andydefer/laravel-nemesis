@@ -8,19 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Tests\Fixtures\Records\TestCheckPointRecord;
-use Kani\Nemesis\Traits\HasNemesisTokens;
 
 /**
  * Test model for checkpoints (billeterie) that can authenticate with tokens.
  *
  * This model represents a physical checkpoint (turnstile, gate, etc.)
  * that needs to authenticate with Nemesis tokens for ticket validation.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Models
  */
 final class TestCheckPoint extends Model implements MustNemesis
 {
-    use HasNemesisTokens;
     use SoftDeletes;
 
     /**

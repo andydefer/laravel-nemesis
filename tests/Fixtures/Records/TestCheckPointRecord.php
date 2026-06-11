@@ -9,8 +9,6 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 
 /**
  * Test record for TestCheckPoint model.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Records
  */
 final class TestCheckPointRecord extends AbstractRecord
 {

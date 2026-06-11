@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Kani\Nemesis\Tests\Unit;
 
 use Illuminate\Routing\Router;
-use Kani\Nemesis\Commands\CleanTokensCommand;
-use Kani\Nemesis\Commands\InstallNemesisCommand;
-use Kani\Nemesis\Commands\ListTokensCommand;
-use Kani\Nemesis\Config\NemesisConfig;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use Kani\Nemesis\Directives\CleanTokensDirective;
+use Kani\Nemesis\Directives\InstallNemesisDirective;
+use Kani\Nemesis\Directives\ListTokensDirective;
+use Kani\Nemesis\Helpers\NemesisHelper;
 use Kani\Nemesis\Http\Middleware\NemesisTokenMiddleware;
-use Kani\Nemesis\Providers\NemesisServiceProvider;
+use Kani\Nemesis\NemesisServiceProvider;
 use Kani\Nemesis\Services\NemesisAuthenticationService;
 use Kani\Nemesis\Services\NemesisService;
-use Kani\Nemesis\Tests\TestCase;
+use Kani\Nemesis\Tests\IntegrationTestCase;
 
 /**
  * Test suite for NemesisServiceProvider service registration.
@@ -21,7 +22,7 @@ use Kani\Nemesis\Tests\TestCase;
  * Validates that all required services are properly registered
  * and bound in the Laravel service container.
  */
-final class NemesisServiceProviderTest extends TestCase
+final class NemesisServiceProviderTest extends IntegrationTestCase
 {
     /**
      * Test that the service provider registers and binds all required services.
@@ -35,10 +36,11 @@ final class NemesisServiceProviderTest extends TestCase
         $provider->register();
         $provider->boot();
 
-        // Assert: Key services should be bound in the container
-        $this->assertTrue($this->app->bound(NemesisConfig::class));
+        // Assert: Key services should be bound in the container (using Interface)
+        $this->assertTrue($this->app->bound(NemesisConfigInterface::class));
         $this->assertTrue($this->app->bound(NemesisService::class));
         $this->assertTrue($this->app->bound(NemesisAuthenticationService::class));
+        $this->assertTrue($this->app->bound(NemesisHelper::class));
     }
 
     /**
@@ -82,24 +84,6 @@ final class NemesisServiceProviderTest extends TestCase
     }
 
     /**
-     * Test that the service provider loads helper functions.
-     */
-    public function test_service_provider_loads_helper_functions(): void
-    {
-        // Arrange: Create service provider instance
-        $provider = new NemesisServiceProvider($this->app);
-
-        // Act: Register and boot the service provider to load helper files
-        $provider->register();
-        $provider->boot();
-
-        // Assert: All expected helper functions should be available globally
-        $this->assertTrue(function_exists('nemesis'));
-        $this->assertTrue(function_exists('current_token'));
-        $this->assertTrue(function_exists('current_authenticatable'));
-    }
-
-    /**
      * Test that the service provider merges configuration.
      */
     public function test_service_provider_merges_configuration(): void
@@ -118,21 +102,21 @@ final class NemesisServiceProviderTest extends TestCase
     }
 
     /**
-     * Test that the service provider registers commands when running in console.
+     * Test that the service provider registers directives when running in console.
      */
-    public function test_service_provider_registers_commands_in_console(): void
+    public function test_service_provider_registers_directives_in_console(): void
     {
         // Arrange: Create service provider instance
         $provider = new NemesisServiceProvider($this->app);
 
-        // Act: Register and boot the service provider to register console commands
+        // Act: Register and boot the service provider to register directives
         $provider->register();
         $provider->boot();
 
-        // Assert: All command classes should exist and be loadable
-        $this->assertTrue(class_exists(InstallNemesisCommand::class));
-        $this->assertTrue(class_exists(CleanTokensCommand::class));
-        $this->assertTrue(class_exists(ListTokensCommand::class));
+        // Assert: All directive classes should exist and be loadable
+        $this->assertTrue(class_exists(InstallNemesisDirective::class));
+        $this->assertTrue(class_exists(ListTokensDirective::class));
+        $this->assertTrue(class_exists(CleanTokensDirective::class));
     }
 
     /**
@@ -156,7 +140,7 @@ final class NemesisServiceProviderTest extends TestCase
     }
 
     /**
-     * Test that the service provider registers NemesisConfig as a singleton.
+     * Test that the service provider registers NemesisConfigInterface as a singleton.
      */
     public function test_service_provider_registers_nemesis_config(): void
     {
@@ -166,25 +150,25 @@ final class NemesisServiceProviderTest extends TestCase
         // Act: Register the service provider
         $provider->register();
 
-        // Assert: NemesisConfig should be bound in the container
-        $this->assertTrue($this->app->bound(NemesisConfig::class));
+        // Assert: NemesisConfigInterface should be bound in the container
+        $this->assertTrue($this->app->bound(NemesisConfigInterface::class));
 
-        $config = $this->app->make(NemesisConfig::class);
-        $this->assertInstanceOf(NemesisConfig::class, $config);
+        $config = $this->app->make(NemesisConfigInterface::class);
+        $this->assertInstanceOf(NemesisConfigInterface::class, $config);
 
-        // Assert config values are loaded correctly
-        $this->assertSame('Authorization', $config->getTokenHeader());
-        $this->assertSame('sha256', $config->getHashAlgorithm());
-        $this->assertSame('nemesisAuth', $config->getParameterName());
-        $this->assertTrue($config->getValidateOrigin());
-        $this->assertTrue($config->getSecurityHeaders());
-        $this->assertTrue($config->getAllowCredentials());
-        $this->assertSame(86400, $config->getMaxAge());
-        $this->assertFalse($config->getExposeTokenInfo());
+        // Assert config values are loaded correctly via new API
+        $this->assertSame('Authorization', $config->middlewareConfig()->token_header);
+        $this->assertSame('sha256', $config->tokenConfig()->hash_algorithm);
+        $this->assertSame('nemesisAuth', $config->middlewareConfig()->parameter_name);
+        $this->assertTrue($config->middlewareConfig()->validate_origin);
+        $this->assertTrue($config->middlewareConfig()->security_headers);
+        $this->assertTrue($config->corsConfig()->allow_credentials);
+        $this->assertSame(86400, $config->corsConfig()->max_age);
+        $this->assertFalse($config->corsConfig()->expose_token_info);
     }
 
     /**
-     * Test that NemesisConfig is a singleton (same instance throughout the app).
+     * Test that NemesisConfigInterface is a singleton (same instance throughout the app).
      */
     public function test_nemesis_config_is_singleton(): void
     {
@@ -194,8 +178,8 @@ final class NemesisServiceProviderTest extends TestCase
         // Act: Register the service provider and resolve config twice
         $provider->register();
 
-        $firstInstance = $this->app->make(NemesisConfig::class);
-        $secondInstance = $this->app->make(NemesisConfig::class);
+        $firstInstance = $this->app->make(NemesisConfigInterface::class);
+        $secondInstance = $this->app->make(NemesisConfigInterface::class);
 
         // Assert: Both instances should be the same object
         $this->assertSame($firstInstance, $secondInstance);
@@ -217,6 +201,60 @@ final class NemesisServiceProviderTest extends TestCase
 
         // Assert: Both instances should be the same object
         $this->assertSame($firstInstance, $secondInstance);
+    }
+
+    /**
+     * Test that InstallNemesisDirective receives dependencies via constructor injection.
+     */
+    public function test_install_nemesis_directive_receives_dependencies(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve InstallNemesisDirective
+        $provider->register();
+
+        /** @var InstallNemesisDirective $directive */
+        $directive = $this->app->make(InstallNemesisDirective::class);
+
+        // Assert: Directive should be instantiated without errors
+        $this->assertInstanceOf(InstallNemesisDirective::class, $directive);
+    }
+
+    /**
+     * Test that ListTokensDirective receives dependencies via constructor injection.
+     */
+    public function test_list_tokens_directive_receives_dependencies(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve ListTokensDirective
+        $provider->register();
+
+        /** @var ListTokensDirective $directive */
+        $directive = $this->app->make(ListTokensDirective::class);
+
+        // Assert: Directive should be instantiated without errors
+        $this->assertInstanceOf(ListTokensDirective::class, $directive);
+    }
+
+    /**
+     * Test that CleanTokensDirective receives dependencies via constructor injection.
+     */
+    public function test_clean_tokens_directive_receives_dependencies(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve CleanTokensDirective
+        $provider->register();
+
+        /** @var CleanTokensDirective $directive */
+        $directive = $this->app->make(CleanTokensDirective::class);
+
+        // Assert: Directive should be instantiated without errors
+        $this->assertInstanceOf(CleanTokensDirective::class, $directive);
     }
 
     /**
@@ -256,16 +294,16 @@ final class NemesisServiceProviderTest extends TestCase
         $provider = new NemesisServiceProvider($this->app);
         $provider->register();
 
-        // Assert: Custom values should be reflected in the config object
-        $config = $this->app->make(NemesisConfig::class);
+        // Assert: Custom values should be reflected in the config object (via new API)
+        $config = $this->app->make(NemesisConfigInterface::class);
 
-        $this->assertEquals('X-Custom-Token', $config->getTokenHeader());
-        $this->assertEquals('sha512', $config->getHashAlgorithm());
-        $this->assertEquals('customAuth', $config->getParameterName());
-        $this->assertFalse($config->getValidateOrigin());
-        $this->assertFalse($config->getSecurityHeaders());
-        $this->assertFalse($config->getAllowCredentials());
-        $this->assertEquals(3600, $config->getMaxAge());
-        $this->assertTrue($config->getExposeTokenInfo());
+        $this->assertEquals('X-Custom-Token', $config->middlewareConfig()->token_header);
+        $this->assertEquals('sha512', $config->tokenConfig()->hash_algorithm);
+        $this->assertEquals('customAuth', $config->middlewareConfig()->parameter_name);
+        $this->assertFalse($config->middlewareConfig()->validate_origin);
+        $this->assertFalse($config->middlewareConfig()->security_headers);
+        $this->assertFalse($config->corsConfig()->allow_credentials);
+        $this->assertEquals(3600, $config->corsConfig()->max_age);
+        $this->assertTrue($config->corsConfig()->expose_token_info);
     }
 }

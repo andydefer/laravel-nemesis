@@ -1,4 +1,5 @@
 <?php
+
 // src/Records/NemesisTokenRecord.php
 
 declare(strict_types=1);

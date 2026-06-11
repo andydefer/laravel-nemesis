@@ -12,8 +12,6 @@ use AndyDefer\PhpVo\Enums\HttpStatusCode;
  * Defines all possible error responses with their corresponding
  * HTTP status codes and user-friendly messages. This enum ensures
  * consistent error handling across the entire package.
- *
- * @package Kani\Nemesis\Enums
  */
 enum ErrorCode: string
 {
@@ -102,7 +100,7 @@ enum ErrorCode: string
      *
      * @return HttpStatusCode The HTTP status code enum
      */
-    public function httpStatusCode(): HttpStatusCode
+    public function getHttpStatusCode(): HttpStatusCode
     {
         return match ($this) {
             // Authentication errors (HTTP 401)
@@ -164,7 +162,7 @@ enum ErrorCode: string
      */
     public function isAuthenticationError(): bool
     {
-        return $this->httpStatusCode() === HttpStatusCode::UNAUTHORIZED;
+        return $this->getHttpStatusCode() === HttpStatusCode::UNAUTHORIZED;
     }
 
     /**
@@ -174,7 +172,7 @@ enum ErrorCode: string
      */
     public function isAuthorizationError(): bool
     {
-        return $this->httpStatusCode() === HttpStatusCode::FORBIDDEN;
+        return $this->getHttpStatusCode() === HttpStatusCode::FORBIDDEN;
     }
 
     /**
@@ -184,7 +182,7 @@ enum ErrorCode: string
      */
     public function isClientError(): bool
     {
-        return $this->httpStatusCode() === HttpStatusCode::BAD_REQUEST;
+        return $this->getHttpStatusCode() === HttpStatusCode::BAD_REQUEST;
     }
 
     /**
@@ -194,7 +192,7 @@ enum ErrorCode: string
      */
     public function isServerError(): bool
     {
-        return $this->httpStatusCode() === HttpStatusCode::INTERNAL_SERVER_ERROR;
+        return $this->getHttpStatusCode() === HttpStatusCode::INTERNAL_SERVER_ERROR;
     }
 
     /**
@@ -204,7 +202,7 @@ enum ErrorCode: string
      */
     public function getCategory(): string
     {
-        return match ($this->httpStatusCode()) {
+        return match ($this->getHttpStatusCode()) {
             HttpStatusCode::UNAUTHORIZED => 'authentication',
             HttpStatusCode::FORBIDDEN => 'authorization',
             HttpStatusCode::BAD_REQUEST => 'client',
@@ -220,7 +218,7 @@ enum ErrorCode: string
      */
     public function isRecoverable(): bool
     {
-        return match ($this->httpStatusCode()) {
+        return match ($this->getHttpStatusCode()) {
             HttpStatusCode::UNAUTHORIZED,
             HttpStatusCode::FORBIDDEN,
             HttpStatusCode::BAD_REQUEST => true,  // Client can retry or fix the request

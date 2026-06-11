@@ -1,4 +1,5 @@
 <?php
+
 // src/Models/NemesisToken.php
 
 declare(strict_types=1);
@@ -8,16 +9,15 @@ namespace Kani\Nemesis\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Carbon\Carbon;
 
 /**
  * Model representing an authentication token - PURE DATA CONTAINER ONLY.
- * 
+ *
  * NO business logic whatsoever.
  * ONLY:
  * - Relationships
  * - Getters for computed properties
- * 
+ *
  * All capabilities and business logic are in NemesisService.
  */
 final class NemesisToken extends Model
@@ -66,6 +66,7 @@ final class NemesisToken extends Model
         if ($this->expires_at === null) {
             return false;
         }
+
         return $this->expires_at->isPast();
     }
 
@@ -85,6 +86,7 @@ final class NemesisToken extends Model
         if ($this->isExpired()) {
             return false;
         }
-        return !$this->trashed();
+
+        return ! $this->trashed();
     }
 }

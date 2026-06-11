@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kani\Nemesis\Tests\Fixtures\Models;
 
-
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,8 +13,6 @@ use Illuminate\Database\Eloquent\Model;
  * contract validation. It intentionally omits the MustNemesis interface
  * to verify that the middleware correctly rejects models that don't
  * implement the required contract.
- *
- * @package Kani\Nemesis\Tests\FIxtures\Model
  */
 final class TestInvalidModel extends Model
 {

@@ -1,120 +1,137 @@
 <?php
 
+// src/Http/Middleware/NemesisTokenMiddleware.php
+
 declare(strict_types=1);
 
 namespace Kani\Nemesis\Http\Middleware;
 
+use AndyDefer\Actions\Http\ResponseFactory;
+use AndyDefer\DomainStructures\Services\HydrationService;
 use Closure;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Config\NemesisConfig;
-use Kani\Nemesis\Contracts\CanBeFormatted;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use Kani\Nemesis\Contracts\MustNemesis;
 use Kani\Nemesis\Data\ErrorResponseData;
 use Kani\Nemesis\Enums\ErrorCode;
 use Kani\Nemesis\Services\HttpHeaderService;
 use Kani\Nemesis\Services\NemesisAuthenticationService;
 
-/**
- * Middleware for authenticating requests using Nemesis tokens.
- *
- * This middleware handles Bearer token authentication, validates token
- * expiration, checks required abilities, enforces CORS origin restrictions,
- * and attaches the authenticated model to the request for downstream use.
- * 
- * All business logic has been extracted to services.
- *
- * @package Kani\Nemesis\Http\Middleware
- */
 final class NemesisTokenMiddleware
 {
+    private HydrationService $hydration;
+
     public function __construct(
-        private readonly NemesisConfig $config,
+        private readonly NemesisConfigInterface $config,
         private readonly NemesisAuthenticationService $authService,
         private readonly HttpHeaderService $headerService,
-    ) {}
+    ) {
+        $this->hydration = new HydrationService();
+    }
 
-    /**
-     * Handle an incoming request and authenticate via bearer token.
-     */
     public function handle(Request $request, Closure $next, ?string $ability = null): mixed
     {
-        // Authenticate using the pure service (returns VO)
+        // Récupérer le token depuis le header Bearer
+        $bearerToken = $request->bearerToken();
+
+        // Vérifier le header personnalisé si configuré
+        $customHeaderName = $this->config->middlewareConfig()->token_header;
+        $token = $bearerToken;
+
+        if ($customHeaderName !== 'Authorization') {
+            $customToken = $request->header($customHeaderName);
+            if ($customToken !== null) {
+                $token = $customToken;
+            }
+        }
+
+        // Appel au service d'authentification
         $result = $this->authService->authenticate($request, $ability);
 
         if (!$result->isSuccess()) {
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => $result->getErrorCode(),
-                'message' => $result->getErrorCode()->message(),
-                'status' => $result->getErrorCode()->httpStatusCode(),
+            $errorCode = $result->getErrorCode();
+            $statusInt = $errorCode->getHttpStatusCode()->value;
+
+            $errorResponse = $this->hydration->hydrate(ErrorResponseData::class, [
+                'errorCode' => $errorCode,
+                'message' => $errorCode->message(),
+                'status' => $statusInt,
                 'details' => $result->getAdditionalData(),
             ]);
-            $response = response()->json(
-                data: $errorResponse->toArray(),
-                status: $errorResponse->status->value
-            );
-            return $this->headerService->addCorsToErrorResponse($response);
+
+            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+
+            return $this->headerService->addCorsToErrorResponse($response, $request);
         }
 
-        // Get the record from VO
+        // Succès - récupération des données
         $resultRecord = $result->getValue();
         $tokenRecord = $resultRecord->token_record;
 
-        // Get authenticatable from token record
+        // Récupérer l'authenticatable
         $tokenableType = $tokenRecord->tokenable_type;
         $tokenableId = $tokenRecord->tokenable_id;
 
         if ($tokenableType === null || $tokenableId === null || !class_exists($tokenableType)) {
-            $errorResponse = ErrorResponseData::from([
+            $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
+
+            $errorResponse = $this->hydration->hydrate(ErrorResponseData::class, [
                 'errorCode' => ErrorCode::INVALID_TOKEN,
                 'message' => ErrorCode::INVALID_TOKEN->message(),
-                'status' => ErrorCode::INVALID_TOKEN->httpStatusCode(),
+                'status' => $statusInt,
                 'details' => null,
             ]);
-            $response = response()->json(
-                data: $errorResponse->toArray(),
-                status: $errorResponse->status->value
-            );
-            return $this->headerService->addCorsToErrorResponse($response);
+
+            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+
+            return $this->headerService->addCorsToErrorResponse($response, $request);
         }
 
         $authenticatable = $tokenableType::find($tokenableId);
 
         if ($authenticatable === null) {
-            $errorResponse = ErrorResponseData::from([
+            $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
+
+            $errorResponse = $this->hydration->hydrate(ErrorResponseData::class, [
                 'errorCode' => ErrorCode::INVALID_TOKEN,
                 'message' => ErrorCode::INVALID_TOKEN->message(),
-                'status' => ErrorCode::INVALID_TOKEN->httpStatusCode(),
+                'status' => $statusInt,
                 'details' => null,
             ]);
-            $response = response()->json(
-                data: $errorResponse->toArray(),
-                status: $errorResponse->status->value
-            );
-            return $this->headerService->addCorsToErrorResponse($response);
+
+            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+
+            return $this->headerService->addCorsToErrorResponse($response, $request);
         }
 
-        // Get formatted authenticatable if it implements the interface
+        // Formatage si l'interface est implémentée
         $formattedAuthenticatable = null;
-        if ($authenticatable instanceof CanBeFormatted) {
+        if ($authenticatable instanceof MustNemesis) {
             $formattedAuthenticatable = $authenticatable->nemesisFormat();
         }
 
-        // Attach data to request
+        // Attacher les données à la requête
+        $parameterName = $this->config->middlewareConfig()->parameter_name;
+
         $request->merge([
-            $this->config->getParameterName() => $authenticatable,
+            $parameterName => $authenticatable,
             'currentNemesisToken' => $tokenRecord,
         ]);
 
         if ($formattedAuthenticatable !== null) {
+            $formatKey = $parameterName . 'Format';
             $request->merge([
-                $this->config->getParameterName() . 'Format' => $formattedAuthenticatable,
+                $formatKey => $formattedAuthenticatable,
             ]);
         }
 
-        // Process the request
+        // Traiter la requête
         $response = $next($request);
 
-        // Apply headers
+        // Appliquer les headers de sécurité
         $response = $this->headerService->applySecurityHeaders($response);
+
+        // Appliquer les headers CORS
         $response = $this->headerService->applyCorsHeaders($response, $request);
 
         return $response;

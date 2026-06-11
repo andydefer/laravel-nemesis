@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Schema;
  * This table is used exclusively for testing the Nemesis package's contract
  * validation. Models using this table intentionally do NOT implement the
  * MustNemesis interface to test error handling scenarios.
- *
- * @package Kani\Nemesis\Tests\Database\Migrations
  */
 return new class extends Migration
 {

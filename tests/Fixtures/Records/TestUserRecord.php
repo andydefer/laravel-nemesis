@@ -12,8 +12,6 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
  *
  * This record represents the data structure for TestUser model
  * and is used for testing token authentication in a realistic context.
- *
- * @package Kani\Nemesis\Tests\Fixtures\Records
  */
 final class TestUserRecord extends AbstractRecord
 {

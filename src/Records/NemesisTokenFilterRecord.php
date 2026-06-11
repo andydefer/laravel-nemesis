@@ -1,4 +1,5 @@
 <?php
+
 // src/Records/NemesisTokenFilterRecord.php
 
 declare(strict_types=1);
@@ -7,6 +8,7 @@ namespace Kani\Nemesis\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 
 final class NemesisTokenFilterRecord extends AbstractRecord
 {
@@ -20,5 +22,6 @@ final class NemesisTokenFilterRecord extends AbstractRecord
         public readonly ?string $origin = null,
         public readonly ?bool $is_expired = null,
         public readonly ?bool $is_revoked = null,
+        public readonly ?DateTimeVO $created_before = null,
     ) {}
 }

@@ -8,16 +8,16 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Kani\Nemesis\Config\NemesisConfig;
+use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
 
 /**
  * Service for applying HTTP headers to responses.
  * Pure service with no business logic - only HTTP header manipulation.
  */
-final class HttpHeaderService
+class HttpHeaderService
 {
     public function __construct(
-        private readonly NemesisConfig $config,
+        private readonly NemesisConfigInterface $config,
         private readonly Application $app,
     ) {}
 
@@ -26,11 +26,12 @@ final class HttpHeaderService
      */
     public function applySecurityHeaders(mixed $response): mixed
     {
-        if (!$this->config->getSecurityHeaders()) {
+        // ✅ Utilisation de la nouvelle API avec middlewareConfig()
+        if (! $this->config->middlewareConfig()->security_headers) {
             return $response;
         }
 
-        if (!method_exists($response, 'header')) {
+        if (! method_exists($response, 'header')) {
             return $response;
         }
 
@@ -59,11 +60,12 @@ final class HttpHeaderService
      */
     public function applyCorsHeaders(mixed $response, Request $request): mixed
     {
-        if (!$this->config->getValidateOrigin()) {
+        // ✅ Utilisation de la nouvelle API avec middlewareConfig()
+        if (! $this->config->middlewareConfig()->validate_origin) {
             return $response;
         }
 
-        if (!method_exists($response, 'header')) {
+        if (! method_exists($response, 'header')) {
             return $response;
         }
 
@@ -75,17 +77,19 @@ final class HttpHeaderService
 
         $response->header('Access-Control-Allow-Origin', $origin);
 
-        if ($this->config->getAllowCredentials()) {
+        // ✅ Utilisation de la nouvelle API avec corsConfig()
+        if ($this->config->corsConfig()->allow_credentials) {
             $response->header('Access-Control-Allow-Credentials', 'true');
         }
 
         if ($request->isMethod('OPTIONS')) {
             $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
             $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-            $response->header('Access-Control-Max-Age', (string) $this->config->getMaxAge());
+            $response->header('Access-Control-Max-Age', (string) $this->config->corsConfig()->max_age);
         }
 
-        if ($this->config->getExposeTokenInfo()) {
+        // ✅ Utilisation de la nouvelle API avec corsConfig()
+        if ($this->config->corsConfig()->expose_token_info) {
             $response->header('Access-Control-Expose-Headers', 'X-Token-Expires-At, X-Token-Abilities');
         }
 
@@ -94,23 +98,29 @@ final class HttpHeaderService
 
     /**
      * Add CORS headers to error response if needed.
+     *
+     * @return JsonResponse The modified response
      */
-    public function addCorsToErrorResponse(JsonResponse $response): void
+    public function addCorsToErrorResponse(JsonResponse $response, Request $request): JsonResponse
     {
-        if (!$this->config->getValidateOrigin()) {
-            return;
+        // ✅ Utilisation de la nouvelle API avec middlewareConfig()
+        if (! $this->config->middlewareConfig()->validate_origin) {
+            return $response;
         }
 
-        $origin = request()->headers->get('Origin');
+        $origin = $request->headers->get('Origin');
 
         if ($origin === null) {
-            return;
+            return $response;
         }
 
         $response->header('Access-Control-Allow-Origin', $origin);
 
-        if ($this->config->getAllowCredentials()) {
+        // ✅ Utilisation de la nouvelle API avec corsConfig()
+        if ($this->config->corsConfig()->allow_credentials) {
             $response->header('Access-Control-Allow-Credentials', 'true');
         }
+
+        return $response;
     }
 }

@@ -10,8 +10,6 @@ use Kani\Nemesis\Enums\ErrorCode;
 
 /**
  * Record representing the authentication result data.
- * 
- * @package Kani\Nemesis\Records
  */
 final class AuthenticationResultRecord extends AbstractRecord
 {

@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Schema;
  * Creates test_user and test_api_client tables that support the MustNemesis
  * interface for testing multi-model token authentication.
  * Modified to support additional fields for TestCustomFormatUser.
- *
- * @package Kani\Nemesis\Tests\Database\Migrations
  */
 return new class extends Migration
 {
