@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7a37be6decb012d56bc030f2b1be4c28",
+    "content-hash": "101e85745eeadc41eb098bb269775ab8",
     "packages": [
         {
             "name": "andydefer/data-validator",
