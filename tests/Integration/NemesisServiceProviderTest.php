@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Unit;
+namespace AndyDefer\Nemesis\Tests\Unit;
 
 use Illuminate\Routing\Router;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Directives\CleanTokensDirective;
-use Kani\Nemesis\Directives\InstallNemesisDirective;
-use Kani\Nemesis\Directives\ListTokensDirective;
-use Kani\Nemesis\Helpers\NemesisHelper;
-use Kani\Nemesis\Http\Middleware\NemesisTokenMiddleware;
-use Kani\Nemesis\NemesisServiceProvider;
-use Kani\Nemesis\Services\NemesisAuthenticationService;
-use Kani\Nemesis\Services\NemesisService;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Directives\CleanTokensDirective;
+use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
+use AndyDefer\Nemesis\Directives\ListTokensDirective;
+use AndyDefer\Nemesis\Helpers\NemesisHelper;
+use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
+use AndyDefer\Nemesis\NemesisServiceProvider;
+use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
+use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 /**
  * Test suite for NemesisServiceProvider service registration.

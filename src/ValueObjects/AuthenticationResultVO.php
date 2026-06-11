@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\ValueObjects;
+namespace AndyDefer\Nemesis\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use InvalidArgumentException;
-use Kani\Nemesis\Enums\ErrorCode;
-use Kani\Nemesis\Records\AuthenticationResultRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 
 /**
  * Result of an authentication attempt.

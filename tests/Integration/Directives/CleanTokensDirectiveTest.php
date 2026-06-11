@@ -4,15 +4,15 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Directives;
+namespace AndyDefer\Nemesis\Tests\Integration\Directives;
 
 use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\Directive\Services\DirectiveTestingService;
 use Carbon\Carbon;
-use Kani\Nemesis\Directives\CleanTokensDirective;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Directives\CleanTokensDirective;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class CleanTokensDirectiveTest extends IntegrationTestCase
 {

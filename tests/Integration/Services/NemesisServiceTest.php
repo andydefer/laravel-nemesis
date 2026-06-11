@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Services;
+namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
@@ -13,15 +13,15 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Kani\Nemesis\Configs\NemesisConfig;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\Repositories\NemesisTokenRepository;
-use Kani\Nemesis\Services\NemesisService;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Configs\NemesisConfig;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class NemesisServiceTest extends IntegrationTestCase
 {

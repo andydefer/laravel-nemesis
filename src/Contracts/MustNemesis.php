@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Contracts;
+namespace AndyDefer\Nemesis\Contracts;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 

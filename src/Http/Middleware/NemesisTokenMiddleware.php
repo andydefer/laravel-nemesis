@@ -4,18 +4,18 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Http\Middleware;
+namespace AndyDefer\Nemesis\Http\Middleware;
 
 use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use Closure;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Contracts\MustNemesis;
-use Kani\Nemesis\Data\ErrorResponseData;
-use Kani\Nemesis\Enums\ErrorCode;
-use Kani\Nemesis\Services\HttpHeaderService;
-use Kani\Nemesis\Services\NemesisAuthenticationService;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Data\ErrorResponseData;
+use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Services\HttpHeaderService;
+use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 
 final class NemesisTokenMiddleware
 {

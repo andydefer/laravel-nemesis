@@ -4,19 +4,19 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Directives;
+namespace AndyDefer\Nemesis\Tests\Integration\Directives;
 
 use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\Directive\Services\DirectiveTestingService;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use Carbon\Carbon;
-use Kani\Nemesis\Directives\ListTokensDirective;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\Services\NemesisService;
-use Kani\Nemesis\Tests\Fixtures\Models\TestApiClient;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Directives\ListTokensDirective;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestApiClient;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class ListTokensDirectiveTest extends IntegrationTestCase
 {

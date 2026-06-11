@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Directives;
+namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Contexts\DirectiveContext;
@@ -17,7 +17,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 
 final class InstallNemesisDirective extends AbstractDirective
 {
@@ -174,8 +174,8 @@ final class InstallNemesisDirective extends AbstractDirective
         $this->newLine();
         $this->info('📝 Next steps:');
         $this->line('   1. Add the HasNemesisTokens trait to your models:');
-        $this->line('      use Kani\\Nemesis\\Traits\\HasNemesisTokens;');
-        $this->line('      use Kani\\Nemesis\\Contracts\\MustNemesis;');
+        $this->line('      use AndyDefer\\Nemesis\\Traits\\HasNemesisTokens;');
+        $this->line('      use AndyDefer\\Nemesis\\Contracts\\MustNemesis;');
         $this->line('');
         $this->line('   2. Implement the MustNemesis interface on your model:');
         $this->line('      class User extends Authenticatable implements MustNemesis');

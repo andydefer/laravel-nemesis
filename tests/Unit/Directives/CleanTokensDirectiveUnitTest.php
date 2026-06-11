@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Unit\Directives;
+namespace AndyDefer\Nemesis\Tests\Unit\Directives;
 
 use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
@@ -12,9 +12,9 @@ use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\Directive\Records\DirectiveBlueprintRecord;
 use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Directives\CleanTokensDirective;
-use Kani\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Directives\CleanTokensDirective;
+use AndyDefer\Nemesis\Services\NemesisService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 

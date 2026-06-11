@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Fixtures\Records;
+namespace AndyDefer\Nemesis\Tests\Fixtures\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;

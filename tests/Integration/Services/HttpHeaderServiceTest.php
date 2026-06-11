@@ -4,14 +4,14 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Services;
+namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Services\HttpHeaderService;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Services\HttpHeaderService;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class HttpHeaderServiceTest extends IntegrationTestCase
 {

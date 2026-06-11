@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Services;
+namespace AndyDefer\Nemesis\Services;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
@@ -17,11 +17,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 
 class NemesisService
 {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Exceptions;
+namespace AndyDefer\Nemesis\Exceptions;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 use InvalidArgumentException;
-use Kani\Nemesis\Data\ErrorResponseData;
-use Kani\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Data\ErrorResponseData;
+use AndyDefer\Nemesis\Enums\ErrorCode;
 use Throwable;
 
 /**

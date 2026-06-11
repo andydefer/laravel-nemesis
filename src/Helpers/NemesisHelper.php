@@ -4,13 +4,13 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Helpers;
+namespace AndyDefer\Nemesis\Helpers;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 
 final class NemesisHelper
 {

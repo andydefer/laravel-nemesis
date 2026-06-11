@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Unit\Directives;
+namespace AndyDefer\Nemesis\Tests\Unit\Directives;
 
 use AndyDefer\Directive\Collections\ParameterVOCollection;
 use AndyDefer\Directive\Contexts\DirectiveContext;
@@ -21,10 +21,10 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Schema\Builder;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Directives\InstallNemesisDirective;
-use Kani\Nemesis\Records\MiddlewareConfigRecord;
-use Kani\Nemesis\Records\TokenConfigRecord;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
+use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
+use AndyDefer\Nemesis\Records\TokenConfigRecord;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 

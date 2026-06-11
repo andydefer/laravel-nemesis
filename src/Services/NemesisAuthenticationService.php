@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Services;
+namespace AndyDefer\Nemesis\Services;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
@@ -13,13 +13,13 @@ use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpServices\Services\RecordTransformableService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Contracts\MustNemesis;
-use Kani\Nemesis\Enums\ErrorCode;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\AuthenticationResultRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\ValueObjects\AuthenticationResultVO;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\ValueObjects\AuthenticationResultVO;
 
 class NemesisAuthenticationService
 {

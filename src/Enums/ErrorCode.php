@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Enums;
+namespace AndyDefer\Nemesis\Enums;
 
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 

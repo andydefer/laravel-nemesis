@@ -4,16 +4,16 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Repositories;
+namespace AndyDefer\Nemesis\Tests\Integration\Repositories;
 
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Repositories\NemesisTokenRepository;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class NemesisTokenRepositoryTest extends IntegrationTestCase
 {
@@ -43,7 +43,7 @@ final class NemesisTokenRepositoryTest extends IntegrationTestCase
     private function createToken(array $overrides = []): NemesisToken
     {
         $data = array_merge([
-            'token_hash' => hash('sha256', uniqid('token-', true).bin2hex(random_bytes(16))),
+            'token_hash' => hash('sha256', uniqid('token-', true) . bin2hex(random_bytes(16))),
             'tokenable_type' => $this->user->getMorphClass(),
             'tokenable_id' => $this->user->id,
             'name' => 'Test Token',

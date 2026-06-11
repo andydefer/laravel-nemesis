@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Directives;
+namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Collections\RowCollection;
@@ -14,10 +14,10 @@ use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Records\CleanupStatisticsRecord;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Records\CleanupStatisticsRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Services\NemesisService;
 
 final class CleanTokensDirective extends AbstractDirective
 {

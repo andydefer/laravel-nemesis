@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Directives;
+namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Collections\RowCollection;
@@ -13,9 +13,9 @@ use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use Illuminate\Support\Collection;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Services\NemesisService;
 
 final class ListTokensDirective extends AbstractDirective
 {

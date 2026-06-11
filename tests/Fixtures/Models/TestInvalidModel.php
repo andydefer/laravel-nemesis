@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Fixtures\Models;
+namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 

@@ -4,15 +4,15 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Repositories;
+namespace AndyDefer\Nemesis\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\Repository\AbstractRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenFilterRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 
 final class NemesisTokenRepository extends AbstractRepository
 {
@@ -86,7 +86,7 @@ final class NemesisTokenRepository extends AbstractRepository
         }
 
         if ($filters->name !== null) {
-            $query->where('name', 'like', '%'.$filters->name.'%');
+            $query->where('name', 'like', '%' . $filters->name . '%');
         }
 
         if ($filters->source !== null) {

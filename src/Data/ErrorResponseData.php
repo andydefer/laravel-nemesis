@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Data;
+namespace AndyDefer\Nemesis\Data;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
-use Kani\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Enums\ErrorCode;
 
 /**
  * Data Transfer Object for standardized error responses.

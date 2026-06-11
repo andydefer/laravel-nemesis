@@ -3,14 +3,14 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Configs;
+namespace AndyDefer\Nemesis\Configs;
 
 use AndyDefer\DomainStructures\Services\HydrationService;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Records\CleanupConfigRecord;
-use Kani\Nemesis\Records\CorsConfigRecord;
-use Kani\Nemesis\Records\MiddlewareConfigRecord;
-use Kani\Nemesis\Records\TokenConfigRecord;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Records\CleanupConfigRecord;
+use AndyDefer\Nemesis\Records\CorsConfigRecord;
+use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
+use AndyDefer\Nemesis\Records\TokenConfigRecord;
 
 final class NemesisConfig implements NemesisConfigInterface
 {

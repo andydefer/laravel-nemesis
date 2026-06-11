@@ -4,17 +4,17 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Helpers;
+namespace AndyDefer\Nemesis\Tests\Integration\Helpers;
 
 use AndyDefer\DomainStructures\Services\HydrationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Helpers\NemesisHelper;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Helpers\NemesisHelper;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class NemesisHelperTest extends IntegrationTestCase
 {
@@ -173,7 +173,7 @@ final class NemesisHelperTest extends IntegrationTestCase
 
         // Créer un mock de la config
         $mockConfig = $this->createStub(NemesisConfigInterface::class);
-        $middlewareConfig = $this->hydration->hydrate(\Kani\Nemesis\Records\MiddlewareConfigRecord::class, [
+        $middlewareConfig = $this->hydration->hydrate(\AndyDefer\Nemesis\Records\MiddlewareConfigRecord::class, [
             'parameter_name' => $customParameterName,
             'token_header' => 'Authorization',
             'security_headers' => true,

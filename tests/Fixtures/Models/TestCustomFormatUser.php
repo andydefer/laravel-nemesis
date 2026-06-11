@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Fixtures\Models;
+namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Kani\Nemesis\Contracts\MustNemesis;
-use Kani\Nemesis\Tests\Fixtures\Records\TestCustomFormatUserRecord;
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Records\TestCustomFormatUserRecord;
 
 /**
  * Test model for users with custom nemesisFormat implementation.

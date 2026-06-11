@@ -5,12 +5,12 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Kani\\Nemesis\\": "src/"
+            "AndyDefer\\Nemesis\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Kani\\Nemesis\\Tests\\": "tests/"
+            "AndyDefer\\Nemesis\\Tests\\": "tests/"
         }
     },
     "config": {
@@ -21,7 +21,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Kani\\Nemesis\\NemesisServiceProvider"
+                "AndyDefer\\Nemesis\\NemesisServiceProvider"
             ]
         }
     },

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests;
+namespace AndyDefer\Nemesis\Tests;
 
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
-use Kani\Nemesis\NemesisServiceProvider;
+use AndyDefer\Nemesis\NemesisServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 /**

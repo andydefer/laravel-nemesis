@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests;
+namespace AndyDefer\Nemesis\Tests;
 
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase as BaseTestCase;

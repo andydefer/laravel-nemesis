@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Fixtures\Models;
+namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Kani\Nemesis\Contracts\MustNemesis;
-use Kani\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
-use Kani\Nemesis\Traits\HasNemesisTokens;
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
+use AndyDefer\Nemesis\Traits\HasNemesisTokens;
 
 /**
  * Test model for API clients that can authenticate with tokens.

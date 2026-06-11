@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Records;
+namespace AndyDefer\Nemesis\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use Kani\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Enums\ErrorCode;
 
 /**
  * Record representing the authentication result data.

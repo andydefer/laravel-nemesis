@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Integration\Services;
+namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
@@ -13,15 +13,15 @@ use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\PhpServices\Services\RecordTransformableService;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Carbon\Carbon;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Enums\ErrorCode;
-use Kani\Nemesis\Models\NemesisToken;
-use Kani\Nemesis\Records\AuthenticationResultRecord;
-use Kani\Nemesis\Records\NemesisTokenRecord;
-use Kani\Nemesis\Services\NemesisAuthenticationService;
-use Kani\Nemesis\Services\NemesisService;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
+use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
+use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 
 final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 {

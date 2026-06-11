@@ -1,5 +1,5 @@
 # Rector Refactoring Report
-*Generated: jeu. 11 juin 2026 14:36:46 WAT*
+*Generated: jeu. 11 juin 2026 14:51:21 WAT*
 
 
 26 files with changes
@@ -46,7 +46,7 @@ Applied rules:
  use Illuminate\Contracts\Foundation\Application;
 -use Illuminate\Database\Connection;
  use Illuminate\Database\DatabaseManager;
- use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
+ use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 
 @@ Line 82 @@
          $this->info("\n📦 Checking package files...");
@@ -108,10 +108,10 @@ Applied rules:
 @@ Line 15 @@
  use AndyDefer\DomainStructures\Services\HydrationService;
  use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
- use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
--use Kani\Nemesis\Models\NemesisToken;
- use Kani\Nemesis\Records\NemesisTokenFilterRecord;
- use Kani\Nemesis\Repositories\NemesisTokenRepository;
+ use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+-use AndyDefer\Nemesis\Models\NemesisToken;
+ use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
+ use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 
 @@ Line 167 @@
          return $configDays;
@@ -209,7 +209,7 @@ Applied rules:
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Http\Middleware;
+ namespace AndyDefer\Nemesis\Http\Middleware;
 
 +use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
  use AndyDefer\Actions\Http\ResponseFactory;
@@ -248,12 +248,299 @@ Applied rules:
  * ClosureReturnTypeRector
 
 
-8) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Repositories/NemesisTokenRepository.php:6
+8) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Contracts/MustNemesisContractTest.php:39
+
+    ---------- begin diff ----------
+@@ Line 39 @@
+         $this->assertInstanceOf(AbstractRecord::class, $formatted);
+
+         // Assert: Format contains expected user fields
+-        $this->assertEquals(1, $formatted->id);
+-        $this->assertEquals('John Doe', $formatted->name);
+-        $this->assertEquals('john@example.com', $formatted->email);
++        $this->assertSame(1, $formatted->id);
++        $this->assertSame('John Doe', $formatted->name);
++        $this->assertSame('john@example.com', $formatted->email);
+     }
+
+     /**
+@@ Line 61 @@
+         $this->assertInstanceOf(AbstractRecord::class, $formatted);
+
+         // Assert: Format contains expected API client fields
+-        $this->assertEquals(42, $formatted->id);
+-        $this->assertEquals('API Service', $formatted->name);
+-        $this->assertEquals('api_client', $formatted->type);
++        $this->assertSame(42, $formatted->id);
++        $this->assertSame('API Service', $formatted->name);
++        $this->assertSame('api_client', $formatted->type);
+
+         // Assert: Sensitive api_key is NOT exposed
+         $this->assertNull($formatted->api_key ?? null);
+@@ Line 88 @@
+         $this->assertInstanceOf(AbstractRecord::class, $formatted);
+
+         // Assert: Format contains checkpoint-specific fields
+-        $this->assertEquals(10, $formatted->id);
+-        $this->assertEquals('Main Entrance', $formatted->name);
+-        $this->assertEquals('Gate A', $formatted->location);
+-        $this->assertEquals('active', $formatted->status);
+-        $this->assertEquals('checkpoint', $formatted->type);
++        $this->assertSame(10, $formatted->id);
++        $this->assertSame('Main Entrance', $formatted->name);
++        $this->assertSame('Gate A', $formatted->location);
++        $this->assertSame('active', $formatted->status);
++        $this->assertSame('checkpoint', $formatted->type);
+     }
+
+     /**
+@@ Line 114 @@
+         $this->assertInstanceOf(AbstractRecord::class, $formatted);
+
+         // Assert: Field values are correctly mapped
+-        $this->assertEquals(5, $formatted->user_id);
+-        $this->assertEquals('Jane Smith', $formatted->full_name);
++        $this->assertSame(5, $formatted->user_id);
++        $this->assertSame('Jane Smith', $formatted->full_name);
+         $this->assertTrue($formatted->is_verified);
+-        $this->assertEquals('only_for_api', $formatted->custom_field);
+-        $this->assertEquals('custom_user', $formatted->type);
++        $this->assertSame('only_for_api', $formatted->custom_field);
++        $this->assertSame('custom_user', $formatted->type);
+
+         // Assert: Email is NOT exposed in custom format (security)
+         $this->assertNull($formatted->email ?? null);
+    ----------- end diff -----------
+
+Applied rules:
+ * AssertEqualsToSameRector
+
+
+9) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Directives/CleanTokensDirectiveUnitTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Repositories;
+ namespace AndyDefer\Nemesis\Tests\Unit\Directives;
+
++use PHPUnit\Framework\MockObject\MockObject;
++use ReflectionClass;
++use AndyDefer\Directive\Collections\ParameterVOCollection;
+ use AndyDefer\Directive\Contexts\DirectiveContext;
+ use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
+ use AndyDefer\Directive\Enums\ExitCode;
+@@ Line 21 @@
+ #[AllowMockObjectsWithoutExpectations]
+ final class CleanTokensDirectiveUnitTest extends TestCase
+ {
+-    private $interaction;
+-    private $config;
+-    private $service;
++    private MockObject $interaction;
+
++
+     protected function setUp(): void
+     {
+         parent::setUp();
+
+         $this->interaction = $this->createMock(DirectiveInteractionService::class);
+-        $this->config = $this->createStub(NemesisConfigInterface::class);
+-        $this->service = $this->createMock(NemesisService::class);
+     }
+
+     private function createDirective(): CleanTokensDirective
+@@ Line 50 @@
+         return new CleanTokensDirective(
+             $context,
+             $this->interaction,
+-            $this->config,
+-            $this->service,
++            $this->createStub(NemesisConfigInterface::class),
++            $this->createStub(NemesisService::class),
+         );
+     }
+
+@@ Line 69 @@
+         $directive = $this->createDirective();
+
+         // Simuler l'option 'force' = false
+-        $reflection = new \ReflectionClass($directive);
++        $reflection = new ReflectionClass($directive);
+         $contextProperty = $reflection->getProperty('context');
+         $context = $contextProperty->getValue($directive);
+
+         // Forcer l'option 'force' à false via le contexte
+-        $optionsCollection = new \AndyDefer\Directive\Collections\ParameterVOCollection();
++        $optionsCollection = new ParameterVOCollection();
+         $context->setOptions($optionsCollection);
+
+         $result = $directive->execute();
+    ----------- end diff -----------
+
+Applied rules:
+ * NewlineBetweenClassLikeStmtsRector
+ * InlineStubPropertyToCreateStubMethodCallRector
+ * PropertyCreateMockToCreateStubRector
+ * TypedPropertyFromCreateMockAssignRector
+ * TypedPropertyFromStrictSetUpRector
+
+
+10) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Directives/InstallNemesisDirectiveTest.php:6
+
+    ---------- begin diff ----------
+@@ Line 6 @@
+
+ namespace AndyDefer\Nemesis\Tests\Unit\Directives;
+
++use PHPUnit\Framework\MockObject\MockObject;
++use stdClass;
++use ReflectionClass;
++use AndyDefer\Directive\Enums\PrimitiveType;
+ use AndyDefer\Directive\Collections\ParameterVOCollection;
+ use AndyDefer\Directive\Contexts\DirectiveContext;
+ use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
+@@ Line 31 @@
+ #[AllowMockObjectsWithoutExpectations]
+ final class InstallNemesisDirectiveTest extends TestCase
+ {
+-    private $kernel;
+-    private $app;
+-    private $filesystem;
+-    private $db;
+-    private $connection;
+-    private $schemaBuilder;
+-    private $config;
+-    private $interaction;
++    private MockObject $kernel;
+
++    private MockObject $app;
++
++    private MockObject $filesystem;
++
++    private MockObject $db;
++    private MockObject $schemaBuilder;
++
++    private MockObject $config;
++
++    private MockObject $interaction;
++
+     protected function setUp(): void
+     {
+         parent::setUp();
+@@ Line 49 @@
+         $this->filesystem = $this->createMock(FileSystemService::class);
+
+         $this->db = $this->createMock(DatabaseManager::class);
+-        $this->connection = $this->createMock(Connection::class);
++        $connection = $this->createMock(Connection::class);
+         $this->schemaBuilder = $this->createMock(Builder::class);
+
+-        $this->db->method('connection')->willReturn($this->connection);
+-        $this->connection->method('getSchemaBuilder')->willReturn($this->schemaBuilder);
++        $this->db->method('connection')->willReturn($connection);
++        $connection->method('getSchemaBuilder')->willReturn($this->schemaBuilder);
+
+         $this->config = $this->createMock(NemesisConfigInterface::class);
+         $this->interaction = $this->createMock(DirectiveInteractionService::class);
+     }
+
++    /**
++     * @param array<string, bool> $options
++     * @param array<string, bool> $fileExistsMap
++     */
+     private function createDirectiveWithOptions(array $options = [], array $fileExistsMap = []): InstallNemesisDirective
+     {
+         $hydration = new HydrationService();
+@@ Line 85 @@
+                     return $exists;
+                 }
+             }
++
+             return false;
+         });
+
+@@ Line 91 @@
+         $this->app->method('basePath')->willReturn('/fake/project');
+         $this->app->method('databasePath')->willReturn('/fake/project/database');
+
+-        $mockConfig = new \stdClass();
++        $mockConfig = new stdClass();
+         $mockConfig->providers = [];
+-        $this->app->method('make')->willReturnCallback(function ($abstract) use ($mockConfig) {
++        $this->app->method('make')->willReturnCallback(function ($abstract) use ($mockConfig): ?stdClass {
+             if ($abstract === 'config') {
+                 return $mockConfig;
+             }
++
+             return null;
+         });
+
+         $optionsCollection = new ParameterVOCollection();
+         foreach ($options as $key => $value) {
+-            $reflection = new \ReflectionClass($optionsCollection);
++            $reflection = new ReflectionClass($optionsCollection);
+             $itemsProperty = $reflection->getProperty('items');
+             $items = $itemsProperty->getValue($optionsCollection);
+
+@@ Line 109 @@
+             $paramVO = new ParameterVO(
+                 name: $key,
+                 value: $value,
+-                type: \AndyDefer\Directive\Enums\PrimitiveType::BOOL
++                type: PrimitiveType::BOOL
+             );
+             $items[] = $paramVO;
+             $itemsProperty->setValue($optionsCollection, $items);
+@@ Line 209 @@
+
+         $this->assertTrue($aliases->contains('nemesis-install'));
+         $this->assertTrue($aliases->contains('setup-nemesis'));
+-        $this->assertSame(2, $aliases->count());
++        $this->assertCount(2, $aliases);
+     }
+
+     public function test_should_boot_laravel_returns_true(): void
+    ----------- end diff -----------
+
+Applied rules:
+ * NewlineBetweenClassLikeStmtsRector
+ * NewlineAfterStatementRector
+ * NarrowUnusedSetUpDefinedPropertyRector
+ * ClassMethodArrayDocblockParamFromLocalCallsRector
+ * TypedPropertyFromCreateMockAssignRector
+ * ClosureReturnTypeRector
+
+
+11) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/UnitTestCase.php:4
+
+    ---------- begin diff ----------
+@@ Line 4 @@
+
+ namespace AndyDefer\Nemesis\Tests;
+
++use Mockery;
+ use Carbon\Carbon;
+ use PHPUnit\Framework\TestCase as BaseTestCase;
+
+@@ Line 30 @@
+     {
+         Carbon::setTestNow();
+         parent::tearDown();
+-        \Mockery::close();
++        Mockery::close();
+     }
+ }
+    ----------- end diff -----------
+
+Applied rules:
+
+
+12) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Repositories/NemesisTokenRepository.php:6
+
+    ---------- begin diff ----------
+@@ Line 6 @@
+
+ namespace AndyDefer\Nemesis\Repositories;
 
 +use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
  use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
@@ -284,7 +571,7 @@ Applied rules:
  * AddClosureVoidReturnTypeWhereNoReturnRector
 
 
-9) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/NemesisAuthenticationService.php:50
+13) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/NemesisAuthenticationService.php:50
 
     ---------- begin diff ----------
 @@ Line 50 @@
@@ -310,7 +597,7 @@ Applied rules:
  * FlipTypeControlToUseExclusiveTypeRector
 
 
-10) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/NemesisService.php:51
+14) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/Services/NemesisService.php:51
 
     ---------- begin diff ----------
 @@ Line 51 @@
@@ -387,7 +674,7 @@ Applied rules:
  * DocblockReturnArrayFromDirectArrayInstanceRector
 
 
-11) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/ValueObjects/AuthenticationResultVO.php:38
+15) /home/andy-kani/pro/sites/packages/laravel-nemesis/src/ValueObjects/AuthenticationResultVO.php:38
 
     ---------- begin diff ----------
 @@ Line 38 @@
@@ -422,14 +709,14 @@ Applied rules:
  * NewlineAfterStatementRector
 
 
-12) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Fixtures/Models/TestApiClient.php:8
+16) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Fixtures/Models/TestApiClient.php:8
 
     ---------- begin diff ----------
 @@ Line 8 @@
  use Illuminate\Database\Eloquent\SoftDeletes;
- use Kani\Nemesis\Contracts\MustNemesis;
- use Kani\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
--use Kani\Nemesis\Traits\HasNemesisTokens;
+ use AndyDefer\Nemesis\Contracts\MustNemesis;
+ use AndyDefer\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
+-use AndyDefer\Nemesis\Traits\HasNemesisTokens;
 
  /**
   * Test model for API clients that can authenticate with tokens.
@@ -438,12 +725,12 @@ Applied rules:
 Applied rules:
 
 
-13) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/CleanTokensDirectiveTest.php:6
+17) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/CleanTokensDirectiveTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Directives;
+ namespace AndyDefer\Nemesis\Tests\Integration\Directives;
 
 +use Carbon\CarbonImmutable;
  use AndyDefer\Directive\Enums\ExitCode;
@@ -483,7 +770,7 @@ Applied rules:
  * ClassMethodArrayDocblockParamFromLocalCallsRector
 
 
-14) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/ListTokensDirectiveTest.php:21
+18) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/ListTokensDirectiveTest.php:21
 
     ---------- begin diff ----------
 @@ Line 21 @@
@@ -546,7 +833,7 @@ Applied rules:
  * ClassMethodArrayDocblockParamFromLocalCallsRector
 
 
-15) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/NemesisCleanDirectiveTest.php:17
+19) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Directives/NemesisCleanDirectiveTest.php:17
 
     ---------- begin diff ----------
 @@ Line 17 @@
@@ -574,15 +861,15 @@ Applied rules:
  * NewlineBetweenClassLikeStmtsRector
 
 
-16) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Helpers/NemesisHelperTest.php:6
+20) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Helpers/NemesisHelperTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Helpers;
+ namespace AndyDefer\Nemesis\Tests\Integration\Helpers;
 
 +use Illuminate\Database\Eloquent\Model;
-+use Kani\Nemesis\Records\MiddlewareConfigRecord;
++use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
 +use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
  use AndyDefer\DomainStructures\Services\HydrationService;
  use Carbon\Carbon;
@@ -660,7 +947,7 @@ Applied rules:
 
          // Créer un mock de la config
          $mockConfig = $this->createStub(NemesisConfigInterface::class);
--        $middlewareConfig = $this->hydration->hydrate(\Kani\Nemesis\Records\MiddlewareConfigRecord::class, [
+-        $middlewareConfig = $this->hydration->hydrate(\AndyDefer\Nemesis\Records\MiddlewareConfigRecord::class, [
 +        $middlewareConfig = $this->hydration->hydrate(MiddlewareConfigRecord::class, [
              'parameter_name' => $customParameterName,
              'token_header' => 'Authorization',
@@ -735,7 +1022,7 @@ Applied rules:
  * AssertEmptyNullableObjectToAssertInstanceofRector
 
 
-17) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Http/Middleware/NemesisTokenMiddlewareTest.php:21
+21) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Http/Middleware/NemesisTokenMiddlewareTest.php:21
 
     ---------- begin diff ----------
 @@ Line 21 @@
@@ -809,12 +1096,12 @@ Applied rules:
  * ClassMethodArrayDocblockParamFromLocalCallsRector
 
 
-18) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Repositories/NemesisTokenRepositoryTest.php:6
+22) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Repositories/NemesisTokenRepositoryTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Repositories;
+ namespace AndyDefer\Nemesis\Tests\Integration\Repositories;
 
 +use Illuminate\Database\Eloquent\Model;
  use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
@@ -879,12 +1166,12 @@ Applied rules:
  * ClassMethodArrayDocblockParamFromLocalCallsRector
 
 
-19) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/HttpHeaderServiceTest.php:6
+23) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/HttpHeaderServiceTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Services;
+ namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 +use stdClass;
  use Illuminate\Http\JsonResponse;
@@ -1066,12 +1353,12 @@ Applied rules:
  * StringCastAssertStringContainsStringRector
 
 
-20) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/NemesisAuthenticationServiceTest.php:6
+24) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/NemesisAuthenticationServiceTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Services;
+ namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 +use AndyDefer\DomainStructures\Utils\StrictDataObject;
 +use stdClass;
@@ -1190,12 +1477,12 @@ Applied rules:
  * AssertEqualsToSameRector
 
 
-21) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/NemesisServiceTest.php:6
+25) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Integration/Services/NemesisServiceTest.php:6
 
     ---------- begin diff ----------
 @@ Line 6 @@
 
- namespace Kani\Nemesis\Tests\Integration\Services;
+ namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 +use AndyDefer\DataValidator\Services\MetadataValidator;
  use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
@@ -1205,10 +1492,10 @@ Applied rules:
  use Carbon\Carbon;
  use Illuminate\Http\Request;
  use Illuminate\Support\Str;
--use Kani\Nemesis\Configs\NemesisConfig;
- use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
- use Kani\Nemesis\Models\NemesisToken;
- use Kani\Nemesis\Records\NemesisTokenFilterRecord;
+-use AndyDefer\Nemesis\Configs\NemesisConfig;
+ use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+ use AndyDefer\Nemesis\Models\NemesisToken;
+ use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 @@ Line 26 @@
  final class NemesisServiceTest extends IntegrationTestCase
  {
@@ -1422,12 +1709,12 @@ Applied rules:
  * AssertEmptyNullableObjectToAssertInstanceofRector
 
 
-22) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/IntegrationTestCase.php:4
+26) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/IntegrationTestCase.php:4
 
     ---------- begin diff ----------
 @@ Line 4 @@
 
- namespace Kani\Nemesis\Tests;
+ namespace AndyDefer\Nemesis\Tests;
 
 +use Mockery;
  use AndyDefer\Directive\DirectiveServiceProvider;
@@ -1442,293 +1729,6 @@ Applied rules:
      }
 
      /**
-    ----------- end diff -----------
-
-Applied rules:
-
-
-23) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Contracts/MustNemesisContractTest.php:39
-
-    ---------- begin diff ----------
-@@ Line 39 @@
-         $this->assertInstanceOf(AbstractRecord::class, $formatted);
-
-         // Assert: Format contains expected user fields
--        $this->assertEquals(1, $formatted->id);
--        $this->assertEquals('John Doe', $formatted->name);
--        $this->assertEquals('john@example.com', $formatted->email);
-+        $this->assertSame(1, $formatted->id);
-+        $this->assertSame('John Doe', $formatted->name);
-+        $this->assertSame('john@example.com', $formatted->email);
-     }
-
-     /**
-@@ Line 61 @@
-         $this->assertInstanceOf(AbstractRecord::class, $formatted);
-
-         // Assert: Format contains expected API client fields
--        $this->assertEquals(42, $formatted->id);
--        $this->assertEquals('API Service', $formatted->name);
--        $this->assertEquals('api_client', $formatted->type);
-+        $this->assertSame(42, $formatted->id);
-+        $this->assertSame('API Service', $formatted->name);
-+        $this->assertSame('api_client', $formatted->type);
-
-         // Assert: Sensitive api_key is NOT exposed
-         $this->assertNull($formatted->api_key ?? null);
-@@ Line 88 @@
-         $this->assertInstanceOf(AbstractRecord::class, $formatted);
-
-         // Assert: Format contains checkpoint-specific fields
--        $this->assertEquals(10, $formatted->id);
--        $this->assertEquals('Main Entrance', $formatted->name);
--        $this->assertEquals('Gate A', $formatted->location);
--        $this->assertEquals('active', $formatted->status);
--        $this->assertEquals('checkpoint', $formatted->type);
-+        $this->assertSame(10, $formatted->id);
-+        $this->assertSame('Main Entrance', $formatted->name);
-+        $this->assertSame('Gate A', $formatted->location);
-+        $this->assertSame('active', $formatted->status);
-+        $this->assertSame('checkpoint', $formatted->type);
-     }
-
-     /**
-@@ Line 114 @@
-         $this->assertInstanceOf(AbstractRecord::class, $formatted);
-
-         // Assert: Field values are correctly mapped
--        $this->assertEquals(5, $formatted->user_id);
--        $this->assertEquals('Jane Smith', $formatted->full_name);
-+        $this->assertSame(5, $formatted->user_id);
-+        $this->assertSame('Jane Smith', $formatted->full_name);
-         $this->assertTrue($formatted->is_verified);
--        $this->assertEquals('only_for_api', $formatted->custom_field);
--        $this->assertEquals('custom_user', $formatted->type);
-+        $this->assertSame('only_for_api', $formatted->custom_field);
-+        $this->assertSame('custom_user', $formatted->type);
-
-         // Assert: Email is NOT exposed in custom format (security)
-         $this->assertNull($formatted->email ?? null);
-    ----------- end diff -----------
-
-Applied rules:
- * AssertEqualsToSameRector
-
-
-24) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Directives/CleanTokensDirectiveUnitTest.php:6
-
-    ---------- begin diff ----------
-@@ Line 6 @@
-
- namespace Kani\Nemesis\Tests\Unit\Directives;
-
-+use PHPUnit\Framework\MockObject\MockObject;
-+use ReflectionClass;
-+use AndyDefer\Directive\Collections\ParameterVOCollection;
- use AndyDefer\Directive\Contexts\DirectiveContext;
- use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
- use AndyDefer\Directive\Enums\ExitCode;
-@@ Line 21 @@
- #[AllowMockObjectsWithoutExpectations]
- final class CleanTokensDirectiveUnitTest extends TestCase
- {
--    private $interaction;
--    private $config;
--    private $service;
-+    private MockObject $interaction;
-
-+
-     protected function setUp(): void
-     {
-         parent::setUp();
-
-         $this->interaction = $this->createMock(DirectiveInteractionService::class);
--        $this->config = $this->createStub(NemesisConfigInterface::class);
--        $this->service = $this->createMock(NemesisService::class);
-     }
-
-     private function createDirective(): CleanTokensDirective
-@@ Line 50 @@
-         return new CleanTokensDirective(
-             $context,
-             $this->interaction,
--            $this->config,
--            $this->service,
-+            $this->createStub(NemesisConfigInterface::class),
-+            $this->createStub(NemesisService::class),
-         );
-     }
-
-@@ Line 69 @@
-         $directive = $this->createDirective();
-
-         // Simuler l'option 'force' = false
--        $reflection = new \ReflectionClass($directive);
-+        $reflection = new ReflectionClass($directive);
-         $contextProperty = $reflection->getProperty('context');
-         $context = $contextProperty->getValue($directive);
-
-         // Forcer l'option 'force' à false via le contexte
--        $optionsCollection = new \AndyDefer\Directive\Collections\ParameterVOCollection();
-+        $optionsCollection = new ParameterVOCollection();
-         $context->setOptions($optionsCollection);
-
-         $result = $directive->execute();
-    ----------- end diff -----------
-
-Applied rules:
- * NewlineBetweenClassLikeStmtsRector
- * InlineStubPropertyToCreateStubMethodCallRector
- * PropertyCreateMockToCreateStubRector
- * TypedPropertyFromCreateMockAssignRector
- * TypedPropertyFromStrictSetUpRector
-
-
-25) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/Unit/Directives/InstallNemesisDirectiveTest.php:6
-
-    ---------- begin diff ----------
-@@ Line 6 @@
-
- namespace Kani\Nemesis\Tests\Unit\Directives;
-
-+use PHPUnit\Framework\MockObject\MockObject;
-+use stdClass;
-+use ReflectionClass;
-+use AndyDefer\Directive\Enums\PrimitiveType;
- use AndyDefer\Directive\Collections\ParameterVOCollection;
- use AndyDefer\Directive\Contexts\DirectiveContext;
- use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
-@@ Line 31 @@
- #[AllowMockObjectsWithoutExpectations]
- final class InstallNemesisDirectiveTest extends TestCase
- {
--    private $kernel;
--    private $app;
--    private $filesystem;
--    private $db;
--    private $connection;
--    private $schemaBuilder;
--    private $config;
--    private $interaction;
-+    private MockObject $kernel;
-
-+    private MockObject $app;
-+
-+    private MockObject $filesystem;
-+
-+    private MockObject $db;
-+    private MockObject $schemaBuilder;
-+
-+    private MockObject $config;
-+
-+    private MockObject $interaction;
-+
-     protected function setUp(): void
-     {
-         parent::setUp();
-@@ Line 49 @@
-         $this->filesystem = $this->createMock(FileSystemService::class);
-
-         $this->db = $this->createMock(DatabaseManager::class);
--        $this->connection = $this->createMock(Connection::class);
-+        $connection = $this->createMock(Connection::class);
-         $this->schemaBuilder = $this->createMock(Builder::class);
-
--        $this->db->method('connection')->willReturn($this->connection);
--        $this->connection->method('getSchemaBuilder')->willReturn($this->schemaBuilder);
-+        $this->db->method('connection')->willReturn($connection);
-+        $connection->method('getSchemaBuilder')->willReturn($this->schemaBuilder);
-
-         $this->config = $this->createMock(NemesisConfigInterface::class);
-         $this->interaction = $this->createMock(DirectiveInteractionService::class);
-     }
-
-+    /**
-+     * @param array<string, bool> $options
-+     * @param array<string, bool> $fileExistsMap
-+     */
-     private function createDirectiveWithOptions(array $options = [], array $fileExistsMap = []): InstallNemesisDirective
-     {
-         $hydration = new HydrationService();
-@@ Line 85 @@
-                     return $exists;
-                 }
-             }
-+
-             return false;
-         });
-
-@@ Line 91 @@
-         $this->app->method('basePath')->willReturn('/fake/project');
-         $this->app->method('databasePath')->willReturn('/fake/project/database');
-
--        $mockConfig = new \stdClass();
-+        $mockConfig = new stdClass();
-         $mockConfig->providers = [];
--        $this->app->method('make')->willReturnCallback(function ($abstract) use ($mockConfig) {
-+        $this->app->method('make')->willReturnCallback(function ($abstract) use ($mockConfig): ?stdClass {
-             if ($abstract === 'config') {
-                 return $mockConfig;
-             }
-+
-             return null;
-         });
-
-         $optionsCollection = new ParameterVOCollection();
-         foreach ($options as $key => $value) {
--            $reflection = new \ReflectionClass($optionsCollection);
-+            $reflection = new ReflectionClass($optionsCollection);
-             $itemsProperty = $reflection->getProperty('items');
-             $items = $itemsProperty->getValue($optionsCollection);
-
-@@ Line 109 @@
-             $paramVO = new ParameterVO(
-                 name: $key,
-                 value: $value,
--                type: \AndyDefer\Directive\Enums\PrimitiveType::BOOL
-+                type: PrimitiveType::BOOL
-             );
-             $items[] = $paramVO;
-             $itemsProperty->setValue($optionsCollection, $items);
-@@ Line 209 @@
-
-         $this->assertTrue($aliases->contains('nemesis-install'));
-         $this->assertTrue($aliases->contains('setup-nemesis'));
--        $this->assertSame(2, $aliases->count());
-+        $this->assertCount(2, $aliases);
-     }
-
-     public function test_should_boot_laravel_returns_true(): void
-    ----------- end diff -----------
-
-Applied rules:
- * NewlineBetweenClassLikeStmtsRector
- * NewlineAfterStatementRector
- * NarrowUnusedSetUpDefinedPropertyRector
- * ClassMethodArrayDocblockParamFromLocalCallsRector
- * TypedPropertyFromCreateMockAssignRector
- * ClosureReturnTypeRector
-
-
-26) /home/andy-kani/pro/sites/packages/laravel-nemesis/tests/UnitTestCase.php:4
-
-    ---------- begin diff ----------
-@@ Line 4 @@
-
- namespace Kani\Nemesis\Tests;
-
-+use Mockery;
- use Carbon\Carbon;
- use PHPUnit\Framework\TestCase as BaseTestCase;
-
-@@ Line 30 @@
-     {
-         Carbon::setTestNow();
-         parent::tearDown();
--        \Mockery::close();
-+        Mockery::close();
-     }
- }
     ----------- end diff -----------
 
 Applied rules:

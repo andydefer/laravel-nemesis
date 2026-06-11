@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis;
+namespace AndyDefer\Nemesis;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\Directive\Contexts\DirectiveContext;
@@ -17,18 +17,18 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
-use Kani\Nemesis\Configs\NemesisConfig;
-use Kani\Nemesis\Contracts\Configs\NemesisConfigInterface;
-use Kani\Nemesis\Directives\CleanTokensDirective;
-use Kani\Nemesis\Directives\InstallNemesisDirective;
-use Kani\Nemesis\Directives\ListTokensDirective;
-use Kani\Nemesis\Directives\NemesisCleanDirective;
-use Kani\Nemesis\Helpers\NemesisHelper;
-use Kani\Nemesis\Http\Middleware\NemesisTokenMiddleware;
-use Kani\Nemesis\Repositories\NemesisTokenRepository;
-use Kani\Nemesis\Services\HttpHeaderService;
-use Kani\Nemesis\Services\NemesisAuthenticationService;
-use Kani\Nemesis\Services\NemesisService;
+use AndyDefer\Nemesis\Configs\NemesisConfig;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Directives\CleanTokensDirective;
+use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
+use AndyDefer\Nemesis\Directives\ListTokensDirective;
+use AndyDefer\Nemesis\Directives\NemesisCleanDirective;
+use AndyDefer\Nemesis\Helpers\NemesisHelper;
+use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
+use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Services\HttpHeaderService;
+use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
+use AndyDefer\Nemesis\Services\NemesisService;
 
 final class NemesisServiceProvider extends ServiceProvider
 {

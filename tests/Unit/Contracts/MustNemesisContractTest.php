@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Tests\Unit\Contracts;
+namespace AndyDefer\Nemesis\Tests\Unit\Contracts;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use Kani\Nemesis\Contracts\MustNemesis;
-use Kani\Nemesis\Tests\Fixtures\Models\TestApiClient;
-use Kani\Nemesis\Tests\Fixtures\Models\TestCheckPoint;
-use Kani\Nemesis\Tests\Fixtures\Models\TestCustomFormatUser;
-use Kani\Nemesis\Tests\Fixtures\Models\TestUser;
-use Kani\Nemesis\Tests\TestCase;
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestApiClient;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestCheckPoint;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestCustomFormatUser;
+use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
+use AndyDefer\Nemesis\Tests\TestCase;
 
 /**
  * Test suite for MustNemesis contract.

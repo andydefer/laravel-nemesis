@@ -3,12 +3,12 @@
 
 declare(strict_types=1);
 
-namespace Kani\Nemesis\Contracts\Configs;
+namespace AndyDefer\Nemesis\Contracts\Configs;
 
-use Kani\Nemesis\Records\CleanupConfigRecord;
-use Kani\Nemesis\Records\CorsConfigRecord;
-use Kani\Nemesis\Records\MiddlewareConfigRecord;
-use Kani\Nemesis\Records\TokenConfigRecord;
+use AndyDefer\Nemesis\Records\CleanupConfigRecord;
+use AndyDefer\Nemesis\Records\CorsConfigRecord;
+use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
+use AndyDefer\Nemesis\Records\TokenConfigRecord;
 
 /**
  * Interface for Nemesis configuration.
