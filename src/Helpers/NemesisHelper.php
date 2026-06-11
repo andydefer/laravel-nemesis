@@ -21,7 +21,7 @@ final class NemesisHelper
 
     public function getCurrentToken(): ?NemesisTokenRecord
     {
-        $token = $this->request->input('currentNemesisToken');
+        $token = $this->request->input('current_nemesis_token');
 
         if ($token instanceof NemesisTokenRecord) {
             return $token;
@@ -47,7 +47,7 @@ final class NemesisHelper
     {
         // ✅ Utilisation de la nouvelle API avec middlewareConfig()
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . 'Format';
+        $formatKey = $parameterName . '_format';
         $formatted = $this->request->input($formatKey);
 
         if ($formatted instanceof AbstractRecord) {

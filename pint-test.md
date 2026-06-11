@@ -1,12 +1,11 @@
 # Pint Formatting Test Report
-*Generated: jeu. 11 juin 2026 14:26:33 WAT*
+*Generated: jeu. 11 juin 2026 14:36:44 WAT*
 
 
-  ..⨯⨯.....⨯...⨯⨯.⨯⨯⨯⨯.⨯.⨯⨯⨯.......⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯................
+  ..⨯.....⨯...⨯⨯.⨯⨯⨯⨯.⨯.⨯⨯⨯.......⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯..........⨯...⨯.
 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── Laravel  
-    FAIL   ................................................................................................................................................. 60 files, 24 style issues  
-  ⨯ src/Config/NemesisConfig.php                                                   fully_qualified_strict_types, no_trailing_whitespace_in_comment, phpdoc_separation, ordered_imports  
+    FAIL   ................................................................................................................................................. 59 files, 25 style issues  
   ⨯ src/Configs/NemesisConfig.php                                                                      new_with_parentheses, blank_line_after_opening_tag, blank_line_before_statement  
   ⨯ src/Contracts/Configs/NemesisConfigInterface.php                                                                   blank_line_after_opening_tag, no_trailing_whitespace_in_comment  
   ⨯ src/Directives/CleanTokensDirective.php                                                             new_with_parentheses, unary_operator_spaces, not_operator_with_successor_space  
@@ -28,6 +27,8 @@
   ⨯ tests/Integration/Services/HttpHeaderServiceTest.php                                                                                                          new_with_parentheses  
   ⨯ tests/Integration/Services/NemesisAuthenticationServiceTest.php                                                    class_attributes_separation, new_with_parentheses, concat_space  
   ⨯ tests/Integration/Services/NemesisServiceTest.php class_attributes_separation, new_with_parentheses, fully_qualified_strict_types, concat_space, no_unused_imports, ordered_impor…  
+  ⨯ tests/IntegrationTestCase.php                                                                                                                                         concat_space  
+  ⨯ tests/TestCase.php                                                                                                                                                    concat_space  
   ⨯ tests/Unit/Directives/CleanTokensDirectiveUnitTest.php                            class_attributes_separation, new_with_parentheses, fully_qualified_strict_types, ordered_imports  
   ⨯ tests/Unit/Directives/InstallNemesisDirectiveTest.php class_attributes_separation, new_with_parentheses, fully_qualified_strict_types, blank_line_before_statement, ordered_impor…  
 

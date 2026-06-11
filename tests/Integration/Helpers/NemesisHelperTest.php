@@ -77,7 +77,7 @@ final class NemesisHelperTest extends IntegrationTestCase
         $data = [];
 
         if ($tokenRecord !== null) {
-            $data['currentNemesisToken'] = $tokenRecord;
+            $data['current_nemesis_token'] = $tokenRecord;
         }
 
         if ($user !== null) {
@@ -124,7 +124,7 @@ final class NemesisHelperTest extends IntegrationTestCase
     public function test_get_current_token_returns_null_when_token_is_not_token_record(): void
     {
         // Arrange
-        $this->app['request']->merge(['currentNemesisToken' => 'not-a-token-record']);
+        $this->app['request']->merge(['current_nemesis_token' => 'not-a-token-record']);
         $helper = $this->getHelper();
 
         // Act
@@ -206,7 +206,7 @@ final class NemesisHelperTest extends IntegrationTestCase
     {
         // Arrange
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . 'Format';
+        $formatKey = $parameterName . '_format';
         $formattedRecord = $this->user->nemesisFormat();
 
         $this->app['request']->merge([$formatKey => $formattedRecord]);
@@ -239,7 +239,7 @@ final class NemesisHelperTest extends IntegrationTestCase
     {
         // Arrange
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . 'Format';
+        $formatKey = $parameterName . '_format';
         $this->app['request']->merge([$formatKey => ['not' => 'a record']]);
         $helper = $this->getHelper();
 
@@ -321,9 +321,9 @@ final class NemesisHelperTest extends IntegrationTestCase
         $parameterName = $this->config->middlewareConfig()->parameter_name;
 
         $this->app['request']->merge([
-            'currentNemesisToken' => $this->createTokenRecord(),
+            'current_nemesis_token' => $this->createTokenRecord(),
             $parameterName => $this->user,
-            $parameterName . 'Format' => $this->user->nemesisFormat(),
+            $parameterName . '_format' => $this->user->nemesisFormat(),
         ]);
 
         $helper = $this->getHelper();

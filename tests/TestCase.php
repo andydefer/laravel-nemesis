@@ -81,7 +81,7 @@ abstract class TestCase extends Orchestra
         // Configure Nemesis package defaults for testing
         $app['config']->set('nemesis.token_length', 64);
         $app['config']->set('nemesis.hash_algorithm', 'sha256');
-        $app['config']->set('nemesis.middleware.parameter_name', 'nemesisAuth');
+        $app['config']->set('nemesis.middleware.parameter_name', 'nemesis_auth');
         $app['config']->set('nemesis.expiration', 60);
     }
 
@@ -94,13 +94,13 @@ abstract class TestCase extends Orchestra
     protected function defineDatabaseMigrations(): void
     {
         // Load package migrations if they exist
-        $packageMigrationsPath = __DIR__.'/../database/migrations';
+        $packageMigrationsPath = __DIR__ . '/../database/migrations';
         if (is_dir($packageMigrationsPath)) {
             $this->loadMigrationsFrom($packageMigrationsPath);
         }
 
         // Load test-specific migrations if they exist
-        $testMigrationsPath = __DIR__.'/database/migrations';
+        $testMigrationsPath = __DIR__ . '/database/migrations';
         if (is_dir($testMigrationsPath)) {
             $this->loadMigrationsFrom($testMigrationsPath);
         }

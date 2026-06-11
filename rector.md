@@ -1,5 +1,5 @@
 # Rector Refactoring Report
-*Generated: jeu. 11 juin 2026 14:26:34 WAT*
+*Generated: jeu. 11 juin 2026 14:36:46 WAT*
 
 
 26 files with changes
@@ -216,12 +216,12 @@ Applied rules:
  use AndyDefer\DomainStructures\Services\HydrationService;
  use Closure;
 @@ Line 118 @@
-             'currentNemesisToken' => $tokenRecord,
+             'current_nemesis_token' => $tokenRecord,
          ]);
 
 -        if ($formattedAuthenticatable !== null) {
 +        if ($formattedAuthenticatable instanceof AbstractRecord) {
-             $formatKey = $parameterName . 'Format';
+             $formatKey = $parameterName . '_format';
              $request->merge([
                  $formatKey => $formattedAuthenticatable,
     ----------- end diff -----------
@@ -603,7 +603,7 @@ Applied rules:
 
 -        if ($tokenRecord !== null) {
 +        if ($tokenRecord instanceof NemesisTokenRecord) {
-             $data['currentNemesisToken'] = $tokenRecord;
+             $data['current_nemesis_token'] = $tokenRecord;
          }
 
 -        if ($user !== null) {

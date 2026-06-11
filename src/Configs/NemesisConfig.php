@@ -33,7 +33,7 @@ final class NemesisConfig implements NemesisConfigInterface
     public function middlewareConfig(): MiddlewareConfigRecord
     {
         return $this->hydration->hydrate(MiddlewareConfigRecord::class, [
-            'parameter_name' => config('nemesis.middleware.parameter_name', 'nemesisAuth'),
+            'parameter_name' => config('nemesis.middleware.parameter_name', 'nemesis_auth'),
             'token_header' => config('nemesis.middleware.token_header', 'Authorization'),
             'security_headers' => (bool) config('nemesis.middleware.security_headers', true),
             'validate_origin' => (bool) config('nemesis.middleware.validate_origin', true),

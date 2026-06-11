@@ -42,9 +42,9 @@ return [
     'middleware' => [
         /*
          * The parameter name used to inject the authenticated model into the route.
-         * Access via: $request->nemesisAuth
+         * Access via: $request->nemesis_auth
          */
-        'parameter_name' => 'nemesisAuth',
+        'parameter_name' => 'nemesis_auth',
 
         /*
          * The header name that contains the bearer token.

@@ -159,7 +159,7 @@ final class NemesisServiceProviderTest extends IntegrationTestCase
         // Assert config values are loaded correctly via new API
         $this->assertSame('Authorization', $config->middlewareConfig()->token_header);
         $this->assertSame('sha256', $config->tokenConfig()->hash_algorithm);
-        $this->assertSame('nemesisAuth', $config->middlewareConfig()->parameter_name);
+        $this->assertSame('nemesis_auth', $config->middlewareConfig()->parameter_name);
         $this->assertTrue($config->middlewareConfig()->validate_origin);
         $this->assertTrue($config->middlewareConfig()->security_headers);
         $this->assertTrue($config->corsConfig()->allow_credentials);

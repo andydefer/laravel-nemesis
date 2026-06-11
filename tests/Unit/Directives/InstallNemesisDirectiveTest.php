@@ -70,7 +70,7 @@ final class InstallNemesisDirectiveTest extends TestCase
         ]);
 
         $middlewareConfig = $hydration->hydrate(MiddlewareConfigRecord::class, [
-            'parameter_name' => 'nemesisAuth',
+            'parameter_name' => 'nemesis_auth',
             'token_header' => 'Authorization',
             'security_headers' => true,
             'validate_origin' => true,

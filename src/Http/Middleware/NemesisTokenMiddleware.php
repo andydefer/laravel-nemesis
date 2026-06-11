@@ -115,11 +115,11 @@ final class NemesisTokenMiddleware
 
         $request->merge([
             $parameterName => $authenticatable,
-            'currentNemesisToken' => $tokenRecord,
+            'current_nemesis_token' => $tokenRecord,
         ]);
 
         if ($formattedAuthenticatable !== null) {
-            $formatKey = $parameterName . 'Format';
+            $formatKey = $parameterName . '_format';
             $request->merge([
                 $formatKey => $formattedAuthenticatable,
             ]);
