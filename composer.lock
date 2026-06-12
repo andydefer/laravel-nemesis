@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3f068340573331302292a076dd65c9d2",
+    "content-hash": "60eda917f30e5ae7cf8aa230c8abbff1",
     "packages": [
         {
             "name": "andydefer/data-validator",
@@ -241,20 +241,19 @@
         },
         {
             "name": "andydefer/laravel-repository",
-            "version": "v2.8.1",
+            "version": "v2.8.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-repository.git",
-                "reference": "700cb1cb5d36005485687c282f91ecbf61da1d6c"
+                "reference": "2fa216273298c75ff9340d15a3295d55d403b979"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/700cb1cb5d36005485687c282f91ecbf61da1d6c",
-                "reference": "700cb1cb5d36005485687c282f91ecbf61da1d6c",
+                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/2fa216273298c75ff9340d15a3295d55d403b979",
+                "reference": "2fa216273298c75ff9340d15a3295d55d403b979",
                 "shasum": ""
             },
             "require": {
-                "andydefer/domain-structures": "^1.18.1",
                 "andydefer/php-vo": "^0.8.1",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.1"
@@ -291,26 +290,25 @@
             "description": "A lightweight, type-safe repository pattern implementation for Laravel",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-repository/issues",
-                "source": "https://github.com/andydefer/laravel-repository/tree/v2.8.1"
+                "source": "https://github.com/andydefer/laravel-repository/tree/v2.8.2"
             },
-            "time": "2026-06-12T07:34:18+00:00"
+            "time": "2026-06-12T08:47:22+00:00"
         },
         {
             "name": "andydefer/php-services",
-            "version": "v0.3.4",
+            "version": "v0.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-services.git",
-                "reference": "092034ea18018e75143c31e82fe471d679ef2734"
+                "reference": "dcaba07ee0d7eeb283919df9593277e40d288da9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-services/zipball/092034ea18018e75143c31e82fe471d679ef2734",
-                "reference": "092034ea18018e75143c31e82fe471d679ef2734",
+                "url": "https://api.github.com/repos/andydefer/php-services/zipball/dcaba07ee0d7eeb283919df9593277e40d288da9",
+                "reference": "dcaba07ee0d7eeb283919df9593277e40d288da9",
                 "shasum": ""
             },
             "require": {
-                "andydefer/domain-structures": "^1.18.1",
                 "andydefer/php-vo": "^0.8.1",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.2"
@@ -352,9 +350,9 @@
             "description": "Collection of reusable services for PHP and Laravel applications including model transformation, caching, and common business logic",
             "support": {
                 "issues": "https://github.com/andydefer/php-services/issues",
-                "source": "https://github.com/andydefer/php-services/tree/v0.3.4"
+                "source": "https://github.com/andydefer/php-services/tree/v0.3.6"
             },
-            "time": "2026-06-12T07:37:17+00:00"
+            "time": "2026-06-12T08:46:09+00:00"
         },
         {
             "name": "andydefer/php-vo",
