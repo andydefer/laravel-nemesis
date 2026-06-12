@@ -22,6 +22,7 @@ use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Repository\ValueObjects\SortColumns;
 
 class NemesisService
 {
@@ -768,7 +769,7 @@ class NemesisService
     // Query Methods
     // ============================================================================
 
-    public function findByFilters(NemesisTokenFilterRecord $filters, ?int $limit = null, ?string $sortBy = null, array $columns = ['*']): Collection
+    public function findByFilters(NemesisTokenFilterRecord $filters, ?int $limit = null, ?SortColumns $sortBy = null, array $columns = ['*']): Collection
     {
         $findByRecord = new FindByRecord(
             filters: $filters,

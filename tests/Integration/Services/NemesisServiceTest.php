@@ -22,6 +22,7 @@ use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\Repository\ValueObjects\SortColumns;
 
 final class NemesisServiceTest extends IntegrationTestCase
 {
@@ -1376,18 +1377,27 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_find_by_filters_with_sort_by_sorts_results(): void
     {
+        // Arrange
         $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'B Token',
         ]), $this->user);
+
         $this->service->create($this->hydration->hydrate(NemesisTokenRecord::class, [
             'token_hash' => $this->generateUniqueHash(),
             'name' => 'A Token',
         ]), $this->user);
 
         $filters = $this->hydration->hydrate(NemesisTokenFilterRecord::class, []);
-        $tokens = $this->service->findByFilters($filters, sortBy: 'name');
 
+        // ✅ CORRECTION : Utiliser SortColumns au lieu d'une string
+        $tokens = $this->service->findByFilters(
+            $filters,
+            limit: null,
+            sortBy: new SortColumns('name:asc')
+        );
+
+        // Assert
         $this->assertSame('A Token', $tokens->first()->name);
     }
 
