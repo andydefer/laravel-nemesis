@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "90e8c3c0afefef5e1e692cfd8e018133",
+    "content-hash": "1cdf7f20c4be7e5560c2dd504abc2547",
     "packages": [
         {
             "name": "andydefer/data-validator",
@@ -177,19 +177,20 @@
         },
         {
             "name": "andydefer/laravel-directive",
-            "version": "v3.20.0",
+            "version": "v3.22.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-directive.git",
-                "reference": "0cebbb619177a473eee18e2dc735619cf2bbc51a"
+                "reference": "ef93c295950735bfeb6fb1a49aa3a803a2b79edf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/0cebbb619177a473eee18e2dc735619cf2bbc51a",
-                "reference": "0cebbb619177a473eee18e2dc735619cf2bbc51a",
+                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/ef93c295950735bfeb6fb1a49aa3a803a2b79edf",
+                "reference": "ef93c295950735bfeb6fb1a49aa3a803a2b79edf",
                 "shasum": ""
             },
             "require": {
+                "andydefer/php-services": "^0.4.0",
                 "andydefer/php-vo": "^0.8.1",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": ">=8.1"
@@ -234,9 +235,9 @@
             "description": "A flexible CLI command system for Laravel that breaks free from Artisan's constraints. Directives introduces a clean separation between what your command does (business logic) and how it's presented (output/UI).",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-directive/issues",
-                "source": "https://github.com/andydefer/laravel-directive/tree/v3.20.0"
+                "source": "https://github.com/andydefer/laravel-directive/tree/v3.22.0"
             },
-            "time": "2026-06-12T11:42:34+00:00"
+            "time": "2026-06-13T04:37:30+00:00"
         },
         {
             "name": "andydefer/laravel-repository",
@@ -295,16 +296,16 @@
         },
         {
             "name": "andydefer/php-services",
-            "version": "v0.3.6",
+            "version": "v0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-services.git",
-                "reference": "dcaba07ee0d7eeb283919df9593277e40d288da9"
+                "reference": "6d23126613e0f852515aca19437770d7aed32aa3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-services/zipball/dcaba07ee0d7eeb283919df9593277e40d288da9",
-                "reference": "dcaba07ee0d7eeb283919df9593277e40d288da9",
+                "url": "https://api.github.com/repos/andydefer/php-services/zipball/6d23126613e0f852515aca19437770d7aed32aa3",
+                "reference": "6d23126613e0f852515aca19437770d7aed32aa3",
                 "shasum": ""
             },
             "require": {
@@ -349,9 +350,9 @@
             "description": "Collection of reusable services for PHP and Laravel applications including model transformation, caching, and common business logic",
             "support": {
                 "issues": "https://github.com/andydefer/php-services/issues",
-                "source": "https://github.com/andydefer/php-services/tree/v0.3.6"
+                "source": "https://github.com/andydefer/php-services/tree/v0.4.0"
             },
-            "time": "2026-06-12T08:46:09+00:00"
+            "time": "2026-06-13T04:21:18+00:00"
         },
         {
             "name": "andydefer/php-vo",
