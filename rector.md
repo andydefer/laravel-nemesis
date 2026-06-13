@@ -1,5 +1,5 @@
 # Rector Refactoring Report
-*Generated: ven. 12 juin 2026 10:07:15 WAT*
+*Generated: sam. 13 juin 2026 05:41:20 WAT*
 
 
 26 files with changes
@@ -1594,11 +1594,10 @@ Applied rules:
 +use PHPUnit\Framework\MockObject\MockObject;
 +use stdClass;
 +use ReflectionClass;
-+use AndyDefer\Directive\Enums\PrimitiveType;
  use AndyDefer\Directive\Collections\ParameterVOCollection;
  use AndyDefer\Directive\Contexts\DirectiveContext;
  use AndyDefer\Directive\Contexts\LaravelBootstrapperContext;
-@@ Line 31 @@
+@@ Line 32 @@
  #[AllowMockObjectsWithoutExpectations]
  final class InstallNemesisDirectiveTest extends TestCase
  {
@@ -1626,7 +1625,7 @@ Applied rules:
      protected function setUp(): void
      {
          parent::setUp();
-@@ Line 49 @@
+@@ Line 50 @@
          $this->filesystem = $this->createMock(FileSystemService::class);
 
          $this->db = $this->createMock(DatabaseManager::class);
@@ -1650,7 +1649,7 @@ Applied rules:
      private function createDirectiveWithOptions(array $options = [], array $fileExistsMap = []): InstallNemesisDirective
      {
          $hydration = new HydrationService();
-@@ Line 85 @@
+@@ Line 86 @@
                      return $exists;
                  }
              }
@@ -1658,7 +1657,7 @@ Applied rules:
              return false;
          });
 
-@@ Line 91 @@
+@@ Line 92 @@
          $this->app->method('basePath')->willReturn('/fake/project');
          $this->app->method('databasePath')->willReturn('/fake/project/database');
 
@@ -1681,16 +1680,7 @@ Applied rules:
              $itemsProperty = $reflection->getProperty('items');
              $items = $itemsProperty->getValue($optionsCollection);
 
-@@ Line 109 @@
-             $paramVO = new ParameterVO(
-                 name: $key,
-                 value: $value,
--                type: \AndyDefer\Directive\Enums\PrimitiveType::BOOL
-+                type: PrimitiveType::BOOL
-             );
-             $items[] = $paramVO;
-             $itemsProperty->setValue($optionsCollection, $items);
-@@ Line 209 @@
+@@ Line 210 @@
 
          $this->assertTrue($aliases->contains('nemesis-install'));
          $this->assertTrue($aliases->contains('setup-nemesis'));

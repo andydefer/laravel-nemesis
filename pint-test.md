@@ -1,5 +1,5 @@
 # Pint Formatting Test Report
-*Generated: ven. 12 juin 2026 10:07:13 WAT*
+*Generated: sam. 13 juin 2026 05:41:18 WAT*
 
 
   .⨯⨯.....⨯...⨯⨯⨯⨯⨯⨯⨯.⨯⨯⨯⨯⨯..⨯⨯..⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯⨯.....⨯⨯.⨯⨯⨯...⨯.
@@ -40,5 +40,5 @@
   ⨯ tests/IntegrationTestCase.php                                                                                                                        concat_space, ordered_imports  
   ⨯ tests/TestCase.php                                                                                                                                   concat_space, ordered_imports  
   ⨯ tests/Unit/Directives/CleanTokensDirectiveUnitTest.php                            class_attributes_separation, new_with_parentheses, fully_qualified_strict_types, ordered_imports  
-  ⨯ tests/Unit/Directives/InstallNemesisDirectiveTest.php class_attributes_separation, new_with_parentheses, fully_qualified_strict_types, blank_line_before_statement, ordered_impor…  
+  ⨯ tests/Unit/Directives/InstallNemesisDirectiveTest.php                              class_attributes_separation, new_with_parentheses, blank_line_before_statement, ordered_imports  
 

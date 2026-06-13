@@ -25,6 +25,7 @@ use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
 use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
 use AndyDefer\Nemesis\Records\TokenConfigRecord;
+use AndyDefer\PhpServices\Enums\PrimitiveType;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 
@@ -109,7 +110,7 @@ final class InstallNemesisDirectiveTest extends TestCase
             $paramVO = new ParameterVO(
                 name: $key,
                 value: $value,
-                type: \AndyDefer\Directive\Enums\PrimitiveType::BOOL
+                type: PrimitiveType::BOOL
             );
             $items[] = $paramVO;
             $itemsProperty->setValue($optionsCollection, $items);
