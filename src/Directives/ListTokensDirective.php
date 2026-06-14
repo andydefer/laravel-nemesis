@@ -12,17 +12,16 @@ use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use Illuminate\Support\Collection;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Services\NemesisService;
+use Illuminate\Support\Collection;
 
 final class ListTokensDirective extends AbstractDirective
 {
     public function __construct(
         DirectiveContext $context,
         DirectiveInteractionService $interaction,
-        private readonly NemesisService $service,
     ) {
         parent::__construct($context, $interaction);
     }
@@ -53,20 +52,21 @@ final class ListTokensDirective extends AbstractDirective
 
     public function execute(): ExitCode
     {
+        $laravel = $this->getLaravel();
+        $service = $laravel->make(NemesisService::class);
+
         $modelFilter = $this->option('model');
 
-
-        if (is_string($modelFilter)) {
+        if (is_string($modelFilter) && $modelFilter !== '') {
             $this->info(sprintf('Filtering by model: %s', $modelFilter));
-            $filter = new NemesisTokenFilterRecord(tokenable_type: $modelFilter);
-            $tokens = $this->service->findByFilters($filter);
+            // Recherche LIKE pour trouver le namespace complet contenant le basename
+            $tokens = NemesisToken::where('tokenable_type', 'LIKE', "%{$modelFilter}%")->get();
         } else {
-            $tokens = $this->service->findByFilters(new NemesisTokenFilterRecord);
+            $tokens = $service->findByFilters(new NemesisTokenFilterRecord);
         }
 
         if ($tokens->isEmpty()) {
             $this->warn('No tokens found.');
-
             return ExitCode::SUCCESS;
         }
 

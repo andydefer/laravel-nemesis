@@ -8,9 +8,7 @@ namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Collections\RowCollection;
-use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Enums\ExitCode;
-use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
@@ -21,17 +19,6 @@ use AndyDefer\Nemesis\Services\NemesisService;
 
 final class CleanTokensDirective extends AbstractDirective
 {
-    private HydrationService $hydration;
-
-    public function __construct(
-        DirectiveContext $context,
-        DirectiveInteractionService $interaction,
-        private readonly NemesisConfigInterface $config,
-        private readonly NemesisService $service,
-    ) {
-        parent::__construct($context, $interaction);
-        $this->hydration = new HydrationService();
-    }
 
     public function getSignature(): string
     {
@@ -60,13 +47,18 @@ final class CleanTokensDirective extends AbstractDirective
 
     public function execute(): ExitCode
     {
+        // Récupération des dépendances via le container Laravel
+        $config = $this->getLaravel()->make(NemesisConfigInterface::class);
+        $service = $this->getLaravel()->make(NemesisService::class);
+        $hydration = new HydrationService();
+
         if (! $this->shouldProceed()) {
             return ExitCode::SUCCESS;
         }
 
-        $statistics = $this->performCleanup();
+        $statistics = $this->performCleanup($config, $service, $hydration);
 
-        $this->displayResults($statistics);
+        $this->displayResults($statistics, $config);
 
         return ExitCode::SUCCESS;
     }
@@ -82,42 +74,50 @@ final class CleanTokensDirective extends AbstractDirective
         );
     }
 
-    private function performCleanup(): CleanupStatisticsRecord
-    {
-        $expiredCount = $this->cleanExpiredTokens();
-        $oldCount = $this->cleanOldTokens();
+    private function performCleanup(
+        NemesisConfigInterface $config,
+        NemesisService $service,
+        HydrationService $hydration,
+    ): CleanupStatisticsRecord {
+        $expiredCount = $this->cleanExpiredTokens($service, $hydration);
+        $oldCount = $this->cleanOldTokens($config, $service, $hydration);
 
-        return $this->hydration->hydrate(CleanupStatisticsRecord::class, [
+        return $hydration->hydrate(CleanupStatisticsRecord::class, [
             'expired' => $expiredCount,
             'old' => $oldCount,
             'total' => $expiredCount + $oldCount,
         ]);
     }
 
-    private function cleanExpiredTokens(): int
-    {
+    private function cleanExpiredTokens(
+        NemesisService $service,
+        HydrationService $hydration,
+    ): int {
         if ($this->hasOption('keep-expired')) {
             $this->warn('Keeping expired tokens as requested (--keep-expired)');
 
             return 0;
         }
 
-        $filter = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
+        $filter = $hydration->hydrate(NemesisTokenFilterRecord::class, [
             'is_expired' => true,
         ]);
-        $count = $this->service->count($filter);
+        $count = $service->count($filter);
 
         if ($count > 0) {
-            $this->service->forceDeleteBulk($filter);
+            $service->forceDeleteBulk($filter);
             $this->info(sprintf('Deleted %d expired tokens', $count));
         }
 
         return $count;
     }
 
-    private function cleanOldTokens(): int
-    {
-        $retentionDays = $this->getRetentionDays();
+    private function cleanOldTokens(
+        NemesisConfigInterface $config,
+        NemesisService $service,
+        HydrationService $hydration,
+    ): int {
+        $retentionDays = $this->getRetentionDays($config);
 
         if ($retentionDays <= 0) {
             $this->info('Retention period is set to 0 or negative, skipping old token cleanup');
@@ -126,14 +126,14 @@ final class CleanTokensDirective extends AbstractDirective
         }
 
         $cutoffDate = $this->getCutoffDate($retentionDays);
-        $filter = $this->hydration->hydrate(NemesisTokenFilterRecord::class, [
+        $filter = $hydration->hydrate(NemesisTokenFilterRecord::class, [
             'created_before' => $cutoffDate,
         ]);
 
-        $count = $this->service->count($filter);
+        $count = $service->count($filter);
 
         if ($count > 0) {
-            $this->service->forceDeleteBulk($filter);
+            $service->forceDeleteBulk($filter);
             $this->info(sprintf('Deleted %d old tokens (older than %d days)', $count, $retentionDays));
         }
 
@@ -145,7 +145,7 @@ final class CleanTokensDirective extends AbstractDirective
         return new DateTimeVO(now()->subDays($retentionDays)->toIso8601String());
     }
 
-    private function getRetentionDays(): int
+    private function getRetentionDays(NemesisConfigInterface $config): int
     {
         $daysOption = $this->option('days');
 
@@ -156,21 +156,22 @@ final class CleanTokensDirective extends AbstractDirective
             return $days;
         }
 
-        // ✅ Utilisation de la nouvelle API avec Record
-        $cleanupConfig = $this->config->cleanupConfig();
+        $cleanupConfig = $config->cleanupConfig();
         $configDays = $cleanupConfig->keep_expired_for_days;
         $this->info(sprintf('Using retention period from config: %d days', $configDays));
 
         return $configDays;
     }
 
-    private function displayResults(CleanupStatisticsRecord $statistics): void
-    {
+    private function displayResults(
+        CleanupStatisticsRecord $statistics,
+        NemesisConfigInterface $config,
+    ): void {
         $this->newLine();
         $this->displayHeader();
         $this->displayStatisticsTable($statistics);
         $this->displayStatusMessage($statistics);
-        $this->displayConfigurationSummary();
+        $this->displayConfigurationSummary($config);
     }
 
     private function displayHeader(): void
@@ -216,11 +217,10 @@ final class CleanTokensDirective extends AbstractDirective
         }
     }
 
-    private function displayConfigurationSummary(): void
+    private function displayConfigurationSummary(NemesisConfigInterface $config): void
     {
-        // ✅ Utilisation de la nouvelle API avec Records
-        $cleanupConfig = $this->config->cleanupConfig();
-        $middlewareConfig = $this->config->middlewareConfig();
+        $cleanupConfig = $config->cleanupConfig();
+        $middlewareConfig = $config->middlewareConfig();
 
         $this->newLine();
         $this->line('📋 Current Configuration:');
@@ -234,7 +234,7 @@ final class CleanTokensDirective extends AbstractDirective
         ));
         $this->line(sprintf(
             '   • Retention period: %d days',
-            $this->getRetentionDays()
+            $this->getRetentionDays($config)
         ));
         $this->line(sprintf(
             '   • Validate origin: %s',
