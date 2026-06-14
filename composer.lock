@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f8e2927cf6c8d61a6fcb30644c352a1c",
+    "content-hash": "c73ee459364c1bc7b2c3f944720ade96",
     "packages": [
         {
             "name": "andydefer/data-validator",
@@ -177,16 +177,16 @@
         },
         {
             "name": "andydefer/laravel-directive",
-            "version": "v3.23.0",
+            "version": "v3.25.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-directive.git",
-                "reference": "6d76654953ca8efe2e26e694d5e60924507db05d"
+                "reference": "80fc6e5a2746fe858f0fec9cf90a16e3e0a9d6b7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/6d76654953ca8efe2e26e694d5e60924507db05d",
-                "reference": "6d76654953ca8efe2e26e694d5e60924507db05d",
+                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/80fc6e5a2746fe858f0fec9cf90a16e3e0a9d6b7",
+                "reference": "80fc6e5a2746fe858f0fec9cf90a16e3e0a9d6b7",
                 "shasum": ""
             },
             "require": {
@@ -234,9 +234,9 @@
             "description": "A flexible CLI command system for Laravel that breaks free from Artisan's constraints. Directives introduces a clean separation between what your command does (business logic) and how it's presented (output/UI).",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-directive/issues",
-                "source": "https://github.com/andydefer/laravel-directive/tree/v3.23.0"
+                "source": "https://github.com/andydefer/laravel-directive/tree/v3.25.0"
             },
-            "time": "2026-06-13T08:31:45+00:00"
+            "time": "2026-06-13T18:20:37+00:00"
         },
         {
             "name": "andydefer/laravel-repository",
