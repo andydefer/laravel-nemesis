@@ -32,7 +32,7 @@
         "andydefer/php-services": "^1.0.0",
         "andydefer/laravel-repository": "^2.8.6",
         "andydefer/data-validator": "^1.0.1",
-        "andydefer/laravel-actions": "^2.4.3"
+        "andydefer/laravel-actions": "^2.4.4"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
