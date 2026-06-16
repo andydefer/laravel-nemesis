@@ -30,7 +30,7 @@
         "laravel/framework": "^12.0",
         "andydefer/laravel-directive": "^3.27.1",
         "andydefer/php-services": "^1.0.0",
-        "andydefer/laravel-repository": "^2.8.2",
+        "andydefer/laravel-repository": "^2.8.3",
         "andydefer/data-validator": "^1.0.0",
         "andydefer/laravel-actions": "^2.4.2"
     },
