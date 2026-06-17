@@ -29,10 +29,10 @@
         "php": ">=8.1",
         "laravel/framework": "^12.0",
         "andydefer/laravel-directive": "^3.27.2",
-        "andydefer/php-services": "^1.1.0",
+        "andydefer/php-services": "^1.1.1",
         "andydefer/laravel-repository": "^2.8.6",
         "andydefer/data-validator": "^1.0.1",
-        "andydefer/laravel-actions": "^2.4.4"
+        "andydefer/laravel-actions": "^2.4.5"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
