@@ -7,12 +7,9 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\PhpServices\Services\RecordTransformableService;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
-use Carbon\Carbon;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\Nemesis\Models\NemesisToken;
@@ -22,14 +19,22 @@ use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\PhpServices\Services\RecordTransformableService;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use Carbon\Carbon;
 
 final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 {
     private NemesisAuthenticationService $authService;
+
     private NemesisService $nemesisService;
+
     private TestUser $user;
+
     private string $plainToken;
+
     private NemesisToken $tokenModel;
+
     private HydrationService $hydration;
 
     protected function setUp(): void
@@ -38,7 +43,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
         Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
 
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
         $this->nemesisService = $this->app->make(NemesisService::class);
 
         // ✅ Correction : 6 arguments pour NemesisAuthenticationService
@@ -72,7 +77,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     private function withBearerToken(string $token): void
     {
-        $this->app['request']->headers->set('Authorization', 'Bearer ' . $token);
+        $this->app['request']->headers->set('Authorization', 'Bearer '.$token);
     }
 
     private function withCustomHeader(string $token, string $header = 'X-API-Key'): void
@@ -218,7 +223,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
     public function test_authenticate_accepts_token_with_required_ability(): void
     {
         // Arrange
-        $abilities = new StringTypedCollection();
+        $abilities = new StringTypedCollection;
         $abilities->add('read');
         $abilities->add('write');
 
@@ -239,7 +244,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
     public function test_authenticate_returns_insufficient_permissions_error(): void
     {
         // Arrange
-        $abilities = new StringTypedCollection();
+        $abilities = new StringTypedCollection;
         $abilities->add('read');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -267,7 +272,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
     public function test_authenticate_accepts_request_from_allowed_origin(): void
     {
         // Arrange
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -288,7 +293,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
     public function test_authenticate_returns_origin_not_allowed_error(): void
     {
         // Arrange
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -315,7 +320,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         // Arrange
         config()->set('nemesis.middleware.validate_origin', false);
 
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -406,13 +411,13 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $formatted = $this->authService->getFormattedAuthenticatable($authenticatable);
 
         // Assert
-        $this->assertInstanceOf(AbstractRecord::class, $formatted);
+        $this->assertInstanceOf(AbstractData::class, $formatted);
     }
 
     public function test_get_formatted_authenticatable_returns_null_for_invalid_model(): void
     {
         // Arrange
-        $invalidModel = new \stdClass();
+        $invalidModel = new \stdClass;
 
         // Act
         $formatted = $this->authService->getFormattedAuthenticatable($invalidModel);
@@ -428,7 +433,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
     public function test_authenticate_accepts_wildcard_origin_match(): void
     {
         // Arrange
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://*.example.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [

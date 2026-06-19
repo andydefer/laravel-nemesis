@@ -7,19 +7,22 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Tests\Integration\Helpers;
 
 use AndyDefer\DomainStructures\Services\HydrationService;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Helpers\NemesisHelper;
 use AndyDefer\Nemesis\Models\NemesisToken;
+use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 final class NemesisHelperTest extends IntegrationTestCase
 {
     private TestUser $user;
+
     private NemesisConfigInterface $config;
+
     private HydrationService $hydration;
 
     protected function setUp(): void
@@ -28,7 +31,7 @@ final class NemesisHelperTest extends IntegrationTestCase
 
         Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
 
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
         $this->config = $this->app->make(NemesisConfigInterface::class);
 
         $this->user = TestUser::create([
@@ -173,7 +176,7 @@ final class NemesisHelperTest extends IntegrationTestCase
 
         // Créer un mock de la config
         $mockConfig = $this->createStub(NemesisConfigInterface::class);
-        $middlewareConfig = $this->hydration->hydrate(\AndyDefer\Nemesis\Records\MiddlewareConfigRecord::class, [
+        $middlewareConfig = $this->hydration->hydrate(MiddlewareConfigRecord::class, [
             'parameter_name' => $customParameterName,
             'token_header' => 'Authorization',
             'security_headers' => true,
@@ -206,7 +209,7 @@ final class NemesisHelperTest extends IntegrationTestCase
     {
         // Arrange
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . '_format';
+        $formatKey = $parameterName.'_format';
         $formattedRecord = $this->user->nemesisFormat();
 
         $this->app['request']->merge([$formatKey => $formattedRecord]);
@@ -239,7 +242,7 @@ final class NemesisHelperTest extends IntegrationTestCase
     {
         // Arrange
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . '_format';
+        $formatKey = $parameterName.'_format';
         $this->app['request']->merge([$formatKey => ['not' => 'a record']]);
         $helper = $this->getHelper();
 
@@ -323,7 +326,7 @@ final class NemesisHelperTest extends IntegrationTestCase
         $this->app['request']->merge([
             'current_nemesis_token' => $this->createTokenRecord(),
             $parameterName => $this->user,
-            $parameterName . '_format' => $this->user->nemesisFormat(),
+            $parameterName.'_format' => $this->user->nemesisFormat(),
         ]);
 
         $helper = $this->getHelper();

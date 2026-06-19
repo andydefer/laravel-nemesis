@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Datas\TestCustomFormatUserData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use AndyDefer\Nemesis\Contracts\MustNemesis;
-use AndyDefer\Nemesis\Tests\Fixtures\Records\TestCustomFormatUserRecord;
 
 /**
  * Test model for users with custom nemesisFormat implementation.
@@ -77,9 +77,9 @@ final class TestCustomFormatUser extends Model implements MustNemesis
      * This format excludes email and adds custom fields.
      * Returns a Record, not an array.
      */
-    public function nemesisFormat(): TestCustomFormatUserRecord
+    public function nemesisFormat(): TestCustomFormatUserData
     {
-        return TestCustomFormatUserRecord::from([
+        return TestCustomFormatUserData::from([
             'user_id' => $this->id,
             'full_name' => $this->getFullName(),
             'is_verified' => $this->isEmailVerified(),

@@ -7,12 +7,9 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Services;
 
 use AndyDefer\DataValidator\Services\MetadataValidator;
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpServices\Services\RecordTransformableService;
-use Illuminate\Database\DatabaseManager;
-use Illuminate\Http\Request;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\Nemesis\Enums\ErrorCode;
@@ -20,10 +17,12 @@ use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 use AndyDefer\Nemesis\ValueObjects\AuthenticationResultVO;
+use AndyDefer\PhpServices\Services\RecordTransformableService;
+use Illuminate\Database\DatabaseManager;
+use Illuminate\Http\Request;
 
 class NemesisAuthenticationService
 {
-
     public function __construct(
         private readonly NemesisConfigInterface $config,
         private readonly NemesisService $nemesisService,
@@ -76,7 +75,7 @@ class NemesisAuthenticationService
         }
 
         // Check ability
-        if ($requiredAbility !== null && !$this->nemesisService->can($tokenModel, $requiredAbility)) {
+        if ($requiredAbility !== null && ! $this->nemesisService->can($tokenModel, $requiredAbility)) {
             return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INSUFFICIENT_PERMISSIONS,
@@ -100,7 +99,7 @@ class NemesisAuthenticationService
         }
 
         // Validate authenticatable implements required interface
-        if (!$authenticatable instanceof MustNemesis) {
+        if (! $authenticatable instanceof MustNemesis) {
             return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::INVALID_AUTHENTICATABLE_MODEL,
@@ -142,9 +141,9 @@ class NemesisAuthenticationService
         return $this->authenticate($request, $requiredAbility)->getValue();
     }
 
-    public function getFormattedAuthenticatable(mixed $authenticatable): ?AbstractRecord
+    public function getFormattedAuthenticatable(mixed $authenticatable): ?AbstractData
     {
-        if (!$authenticatable instanceof MustNemesis) {
+        if (! $authenticatable instanceof MustNemesis) {
             return null;
         }
 
@@ -160,11 +159,11 @@ class NemesisAuthenticationService
             return null;
         }
 
-        if (!class_exists($tokenableType)) {
+        if (! class_exists($tokenableType)) {
             return null;
         }
 
-        $modelInstance = new $tokenableType();
+        $modelInstance = new $tokenableType;
         $table = $modelInstance->getTable();
 
         $result = $this->db->table($table)
@@ -176,7 +175,7 @@ class NemesisAuthenticationService
             return null;
         }
 
-        $eloquentModel = new $tokenableType();
+        $eloquentModel = new $tokenableType;
         $eloquentModel->forceFill((array) $result);
         $eloquentModel->exists = true;
 
@@ -209,7 +208,7 @@ class NemesisAuthenticationService
     private function checkOriginRestriction(NemesisToken $tokenModel, Request $request): ?AuthenticationResultVO
     {
         // ✅ Utilisation de la nouvelle API avec middlewareConfig()
-        if (!$this->config->middlewareConfig()->validate_origin) {
+        if (! $this->config->middlewareConfig()->validate_origin) {
             return null;
         }
 
@@ -219,7 +218,7 @@ class NemesisAuthenticationService
             return null;
         }
 
-        if (!$this->nemesisService->canUseFromOrigin($tokenModel, $origin)) {
+        if (! $this->nemesisService->canUseFromOrigin($tokenModel, $origin)) {
             return $this->hydration->hydrate(AuthenticationResultVO::class, [
                 'success' => false,
                 'error_code' => ErrorCode::ORIGIN_NOT_ALLOWED,

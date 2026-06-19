@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Datas\TestUserData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use AndyDefer\Nemesis\Contracts\MustNemesis;
-use AndyDefer\Nemesis\Tests\Fixtures\Records\TestUserRecord;
 
 /**
  * Test model for users that can authenticate with Nemesis tokens.
@@ -75,9 +75,9 @@ final class TestUser extends Model implements MustNemesis
      * Define the format for authenticated API responses.
      * Returns a Record, not an array.
      */
-    public function nemesisFormat(): TestUserRecord
+    public function nemesisFormat(): TestUserData
     {
-        return TestUserRecord::from([
+        return TestUserData::from([
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,

@@ -6,8 +6,8 @@ namespace AndyDefer\Nemesis\Data;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpVo\Enums\HttpStatusCode;
 use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\PhpVo\Enums\HttpStatusCode;
 
 /**
  * Data Transfer Object for standardized error responses.

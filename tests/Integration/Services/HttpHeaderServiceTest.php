@@ -6,12 +6,12 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 final class HttpHeaderServiceTest extends IntegrationTestCase
 {
@@ -27,12 +27,12 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
 
     private function createMockResponse(): Response
     {
-        return new Response();
+        return new Response;
     }
 
     private function createMockJsonResponse(): JsonResponse
     {
-        return new JsonResponse();
+        return new JsonResponse;
     }
 
     // ============================================================================
@@ -63,7 +63,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         config()->set('nemesis.middleware.security_headers', true);
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
-        $nonResponseObject = new \stdClass();
+        $nonResponseObject = new \stdClass;
 
         // Act
         $result = $service->applySecurityHeaders($nonResponseObject);
@@ -154,7 +154,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
 
         // Act
         $result = $service->applyCorsHeaders($response, $request);
@@ -169,8 +169,8 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         config()->set('nemesis.middleware.validate_origin', true);
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
-        $nonResponseObject = new \stdClass();
-        $request = new Request();
+        $nonResponseObject = new \stdClass;
+        $request = new Request;
 
         // Act
         $result = $service->applyCorsHeaders($nonResponseObject, $request);
@@ -186,7 +186,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
 
         // Act
         $result = $service->applyCorsHeaders($response, $request);
@@ -204,7 +204,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act
@@ -224,7 +224,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act
@@ -245,7 +245,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
         $request->setMethod('OPTIONS');
         $request->headers->set('Origin', 'https://example.com');
 
@@ -271,7 +271,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockResponse();
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act
@@ -294,7 +294,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockJsonResponse();
-        $request = new Request();
+        $request = new Request;
 
         // Act
         $service->addCorsToErrorResponse($response, $request);
@@ -310,7 +310,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $config = $this->app->make(NemesisConfigInterface::class);
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockJsonResponse();
-        $request = new Request();
+        $request = new Request;
 
         // Act
         $service->addCorsToErrorResponse($response, $request);
@@ -328,7 +328,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockJsonResponse();
 
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act
@@ -348,7 +348,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockJsonResponse();
 
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act
@@ -368,7 +368,7 @@ final class HttpHeaderServiceTest extends IntegrationTestCase
         $service = new HttpHeaderService($config, $this->app);
         $response = $this->createMockJsonResponse();
 
-        $request = new Request();
+        $request = new Request;
         $request->headers->set('Origin', 'https://example.com');
 
         // Act

@@ -6,11 +6,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Helpers;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
 final class NemesisHelper
 {
@@ -43,14 +43,14 @@ final class NemesisHelper
         return null;
     }
 
-    public function getCurrentAuthenticatableFormat(): ?AbstractRecord
+    public function getCurrentAuthenticatableFormat(): ?AbstractData
     {
         // ✅ Utilisation de la nouvelle API avec middlewareConfig()
         $parameterName = $this->config->middlewareConfig()->parameter_name;
-        $formatKey = $parameterName . '_format';
+        $formatKey = $parameterName.'_format';
         $formatted = $this->request->input($formatKey);
 
-        if ($formatted instanceof AbstractRecord) {
+        if ($formatted instanceof AbstractData) {
             return $formatted;
         }
 

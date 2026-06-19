@@ -7,9 +7,6 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Tests\Integration\Http\Middleware;
 
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Route;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
@@ -17,13 +14,20 @@ use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Route;
 
 final class NemesisTokenMiddlewareTest extends IntegrationTestCase
 {
     private TestUser $user;
+
     private NemesisConfigInterface $config;
+
     private NemesisService $service;
+
     private NemesisAuthenticationService $authService;
+
     private HydrationService $hydration;
 
     protected function setUp(): void
@@ -32,7 +36,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
 
         Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
 
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
         $this->config = $this->app->make(NemesisConfigInterface::class);
         $this->service = $this->app->make(NemesisService::class);
         $this->authService = $this->app->make(NemesisAuthenticationService::class);
@@ -107,7 +111,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -119,7 +123,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -130,7 +134,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -164,7 +168,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser(expiresAt: $expiredDate);
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(401);
@@ -179,7 +183,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenWithAbilitiesForUser(['read', 'write']);
 
         $response = $this->get('/test-ability', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -191,7 +195,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenWithAbilitiesForUser(['read', 'write']);
 
         $response = $this->get('/test-admin', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(403);
@@ -206,7 +210,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenWithAllowedOriginsForUser(['https://allowed.com']);
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
             'Origin' => 'https://allowed.com',
         ]);
 
@@ -218,7 +222,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenWithAllowedOriginsForUser(['https://allowed.com']);
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
             'Origin' => 'https://evil.com',
         ]);
 
@@ -272,7 +276,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -287,7 +291,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         [$token, $plainToken] = $this->createTokenForUser();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
             'Origin' => 'https://example.com',
         ]);
 
@@ -305,7 +309,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         $response = $this->call('OPTIONS', '/test-protected', [], [], [], [
             'HTTP_ORIGIN' => 'https://example.com',
             'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'GET',
-            'HTTP_AUTHORIZATION' => 'Bearer ' . $plainToken,
+            'HTTP_AUTHORIZATION' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(200);
@@ -342,7 +346,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         $user->delete();
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $response->assertStatus(401);
@@ -355,7 +359,7 @@ final class NemesisTokenMiddlewareTest extends IntegrationTestCase
         $this->assertNull($token->last_used_at);
 
         $response = $this->get('/test-protected', [
-            'Authorization' => 'Bearer ' . $plainToken,
+            'Authorization' => 'Bearer '.$plainToken,
         ]);
 
         $token->refresh();

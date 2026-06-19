@@ -6,10 +6,10 @@ namespace AndyDefer\Nemesis\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use InvalidArgumentException;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
+use InvalidArgumentException;
 
 /**
  * Result of an authentication attempt.

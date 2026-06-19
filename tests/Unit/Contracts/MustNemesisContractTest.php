@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Unit\Contracts;
 
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestApiClient;
@@ -36,7 +37,7 @@ final class MustNemesisContractTest extends TestCase
         $formatted = $user->nemesisFormat();
 
         // Assert: Format is a Record
-        $this->assertInstanceOf(AbstractRecord::class, $formatted);
+        $this->assertInstanceOf(AbstractData::class, $formatted);
 
         // Assert: Format contains expected user fields
         $this->assertEquals(1, $formatted->id);
@@ -58,7 +59,7 @@ final class MustNemesisContractTest extends TestCase
         $formatted = $apiClient->nemesisFormat();
 
         // Assert: Format is a Record
-        $this->assertInstanceOf(AbstractRecord::class, $formatted);
+        $this->assertInstanceOf(AbstractData::class, $formatted);
 
         // Assert: Format contains expected API client fields
         $this->assertEquals(42, $formatted->id);
@@ -85,7 +86,7 @@ final class MustNemesisContractTest extends TestCase
         $formatted = $checkpoint->nemesisFormat();
 
         // Assert: Format is a Record
-        $this->assertInstanceOf(AbstractRecord::class, $formatted);
+        $this->assertInstanceOf(AbstractData::class, $formatted);
 
         // Assert: Format contains checkpoint-specific fields
         $this->assertEquals(10, $formatted->id);
@@ -111,13 +112,13 @@ final class MustNemesisContractTest extends TestCase
         $formatted = $user->nemesisFormat();
 
         // Assert: Format is a Record
-        $this->assertInstanceOf(AbstractRecord::class, $formatted);
+        $this->assertInstanceOf(AbstractData::class, $formatted);
 
         // Assert: Field values are correctly mapped
-        $this->assertEquals(5, $formatted->user_id);
-        $this->assertEquals('Jane Smith', $formatted->full_name);
-        $this->assertTrue($formatted->is_verified);
-        $this->assertEquals('only_for_api', $formatted->custom_field);
+        $this->assertEquals(5, $formatted->userId);
+        $this->assertEquals('Jane Smith', $formatted->fullName);
+        $this->assertTrue($formatted->isVerified);
+        $this->assertEquals('only_for_api', $formatted->customField);
         $this->assertEquals('custom_user', $formatted->type);
 
         // Assert: Email is NOT exposed in custom format (security)
@@ -146,7 +147,7 @@ final class MustNemesisContractTest extends TestCase
             $this->assertTrue(method_exists($model, 'nemesisFormat'));
 
             // Assert: nemesisFormat returns an AbstractRecord
-            $this->assertInstanceOf(AbstractRecord::class, $model->nemesisFormat());
+            $this->assertInstanceOf(AbstractData::class, $model->nemesisFormat());
         }
     }
 }

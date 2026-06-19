@@ -67,6 +67,7 @@ final class ListTokensDirective extends AbstractDirective
 
         if ($tokens->isEmpty()) {
             $this->warn('No tokens found.');
+
             return ExitCode::SUCCESS;
         }
 
@@ -117,7 +118,7 @@ final class ListTokensDirective extends AbstractDirective
         }
 
         return $token->expires_at->isPast()
-            ? 'Expired ' . $token->expires_at->diffForHumans()
+            ? 'Expired '.$token->expires_at->diffForHumans()
             : $token->expires_at->diffForHumans();
     }
 }

@@ -8,14 +8,14 @@ namespace AndyDefer\Nemesis\Http\Middleware;
 
 use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use Closure;
-use Illuminate\Http\Request;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\Nemesis\Data\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
+use Closure;
+use Illuminate\Http\Request;
 
 final class NemesisTokenMiddleware
 {
@@ -26,7 +26,7 @@ final class NemesisTokenMiddleware
         private readonly NemesisAuthenticationService $authService,
         private readonly HttpHeaderService $headerService,
     ) {
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
     }
 
     public function handle(Request $request, Closure $next, ?string $ability = null): mixed
@@ -48,7 +48,7 @@ final class NemesisTokenMiddleware
         // Appel au service d'authentification
         $result = $this->authService->authenticate($request, $ability);
 
-        if (!$result->isSuccess()) {
+        if (! $result->isSuccess()) {
             $errorCode = $result->getErrorCode();
             $statusInt = $errorCode->getHttpStatusCode()->value;
 
@@ -72,7 +72,7 @@ final class NemesisTokenMiddleware
         $tokenableType = $tokenRecord->tokenable_type;
         $tokenableId = $tokenRecord->tokenable_id;
 
-        if ($tokenableType === null || $tokenableId === null || !class_exists($tokenableType)) {
+        if ($tokenableType === null || $tokenableId === null || ! class_exists($tokenableType)) {
             $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
 
             $errorResponse = $this->hydration->hydrate(ErrorResponseData::class, [
@@ -119,7 +119,7 @@ final class NemesisTokenMiddleware
         ]);
 
         if ($formattedAuthenticatable !== null) {
-            $formatKey = $parameterName . '_format';
+            $formatKey = $parameterName.'_format';
             $request->merge([
                 $formatKey => $formattedAuthenticatable,
             ]);

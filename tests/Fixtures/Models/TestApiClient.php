@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Fixtures\Models;
 
+use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\Nemesis\Tests\Fixtures\Datas\TestApiClientData;
+use AndyDefer\Nemesis\Traits\HasNemesisTokens;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use AndyDefer\Nemesis\Contracts\MustNemesis;
-use AndyDefer\Nemesis\Tests\Fixtures\Records\TestApiClientRecord;
-use AndyDefer\Nemesis\Traits\HasNemesisTokens;
 
 /**
  * Test model for API clients that can authenticate with tokens.
@@ -73,9 +73,9 @@ final class TestApiClient extends Model implements MustNemesis
      * Define the format for authenticated API responses.
      * Returns a Record, not an array.
      */
-    public function nemesisFormat(): TestApiClientRecord
+    public function nemesisFormat(): TestApiClientData
     {
-        return TestApiClientRecord::from([
+        return TestApiClientData::from([
             'id' => $this->id,
             'name' => $this->getName(),
             'type' => 'api_client',

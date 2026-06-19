@@ -11,15 +11,14 @@ use AndyDefer\Directive\Collections\RowCollection;
 use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Records\CleanupStatisticsRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 
 final class CleanTokensDirective extends AbstractDirective
 {
-
     public function getSignature(): string
     {
         return 'clean-tokens {--days=} {--force} {--keep-expired}';
@@ -50,7 +49,7 @@ final class CleanTokensDirective extends AbstractDirective
         // Récupération des dépendances via le container Laravel
         $config = $this->getLaravel()->make(NemesisConfigInterface::class);
         $service = $this->getLaravel()->make(NemesisService::class);
-        $hydration = new HydrationService();
+        $hydration = new HydrationService;
 
         if (! $this->shouldProceed()) {
             return ExitCode::SUCCESS;

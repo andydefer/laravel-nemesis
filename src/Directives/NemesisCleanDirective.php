@@ -8,19 +8,16 @@ namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Collections\RowCollection;
-use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Enums\ExitCode;
-use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 
 final class NemesisCleanDirective extends AbstractDirective
 {
-
     public function getSignature(): string
     {
         return 'nemesis-clean {--days=} {--force} {--keep-expired}';
@@ -51,9 +48,9 @@ final class NemesisCleanDirective extends AbstractDirective
 
         $config = $laravel->make(NemesisConfigInterface::class);
         $repository = $laravel->make(NemesisTokenRepository::class);
-        $hydration = new HydrationService();
+        $hydration = new HydrationService;
 
-        if (!$this->shouldProceed()) {
+        if (! $this->shouldProceed()) {
             return ExitCode::SUCCESS;
         }
 
@@ -99,6 +96,7 @@ final class NemesisCleanDirective extends AbstractDirective
     ): int {
         if ($this->option('keep-expired')) {
             $this->warn('Keeping expired tokens as requested (--keep-expired)');
+
             return 0;
         }
 
@@ -125,6 +123,7 @@ final class NemesisCleanDirective extends AbstractDirective
 
         if ($retentionDays <= 0) {
             $this->info('Retention period is set to 0 or negative, skipping old token cleanup');
+
             return 0;
         }
 
@@ -156,6 +155,7 @@ final class NemesisCleanDirective extends AbstractDirective
         if ($daysOption !== null) {
             $days = (int) $daysOption;
             $this->info(sprintf('Using retention period from command line: %d days', $days));
+
             return $days;
         }
 
@@ -234,7 +234,7 @@ final class NemesisCleanDirective extends AbstractDirective
             $this->getRetentionDays($config)
         ));
 
-        if (!$this->option('keep-expired')) {
+        if (! $this->option('keep-expired')) {
             $this->line('   • Expired tokens: ✅ Removed');
         } else {
             $this->line('   • Expired tokens: ⏸️  Kept (--keep-expired flag used)');

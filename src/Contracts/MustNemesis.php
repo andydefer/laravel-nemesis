@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Contracts;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 
 /**
  * Contract for models that can be authenticated with Nemesis tokens.
@@ -21,7 +21,7 @@ interface MustNemesis
      * It gives developers full control over what information
      * is sent to the client.
      *
-     * @return AbstractRecord The formatted data record
+     * @return AbstractData The formatted data record
      */
-    public function nemesisFormat(): AbstractRecord;
+    public function nemesisFormat(): AbstractData;
 }

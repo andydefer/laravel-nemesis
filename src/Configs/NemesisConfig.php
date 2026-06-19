@@ -1,4 +1,5 @@
 <?php
+
 // src/Configs/NemesisConfig.php
 
 declare(strict_types=1);
@@ -18,7 +19,7 @@ final class NemesisConfig implements NemesisConfigInterface
 
     public function __construct()
     {
-        $this->hydration = new HydrationService();
+        $this->hydration = new HydrationService;
     }
 
     public function tokenConfig(): TokenConfigRecord
@@ -75,6 +76,7 @@ final class NemesisConfig implements NemesisConfigInterface
     public function shouldCleanup(): bool
     {
         $config = $this->cleanupConfig();
+
         return $config->auto_cleanup && $config->frequency > 0;
     }
 
@@ -90,6 +92,7 @@ final class NemesisConfig implements NemesisConfigInterface
     private function getValidHashAlgorithm(): string
     {
         $algorithm = config('nemesis.hash_algorithm', 'sha256');
+
         return in_array($algorithm, hash_algos(), true) ? $algorithm : 'sha256';
     }
 
@@ -102,6 +105,7 @@ final class NemesisConfig implements NemesisConfigInterface
         }
 
         $value = (int) $expiration;
+
         return $value > 0 ? $value : 60;
     }
 }

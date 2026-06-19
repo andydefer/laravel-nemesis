@@ -1,4 +1,5 @@
 <?php
+
 // src/Records/TokenConfigRecord.php
 
 declare(strict_types=1);
@@ -9,7 +10,6 @@ use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 
 final class TokenConfigRecord extends AbstractRecord
 {
-
     public function __construct(
         public readonly int $token_length,
         public readonly string $hash_algorithm,

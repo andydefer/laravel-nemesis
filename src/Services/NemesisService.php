@@ -10,19 +10,19 @@ use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
-use AndyDefer\Repository\Records\FindByRecord;
-use AndyDefer\Repository\ValueObjects\SelectColumns;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use AndyDefer\Repository\Records\FindByRecord;
+use AndyDefer\Repository\ValueObjects\SelectColumns;
 use AndyDefer\Repository\ValueObjects\SortColumns;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class NemesisService
 {
@@ -382,7 +382,7 @@ class NemesisService
         }
 
         if ($includeRevoked) {
-            return !$token->isExpired();
+            return ! $token->isExpired();
         }
 
         return $token->isValid();
@@ -550,7 +550,7 @@ class NemesisService
         }
 
         foreach ($abilities as $ability) {
-            if (!$this->can($token, $ability)) {
+            if (! $this->can($token, $ability)) {
                 return false;
             }
         }
@@ -641,7 +641,7 @@ class NemesisService
     {
         $origins = $token->allowed_origins ?? [];
 
-        if (!in_array($origin, $origins)) {
+        if (! in_array($origin, $origins)) {
             $origins[] = $origin;
             $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
                 'allowed_origins' => $origins,
@@ -705,7 +705,7 @@ class NemesisService
     public function setMetadata(NemesisToken $token, string $key, mixed $value): NemesisToken
     {
         $testMetadata = [$key => $value];
-        if (!$this->metadataValidator->isValid($testMetadata)) {
+        if (! $this->metadataValidator->isValid($testMetadata)) {
             $this->metadataValidator->validate($testMetadata);
         }
 
@@ -793,7 +793,7 @@ class NemesisService
 
         $escapedPattern = preg_quote($pattern, '/');
         $regexPattern = str_replace('\\*', '.*', $escapedPattern);
-        $regex = '/^' . $regexPattern . '$/i';
+        $regex = '/^'.$regexPattern.'$/i';
 
         return preg_match($regex, $origin) === 1;
     }

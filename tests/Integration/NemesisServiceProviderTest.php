@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Unit;
 
-use Illuminate\Routing\Router;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Directives\CleanTokensDirective;
 use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
@@ -15,6 +14,7 @@ use AndyDefer\Nemesis\NemesisServiceProvider;
 use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use Illuminate\Routing\Router;
 
 /**
  * Test suite for NemesisServiceProvider service registration.
@@ -132,8 +132,8 @@ final class NemesisServiceProviderTest extends IntegrationTestCase
         $provider->boot();
 
         // Assert: Package configuration and migration files exist and are ready for publishing
-        $configPath = __DIR__ . '/../../config/nemesis.php';
-        $migrationPath = __DIR__ . '/../../database/migrations/';
+        $configPath = __DIR__.'/../../config/nemesis.php';
+        $migrationPath = __DIR__.'/../../database/migrations/';
 
         $this->assertFileExists($configPath);
         $this->assertDirectoryExists($migrationPath);

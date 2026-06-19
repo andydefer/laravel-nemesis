@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests;
 
+use AndyDefer\Nemesis\NemesisServiceProvider;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
-use AndyDefer\Nemesis\NemesisServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 /**
@@ -94,13 +94,13 @@ abstract class TestCase extends Orchestra
     protected function defineDatabaseMigrations(): void
     {
         // Load package migrations if they exist
-        $packageMigrationsPath = __DIR__ . '/../database/migrations';
+        $packageMigrationsPath = __DIR__.'/../database/migrations';
         if (is_dir($packageMigrationsPath)) {
             $this->loadMigrationsFrom($packageMigrationsPath);
         }
 
         // Load test-specific migrations if they exist
-        $testMigrationsPath = __DIR__ . '/database/migrations';
+        $testMigrationsPath = __DIR__.'/database/migrations';
         if (is_dir($testMigrationsPath)) {
             $this->loadMigrationsFrom($testMigrationsPath);
         }

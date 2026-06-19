@@ -1,4 +1,5 @@
 <?php
+
 // src/Contracts/Configs/NemesisConfigInterface.php
 
 declare(strict_types=1);
@@ -12,7 +13,7 @@ use AndyDefer\Nemesis\Records\TokenConfigRecord;
 
 /**
  * Interface for Nemesis configuration.
- * 
+ *
  * Services should depend on this interface, not the concrete implementation.
  */
 interface NemesisConfigInterface

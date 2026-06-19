@@ -6,14 +6,10 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
+use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
@@ -22,13 +18,20 @@ use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
+use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use AndyDefer\Repository\ValueObjects\SortColumns;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 final class NemesisServiceTest extends IntegrationTestCase
 {
     private NemesisService $service;
+
     private TestUser $user;
+
     private NemesisTokenRepository $repository;
+
     private HydrationService $hydration;
 
     protected function setUp(): void
@@ -37,13 +40,13 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         Carbon::setTestNow(Carbon::create(2024, 1, 1, 12, 0, 0));
 
-        $this->hydration = new HydrationService();
-        $this->repository = new NemesisTokenRepository();
+        $this->hydration = new HydrationService;
+        $this->repository = new NemesisTokenRepository;
         $this->service = new NemesisService(
             repository: $this->repository,
             config: $this->app->make(NemesisConfigInterface::class),
-            str: new Str(),
-            metadataValidator: $this->app->make(\AndyDefer\DataValidator\Services\MetadataValidator::class),
+            str: new Str,
+            metadataValidator: $this->app->make(MetadataValidator::class),
             hydration: $this->hydration,
         );
 
@@ -61,7 +64,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     private function generateUniqueHash(): string
     {
-        return hash('sha256', uniqid('token-', true) . bin2hex(random_bytes(16)));
+        return hash('sha256', uniqid('token-', true).bin2hex(random_bytes(16)));
     }
 
     private function createBasicToken(): NemesisToken
@@ -88,7 +91,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     private function withBearerToken(string $token): void
     {
-        $this->app['request']->headers->set('Authorization', 'Bearer ' . $token);
+        $this->app['request']->headers->set('Authorization', 'Bearer '.$token);
     }
 
     // ============================================================================
@@ -698,7 +701,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_get_current_token_returns_token_from_request(): void
     {
-        $plainToken = 'my-secret-token-' . uniqid();
+        $plainToken = 'my-secret-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
 
         $this->withBearerToken($plainToken);
@@ -712,7 +715,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_revoke_current_token_soft_deletes_current_token(): void
     {
-        $plainToken = 'my-secret-token-' . uniqid();
+        $plainToken = 'my-secret-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
 
         $this->withBearerToken($plainToken);
@@ -727,7 +730,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_delete_current_token_permanently_deletes_current_token(): void
     {
-        $plainToken = 'my-secret-token-' . uniqid();
+        $plainToken = 'my-secret-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
 
         $this->withBearerToken($plainToken);
@@ -745,7 +748,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_validate_token_returns_true_for_valid_token(): void
     {
-        $plainToken = 'valid-token-' . uniqid();
+        $plainToken = 'valid-token-'.uniqid();
         $this->createTokenWithHash($plainToken);
 
         $isValid = $this->service->validateToken($plainToken, $this->user);
@@ -762,7 +765,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_validate_token_with_include_revoked_returns_true_for_revoked_token(): void
     {
-        $plainToken = 'revoked-token-' . uniqid();
+        $plainToken = 'revoked-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
         $this->service->delete($token->id);
 
@@ -773,7 +776,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_get_token_by_plain_text_returns_token(): void
     {
-        $plainToken = 'findable-token-' . uniqid();
+        $plainToken = 'findable-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
 
         $found = $this->service->getTokenByPlainText($plainToken, $this->user);
@@ -784,7 +787,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_get_token_by_plain_text_with_trashed_returns_deleted_token(): void
     {
-        $plainToken = 'deleted-token-' . uniqid();
+        $plainToken = 'deleted-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
         $this->service->delete($token->id);
 
@@ -797,7 +800,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_touch_token_updates_last_used_at(): void
     {
-        $plainToken = 'touchable-token-' . uniqid();
+        $plainToken = 'touchable-token-'.uniqid();
         $token = $this->createTokenWithHash($plainToken);
         $this->assertNull($token->last_used_at);
 
@@ -977,7 +980,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_returns_true_when_token_has_ability(): void
     {
-        $abilities = new StringTypedCollection();
+        $abilities = new StringTypedCollection;
         $abilities->add('read');
         $abilities->add('write');
 
@@ -1007,7 +1010,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_all_returns_true_when_token_has_all_abilities(): void
     {
-        $abilities = new StringTypedCollection();
+        $abilities = new StringTypedCollection;
         $abilities->add('read');
         $abilities->add('write');
         $abilities->add('delete');
@@ -1024,7 +1027,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_all_returns_false_when_token_misses_any_ability(): void
     {
-        $abilities = new StringTypedCollection();
+        $abilities = new StringTypedCollection;
         $abilities->add('read');
         $abilities->add('write');
 
@@ -1044,7 +1047,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_add_allowed_origin_appends_origin(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://example.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -1064,7 +1067,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_add_allowed_origin_does_not_duplicate(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://example.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -1080,7 +1083,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_remove_allowed_origin_removes_origin(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://example.com');
         $origins->add('https://api.example.com');
 
@@ -1099,7 +1102,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_set_allowed_origins_replaces_all_origins(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://old.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -1241,7 +1244,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_origin_allows_exact_match(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://example.com');
         $origins->add('https://api.example.com');
 
@@ -1257,7 +1260,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_origin_allows_wildcard_match(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://*.example.com');
         $origins->add('https://*.api.com');
 
@@ -1275,7 +1278,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_origin_denies_non_matching_origin(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://example.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
@@ -1290,7 +1293,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
     public function test_can_use_from_current_request_checks_origin(): void
     {
-        $origins = new StringTypedCollection();
+        $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [

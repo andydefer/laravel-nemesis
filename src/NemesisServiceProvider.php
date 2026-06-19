@@ -11,12 +11,6 @@ use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\Directive\Services\FileSystemService;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\PhpServices\Services\RecordTransformableService;
-use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Database\DatabaseManager;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Directives\CleanTokensDirective;
@@ -29,13 +23,19 @@ use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
+use AndyDefer\PhpServices\Services\RecordTransformableService;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 final class NemesisServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/nemesis.php',
+            __DIR__.'/../config/nemesis.php',
             'nemesis'
         );
 
@@ -56,11 +56,11 @@ final class NemesisServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/nemesis.php' => config_path('nemesis.php'),
+                __DIR__.'/../config/nemesis.php' => config_path('nemesis.php'),
             ], 'nemesis-config');
 
             $this->publishes([
-                __DIR__ . '/../database/migrations/' => database_path('migrations'),
+                __DIR__.'/../database/migrations/' => database_path('migrations'),
             ], 'nemesis-migrations');
         }
     }
@@ -75,12 +75,12 @@ final class NemesisServiceProvider extends ServiceProvider
     {
         // Repository
         $this->app->bind(NemesisTokenRepository::class, function (): NemesisTokenRepository {
-            return new NemesisTokenRepository();
+            return new NemesisTokenRepository;
         });
 
         // RecordTransformableService
         $this->app->singleton(RecordTransformableService::class, function (): RecordTransformableService {
-            return new RecordTransformableService();
+            return new RecordTransformableService;
         });
 
         // HttpHeaderService - utilise l'interface

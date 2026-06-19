@@ -7,18 +7,18 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Directives;
 
 use AndyDefer\Directive\AbstractDirective;
-use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Enums\ExitCode;
-use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\PhpServices\Contracts\FileSystemInterface;
 use AndyDefer\PhpServices\Enums\PermissionMode;
 use AndyDefer\PhpServices\Services\FileSystemService;
-use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\DatabaseManager;
 
 final class InstallNemesisDirective extends AbstractDirective
 {
-
     public function getSignature(): string
     {
         return 'install-nemesis {--force}';
@@ -31,7 +31,7 @@ final class InstallNemesisDirective extends AbstractDirective
 
     public function getAliases(): StringTypedCollection
     {
-        $aliases = new StringTypedCollection();
+        $aliases = new StringTypedCollection;
         $aliases->add('nemesis-install');
         $aliases->add('setup-nemesis');
 
@@ -46,8 +46,9 @@ final class InstallNemesisDirective extends AbstractDirective
     private function getSchemaBuilder()
     {
         $laravel = $this->getLaravel();
-        $db = $laravel->make(\Illuminate\Database\DatabaseManager::class);
+        $db = $laravel->make(DatabaseManager::class);
         $connection = $db->connection();
+
         return $connection->getSchemaBuilder();
     }
 
@@ -55,46 +56,49 @@ final class InstallNemesisDirective extends AbstractDirective
     {
         $laravel = $this->getLaravel();
 
-        $kernel = $laravel->make(\Illuminate\Contracts\Console\Kernel::class);
-        $app = $laravel->make(\Illuminate\Contracts\Foundation\Application::class);
+        $kernel = $laravel->make(Kernel::class);
+        $app = $laravel->make(Application::class);
         $config = $laravel->make(NemesisConfigInterface::class);
-        $filesystem = new FileSystemService();
+        $filesystem = new FileSystemService;
 
         $force = $this->hasOption('force');
 
-        if (!$force && !$this->confirm('Install Nemesis package? This will publish migrations and config.')) {
+        if (! $force && ! $this->confirm('Install Nemesis package? This will publish migrations and config.')) {
             $this->warn('Installation cancelled.');
+
             return ExitCode::SUCCESS;
         }
 
         // ========================================================================
         // 1. VÉRIFIER QUE LE PACKAGE EXISTE
         // ========================================================================
-        $packageRoot = getcwd() . '/vendor/andydefer/laravel-nemesis';
+        $packageRoot = getcwd().'/vendor/andydefer/laravel-nemesis';
 
         $this->info("\n📦 Checking package files...");
 
-        if (!$filesystem->exists($packageRoot)) {
+        if (! $filesystem->exists($packageRoot)) {
             $this->error("Package not found at: {$packageRoot}");
             $this->error('Please run: composer require andydefer/laravel-nemesis');
+
             return ExitCode::FAILURE;
         }
-        $this->info("  ✓ Package found");
+        $this->info('  ✓ Package found');
 
         // ========================================================================
         // 2. COPIER LA CONFIGURATION
         // ========================================================================
         $this->info("\n📄 Publishing configuration...");
 
-        $configSource = $packageRoot . '/config/nemesis.php';
+        $configSource = $packageRoot.'/config/nemesis.php';
         $configDestination = $app->basePath('config/nemesis.php');
 
-        if (!$filesystem->exists($configSource)) {
+        if (! $filesystem->exists($configSource)) {
             $this->error("Config source not found: {$configSource}");
+
             return ExitCode::FAILURE;
         }
 
-        if ($filesystem->exists($configDestination) && !$force) {
+        if ($filesystem->exists($configDestination) && ! $force) {
             $this->warn('Config already exists, use --force to overwrite');
         } else {
             $this->ensureDirectoryExists($filesystem, dirname($configDestination));
@@ -108,15 +112,16 @@ final class InstallNemesisDirective extends AbstractDirective
         // ========================================================================
         $this->info("\n🗄️ Publishing migration...");
 
-        $migrationSource = $packageRoot . '/database/migrations/2024_01_01_000001_create_nemesis_tokens_table.php';
+        $migrationSource = $packageRoot.'/database/migrations/2024_01_01_000001_create_nemesis_tokens_table.php';
         $migrationDestination = $app->databasePath('migrations/2024_01_01_000001_create_nemesis_tokens_table.php');
 
-        if (!$filesystem->exists($migrationSource)) {
+        if (! $filesystem->exists($migrationSource)) {
             $this->error("Migration source not found: {$migrationSource}");
+
             return ExitCode::FAILURE;
         }
 
-        if ($filesystem->exists($migrationDestination) && !$force) {
+        if ($filesystem->exists($migrationDestination) && ! $force) {
             $this->warn('Migration already exists, use --force to overwrite');
         } else {
             $this->ensureDirectoryExists($filesystem, dirname($migrationDestination));
@@ -134,6 +139,7 @@ final class InstallNemesisDirective extends AbstractDirective
 
         if ($exitCode !== 0) {
             $this->error('Failed to run migrations.');
+
             return ExitCode::FAILURE;
         }
         $this->info('  ✓ Migrations executed');
@@ -145,8 +151,9 @@ final class InstallNemesisDirective extends AbstractDirective
 
         $schemaBuilder = $this->getSchemaBuilder();
 
-        if (!$schemaBuilder->hasTable('nemesis_tokens')) {
+        if (! $schemaBuilder->hasTable('nemesis_tokens')) {
             $this->error("Table 'nemesis_tokens' not found.");
+
             return ExitCode::FAILURE;
         }
         $this->info('  ✓ Table "nemesis_tokens" exists');
@@ -155,10 +162,10 @@ final class InstallNemesisDirective extends AbstractDirective
         // 6. VÉRIFIER LA CONFIGURATION
         // ========================================================================
         $this->info("\n⚙️ Loading configuration...");
-        $this->info('  ✓ token_length: ' . $config->tokenConfig()->token_length);
-        $this->info('  ✓ hash_algorithm: ' . $config->tokenConfig()->hash_algorithm);
-        $this->info('  ✓ expiration: ' . ($config->tokenConfig()->expiration_minutes ?? 'never') . ' minutes');
-        $this->info('  ✓ validate_origin: ' . ($config->middlewareConfig()->validate_origin ? 'true' : 'false'));
+        $this->info('  ✓ token_length: '.$config->tokenConfig()->token_length);
+        $this->info('  ✓ hash_algorithm: '.$config->tokenConfig()->hash_algorithm);
+        $this->info('  ✓ expiration: '.($config->tokenConfig()->expiration_minutes ?? 'never').' minutes');
+        $this->info('  ✓ validate_origin: '.($config->middlewareConfig()->validate_origin ? 'true' : 'false'));
 
         // ========================================================================
         // 7. INSTALLATION FINALE
@@ -184,7 +191,7 @@ final class InstallNemesisDirective extends AbstractDirective
 
     private function ensureDirectoryExists(FileSystemInterface $filesystem, string $path): void
     {
-        if (!$filesystem->isDirectory($path)) {
+        if (! $filesystem->isDirectory($path)) {
             $filesystem->makeDirectory($path, PermissionMode::DIRECTORY, true);
         }
     }

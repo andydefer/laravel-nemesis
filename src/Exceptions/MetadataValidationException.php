@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Exceptions;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpVo\Enums\HttpStatusCode;
-use InvalidArgumentException;
 use AndyDefer\Nemesis\Data\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
+use AndyDefer\PhpVo\Enums\HttpStatusCode;
+use InvalidArgumentException;
 use Throwable;
 
 /**

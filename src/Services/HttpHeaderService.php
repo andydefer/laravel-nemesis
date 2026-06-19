@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Services;
 
+use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 
 /**
  * Service for applying HTTP headers to responses.
