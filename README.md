@@ -1,12 +1,7 @@
-Vous avez raison ! Ces fonctions globales n'existent pas. Le package utilise uniquement la classe **`NemesisHelper`** avec ses méthodes statiques via le Facade.
-
-Voici la correction définitive :
-
-```markdown
 # Nemesis — Authentification par tokens multi-modèles pour Laravel
 
-![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue)
-![Laravel Version](https://img.shields.io/badge/Laravel-10.x%20%7C%2011.x%20%7C%2012.x-orange)
+![PHP Version](https://img.shields.io/badge/PHP-8.2%2B-blue)
+![Laravel Version](https://img.shields.io/badge/Laravel-12.x%20%7C%2013.x%20%7C%2014.x%20%7C%2015.x-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tests](https://img.shields.io/badge/tests-246%20passing-brightgreen)
 
@@ -56,6 +51,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 
 class User extends Model implements MustNemesis
 {
@@ -63,13 +59,13 @@ class User extends Model implements MustNemesis
      * Définir ce qui est exposé par l'API.
      * Cette méthode est OBLIGATOIRE (imposée par l'interface).
      */
-    public function nemesisFormat(): AbstractRecord
+    public function nemesisFormat(): AbstractData
     {
-        return new UserRecord(
+        return new UserData(
             id: $this->id,
             name: $this->name,
             email: $this->email,
-            createdAt: $this->created_at?->toIso8601String(),
+            createdAt: $this->created_at,
         );
     }
 }
@@ -79,14 +75,14 @@ class CheckPoint extends Model implements MustNemesis
     /**
      * Format différent pour les points de contrôle.
      */
-    public function nemesisFormat(): AbstractRecord
+    public function nemesisFormat(): AbstractData
     {
-        return new CheckPointRecord(
+        return new CheckPointData(
             id: $this->id,
             name: $this->name,
             location: $this->location,
             status: $this->is_active ? 'active' : 'inactive',
-            lastSeen: $this->last_ping_at?->toIso8601String(),
+            lastSeen: $this->last_ping_at,
         );
     }
 }
@@ -116,6 +112,8 @@ echo $plainToken; // stocker en clair côté client
 
 ```php
 // Dans routes/api.php
+use AndyDefer\Nemesis\Facades\NemesisHelper;
+
 Route::middleware(['nemesis.token'])->group(function () {
     Route::get('/profile', function () {
         // Version formatée via le Facade
@@ -346,9 +344,9 @@ Directive manuelle :
 // User (client billetterie)
 class User extends Model implements MustNemesis
 {
-    public function nemesisFormat(): UserRecord
+    public function nemesisFormat(): UserData
     {
-        return new UserRecord(
+        return new UserData(
             id: $this->id,
             name: $this->name,
             email: $this->email,
@@ -359,9 +357,9 @@ class User extends Model implements MustNemesis
 // CheckPoint (point de contrôle physique)
 class CheckPoint extends Model implements MustNemesis
 {
-    public function nemesisFormat(): CheckPointRecord
+    public function nemesisFormat(): CheckPointData
     {
-        return new CheckPointRecord(
+        return new CheckPointData(
             id: $this->id,
             name: $this->name,
             location: $this->location,
@@ -477,7 +475,7 @@ public function logoutCheckPoint()
 |---------|-------------|--------|
 | `getCurrentToken()` | Récupère le token actuel | `?NemesisTokenRecord` |
 | `getCurrentAuthenticatable()` | Récupère le modèle authentifié | `?Model` |
-| `getCurrentAuthenticatableFormat()` | Récupère la version formatée | `?AbstractRecord` |
+| `getCurrentAuthenticatableFormat()` | Récupère la version formatée | `?AbstractData` |
 | `hasCurrentToken()` | Vérifie si un token est présent | `bool` |
 | `hasCurrentAuthenticatable()` | Vérifie si authentifié | `bool` |
 
@@ -552,7 +550,7 @@ CREATE TABLE nemesis_tokens (
 | Problème | Solution Nemesis |
 |----------|------------------|
 | Plusieurs modèles doivent s’authentifier (User, CheckPoint) | Polymorphisme `tokenable` |
-| Contrôle total des données exposées via API | Méthode obligatoire `nemesisFormat()` |
+| Contrôle total des données exposées via API | Méthode obligatoire `nemesisFormat()` retournant `AbstractData` |
 | Déconnexion sélective (web vs mobile) | `revokeTokensBySource()` |
 | Révocation granulaire par type de token | `revokeTokensByName()` |
 | Nettoyage des tokens inactifs | `deleteBulk()` avec filtres |
@@ -610,5 +608,6 @@ CREATE TABLE nemesis_tokens (
 ## 📄 Licence
 
 MIT © [andydefer](https://github.com/andydefer)
+```
 
 ---
