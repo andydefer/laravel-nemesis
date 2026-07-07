@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Services;
 
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ use Illuminate\Http\Response;
  * Service for applying HTTP headers to responses.
  * Pure service with no business logic - only HTTP header manipulation.
  */
-class HttpHeaderService
+class HttpHeaderService implements HttpHeaderInterface
 {
     public function __construct(
         private readonly NemesisConfigInterface $config,

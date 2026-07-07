@@ -6,11 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
-use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
@@ -22,7 +20,6 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use AndyDefer\Repository\ValueObjects\SortColumns;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 final class NemesisServiceTest extends IntegrationTestCase
 {
@@ -42,14 +39,7 @@ final class NemesisServiceTest extends IntegrationTestCase
 
         $this->hydration = new HydrationService;
         $this->repository = new NemesisTokenRepository;
-        $this->service = new NemesisService(
-            repository: $this->repository,
-            config: $this->app->make(NemesisConfigInterface::class),
-            str: new Str,
-            metadataValidator: $this->app->make(MetadataValidator::class),
-            hydration: $this->hydration,
-        );
-
+        $this->service = $this->app->make(NemesisService::class);
         $this->user = TestUser::create([
             'name' => 'John Doe',
             'email' => 'john@example.com',

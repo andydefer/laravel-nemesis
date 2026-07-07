@@ -6,11 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Tests\Integration\Services;
 
-use AndyDefer\DataValidator\Services\MetadataValidator;
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
 use AndyDefer\DomainStructures\Services\HydrationService;
-use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\AuthenticationResultRecord;
@@ -19,7 +17,6 @@ use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
-use AndyDefer\PhpServices\Services\RecordTransformableService;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Carbon\Carbon;
 
@@ -47,14 +44,7 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $this->nemesisService = $this->app->make(NemesisService::class);
 
         // ✅ Correction : 6 arguments pour NemesisAuthenticationService
-        $this->authService = new NemesisAuthenticationService(
-            config: $this->app->make(NemesisConfigInterface::class),
-            nemesisService: $this->nemesisService,
-            recordTransformableService: $this->app->make(RecordTransformableService::class),
-            db: $this->app->make('db'),
-            metadataValidator: $this->app->make(MetadataValidator::class),
-            hydration: $this->hydration,
-        );
+        $this->authService = $this->app->make(NemesisAuthenticationService::class);
 
         $this->user = TestUser::create([
             'name' => 'John Doe',

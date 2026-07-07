@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Records\NemesisTokenRecord;
@@ -14,7 +15,7 @@ use AndyDefer\Repository\AbstractRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
-final class NemesisTokenRepository extends AbstractRepository
+final class NemesisTokenRepository extends AbstractRepository implements NemesisTokenRepositoryInterface
 {
     public function __construct()
     {

@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Tests\Unit;
 
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
+use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
+use AndyDefer\Nemesis\Contracts\Services\MetadataValidatorInterface;
+use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
+use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
 use AndyDefer\Nemesis\Directives\CleanTokensDirective;
 use AndyDefer\Nemesis\Directives\InstallNemesisDirective;
 use AndyDefer\Nemesis\Directives\ListTokensDirective;
-use AndyDefer\Nemesis\Helpers\NemesisHelper;
 use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
 use AndyDefer\Nemesis\NemesisServiceProvider;
-use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
-use AndyDefer\Nemesis\Services\NemesisService;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
 use Illuminate\Routing\Router;
 
@@ -36,11 +38,13 @@ final class NemesisServiceProviderTest extends IntegrationTestCase
         $provider->register();
         $provider->boot();
 
-        // Assert: Key services should be bound in the container (using Interface)
+        // Assert: All interfaces should be bound in the container
         $this->assertTrue($this->app->bound(NemesisConfigInterface::class));
-        $this->assertTrue($this->app->bound(NemesisService::class));
-        $this->assertTrue($this->app->bound(NemesisAuthenticationService::class));
-        $this->assertTrue($this->app->bound(NemesisHelper::class));
+        $this->assertTrue($this->app->bound(NemesisTokenRepositoryInterface::class));
+        $this->assertTrue($this->app->bound(MetadataValidatorInterface::class));
+        $this->assertTrue($this->app->bound(HttpHeaderInterface::class));
+        $this->assertTrue($this->app->bound(NemesisInterface::class));
+        $this->assertTrue($this->app->bound(NemesisAuthenticationInterface::class));
     }
 
     /**
@@ -186,9 +190,9 @@ final class NemesisServiceProviderTest extends IntegrationTestCase
     }
 
     /**
-     * Test that NemesisService is a singleton.
+     * Test that NemesisInterface is a singleton.
      */
-    public function test_nemesis_service_is_singleton(): void
+    public function test_nemesis_interface_is_singleton(): void
     {
         // Arrange: Create service provider instance
         $provider = new NemesisServiceProvider($this->app);
@@ -196,8 +200,26 @@ final class NemesisServiceProviderTest extends IntegrationTestCase
         // Act: Register the service provider and resolve service twice
         $provider->register();
 
-        $firstInstance = $this->app->make(NemesisService::class);
-        $secondInstance = $this->app->make(NemesisService::class);
+        $firstInstance = $this->app->make(NemesisInterface::class);
+        $secondInstance = $this->app->make(NemesisInterface::class);
+
+        // Assert: Both instances should be the same object
+        $this->assertSame($firstInstance, $secondInstance);
+    }
+
+    /**
+     * Test that NemesisAuthenticationInterface is a singleton.
+     */
+    public function test_nemesis_authentication_interface_is_singleton(): void
+    {
+        // Arrange: Create service provider instance
+        $provider = new NemesisServiceProvider($this->app);
+
+        // Act: Register the service provider and resolve service twice
+        $provider->register();
+
+        $firstInstance = $this->app->make(NemesisAuthenticationInterface::class);
+        $secondInstance = $this->app->make(NemesisAuthenticationInterface::class);
 
         // Assert: Both instances should be the same object
         $this->assertSame($firstInstance, $secondInstance);
