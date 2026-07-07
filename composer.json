@@ -28,11 +28,11 @@
     "require": {
         "php": ">=8.1",
         "laravel/framework": "^12.0",
-        "andydefer/laravel-directive": "^3.31.2",
-        "andydefer/php-services": "^1.3.0",
-        "andydefer/laravel-repository": "^2.9.2",
+        "andydefer/laravel-directive": "^3.31.3",
+        "andydefer/php-services": "^1.3.1",
+        "andydefer/laravel-repository": "^2.9.3",
         "andydefer/data-validator": "^1.0.1",
-        "andydefer/laravel-actions": "^2.4.6"
+        "andydefer/laravel-actions": "^2.4.7"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
