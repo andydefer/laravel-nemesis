@@ -31,7 +31,7 @@
         "andydefer/laravel-repository": "^2.10.3",
         "andydefer/data-validator": "^1.0.3",
         "andydefer/laravel-actions": "^2.4.9",
-        "andydefer/laravel-directive": "^3.54.0"
+        "andydefer/laravel-directive": "^3.55.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
