@@ -1,17 +1,14 @@
 <?php
 
-// src/Directives/ListTokensDirective.php
-
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Directives;
 
+use AndyDefer\ConsoleWriter\Console\Components\AdaptiveTable;
 use AndyDefer\Directive\AbstractDirective;
-use AndyDefer\Directive\Collections\RowCollection;
-use AndyDefer\Directive\Contexts\DirectiveContext;
 use AndyDefer\Directive\Enums\ExitCode;
-use AndyDefer\Directive\Services\DirectiveInteractionService;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
+use AndyDefer\DomainStructures\Utils\ListCollection;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Records\NemesisTokenFilterRecord;
 use AndyDefer\Nemesis\Services\NemesisService;
@@ -19,16 +16,11 @@ use Illuminate\Support\Collection;
 
 final class ListTokensDirective extends AbstractDirective
 {
-    public function __construct(
-        DirectiveContext $context,
-        DirectiveInteractionService $interaction,
-    ) {
-        parent::__construct($context, $interaction);
-    }
-
     public function getSignature(): string
     {
-        return 'list-tokens {--model=}';
+        return 'nemesis:list-tokens 
+                    {limit=50}#"Maximum number of tokens to display" 
+                    {model=?}#"Filter by model name (partial match allowed)"';
     }
 
     public function getDescription(): string
@@ -38,54 +30,58 @@ final class ListTokensDirective extends AbstractDirective
 
     public function getAliases(): StringTypedCollection
     {
-        $aliases = new StringTypedCollection;
-        $aliases->add('tokens-list');
-        $aliases->add('nemesis-tokens');
-
-        return $aliases;
-    }
-
-    public function shouldBootLaravel(): bool
-    {
-        return true;
+        return StringTypedCollection::from(['tokens-list', 'nemesis-tokens']);
     }
 
     public function execute(): ExitCode
     {
-        $laravel = $this->getLaravel();
-        $service = $laravel->make(NemesisService::class);
+        $console = $this->getConsole();
+        $service = $this->getApplication()->make(NemesisService::class);
 
-        $modelFilter = $this->option('model');
+        $limit = (int) $this->getArgument('limit');
+        $modelFilter = $this->getArgument('model');
 
-        if (is_string($modelFilter) && $modelFilter !== '') {
-            $this->info(sprintf('Filtering by model: %s', $modelFilter));
-            // Recherche LIKE pour trouver le namespace complet contenant le basename
-            $tokens = NemesisToken::where('tokenable_type', 'LIKE', "%{$modelFilter}%")->get();
+        if ($modelFilter !== null && $modelFilter !== '') {
+            $console->info(sprintf('Filtering by model: %s', $modelFilter));
+            $tokens = NemesisToken::where('tokenable_type', 'LIKE', "%{$modelFilter}%")
+                ->limit($limit)
+                ->get();
         } else {
-            $tokens = $service->findByFilters(new NemesisTokenFilterRecord);
+            $tokens = $service->findByFilters(
+                new NemesisTokenFilterRecord,
+                $limit
+            );
         }
 
         if ($tokens->isEmpty()) {
-            $this->warn('No tokens found.');
+            $console->alertWarning('No tokens found.');
 
             return ExitCode::SUCCESS;
         }
 
         $this->displayTokensTable($tokens);
 
+        $console->info(sprintf('Total tokens: %d', $tokens->count()));
+
         return ExitCode::SUCCESS;
     }
 
     private function displayTokensTable(Collection $tokens): void
     {
-        $headers = new StringTypedCollection;
-        $headers->add('ID', 'Tokenable Type', 'Tokenable ID', 'Name', 'Source', 'Last Used', 'Expires At');
+        $headers = ListCollection::from([
+            'ID',
+            'Tokenable Type',
+            'Tokenable ID',
+            'Name',
+            'Source',
+            'Last Used',
+            'Expires At',
+        ]);
 
-        $rows = new RowCollection;
+        $rows = ListCollection::from([]);
 
         foreach ($tokens as $token) {
-            $row = new RowCollection;
-            $row->add(
+            $row = ListCollection::from([
                 (string) $token->id,
                 $this->formatTokenableType($token),
                 (string) ($token->tokenable_id ?? 'N/A'),
@@ -93,12 +89,11 @@ final class ListTokensDirective extends AbstractDirective
                 $token->source ?? 'N/A',
                 $this->formatLastUsed($token),
                 $this->formatExpiration($token),
-            );
-            $rows->add($row);
+            ]);
+            $rows = $rows->add($row);
         }
 
-        $this->table($headers, $rows);
-        $this->info(sprintf('Total tokens: %d', $tokens->count()));
+        AdaptiveTable::render($headers, $rows);
     }
 
     private function formatTokenableType(NemesisToken $token): string

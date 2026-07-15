@@ -2,130 +2,129 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\Nemesis\Tests\Integration\Directives;
+namespace AndyDefer\Nemesis\Tests\Directives;
 
 use AndyDefer\Directive\Enums\ExitCode;
+use AndyDefer\Directive\Helpers\Paths;
 use AndyDefer\Directive\Services\DirectiveTestingService;
 use AndyDefer\Nemesis\Directives\ListTokensDirective;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use AndyDefer\Nemesis\Tests\Fixtures\Models\TestUser;
 use AndyDefer\Nemesis\Tests\IntegrationTestCase;
-use Illuminate\Support\Str;
 
 final class ListTokensDirectiveTest extends IntegrationTestCase
 {
-    private DirectiveTestingService $service;
+    private DirectiveTestingService $testingService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new DirectiveTestingService($this->app);
+
+        $this->testingService = new DirectiveTestingService(
+            $this->app,
+            [
+                Paths::projectRoot().'/src/Directives',
+            ]
+        );
     }
 
     protected function tearDown(): void
     {
-        $this->service->destroy();
+        $this->testingService->destroy();
         parent::tearDown();
     }
 
-    public function test_get_signature_returns_correct_string(): void
+    private function createToken(array $overrides = []): NemesisToken
     {
-        $directive = $this->app->make(ListTokensDirective::class);
-        $signature = $directive->getSignature();
+        $defaults = [
+            'token_hash' => hash('sha256', 'token_'.uniqid()),
+            'tokenable_type' => TestUser::class,
+            'tokenable_id' => 1,
+            'name' => 'test-token',
+            'source' => 'test',
+            'metadata' => json_encode([]),
+            'allowed_origins' => null,
+            'abilities' => null,
+        ];
 
-        $this->assertStringContainsString('list-tokens', $signature);
-        $this->assertStringContainsString('--model=', $signature);
+        $data = array_merge($defaults, $overrides);
+
+        return NemesisToken::create($data);
     }
 
-    public function test_get_description_returns_string(): void
+    public function test_list_tokens_shows_all_tokens(): void
     {
-        $directive = $this->app->make(ListTokensDirective::class);
-        $description = $directive->getDescription();
+        $this->createToken(['name' => 'token-1', 'source' => 'web']);
+        $this->createToken(['name' => 'token-2', 'source' => 'mobile']);
+        $this->createToken(['name' => 'token-3', 'source' => 'api']);
 
-        $this->assertIsString($description);
-        $this->assertNotEmpty($description);
-    }
-
-    public function test_get_aliases_returns_aliases(): void
-    {
-        $directive = $this->app->make(ListTokensDirective::class);
-        $aliases = $directive->getAliases();
-
-        $this->assertTrue($aliases->contains('tokens-list'));
-        $this->assertTrue($aliases->contains('nemesis-tokens'));
-        $this->assertSame(2, $aliases->count());
-    }
-
-    public function test_execute_returns_success_when_no_tokens(): void
-    {
-        $response = $this->service->run(ListTokensDirective::class, []);
+        $response = $this->testingService->run('nemesis:list-tokens');
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('No tokens found', $response->output);
+        $this->assertStringContainsString('Total tokens: 3', $response->output);
+        $this->assertStringContainsString('token-1', $response->output);
+        $this->assertStringContainsString('token-2', $response->output);
+        $this->assertStringContainsString('token-3', $response->output);
     }
 
-    public function test_execute_displays_table_when_tokens_exist(): void
+    public function test_list_tokens_with_limit(): void
     {
-        $this->createTestToken(['name' => 'Test Token 1', 'source' => 'api']);
-        $this->createTestToken(['name' => 'Test Token 2', 'source' => 'cli']);
+        for ($i = 0; $i < 10; $i++) {
+            $this->createToken(['name' => 'token-'.$i]);
+        }
 
-        $response = $this->service->run(ListTokensDirective::class, []);
+        $response = $this->testingService->run('nemesis:list-tokens 5');
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('Test Token 1', $response->output);
-        $this->assertStringContainsString('Test Token 2', $response->output);
+        $this->assertStringContainsString('Total tokens: 5', $response->output);
+    }
+
+    public function test_list_tokens_with_model_filter(): void
+    {
+        $this->createToken(['tokenable_type' => TestUser::class]);
+        $this->createToken(['tokenable_type' => 'App\\Models\\Admin']);
+        $this->createToken(['tokenable_type' => TestUser::class]);
+
+        $response = $this->testingService->run('nemesis:list-tokens 50 User');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Filtering by model: User', $response->output);
         $this->assertStringContainsString('Total tokens: 2', $response->output);
+        $this->assertStringContainsString('User', $response->output);
+        $this->assertStringNotContainsString('Admin', $response->output);
     }
 
-    public function test_execute_filters_by_model_with_basename(): void
+    public function test_list_tokens_with_partial_model_filter(): void
     {
-        // Créer un token avec le namespace complet
-        $this->createTestToken([
-            'name' => 'User Token',
-            'tokenable_type' => TestUser::class,
-        ]);
-        $this->createTestToken([
-            'name' => 'Api Token',
-            'tokenable_type' => 'App\Models\ApiClient',
-        ]);
+        $this->createToken(['tokenable_type' => TestUser::class]);
+        $this->createToken(['tokenable_type' => 'App\\Models\\AdminUser']);
+        $this->createToken(['tokenable_type' => 'App\\Models\\Guest']);
 
-        // Filtrer avec le basename (fonctionne grâce à LIKE)
-        $response = $this->service->run(ListTokensDirective::class, ['--model=TestUser']);
+        $response = $this->testingService->run('nemesis:list-tokens 50 User');
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('Filtering by model: TestUser', $response->output);
-        $this->assertStringContainsString('User Token', $response->output);
-        $this->assertStringNotContainsString('Api Token', $response->output);
+        $this->assertStringContainsString('Filtering by model: User', $response->output);
+        $this->assertStringContainsString('Total tokens: 2', $response->output);
+        $this->assertStringContainsString('User', $response->output);
+        $this->assertStringContainsString('AdminUser', $response->output);
+        $this->assertStringNotContainsString('Guest', $response->output);
     }
 
-    public function test_execute_filters_by_model_with_partial_namespace(): void
+    public function test_list_tokens_when_no_tokens(): void
     {
-        $this->createTestToken([
-            'name' => 'User Token',
-            'tokenable_type' => TestUser::class,
-        ]);
-
-        // Filtrer avec une partie du namespace
-        $response = $this->service->run(ListTokensDirective::class, ['--model=Fixtures']);
+        $response = $this->testingService->run('nemesis:list-tokens');
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('User Token', $response->output);
+        $this->assertStringContainsString('No tokens found.', $response->output);
     }
 
-    public function test_execute_shows_warning_when_no_tokens_match_filter(): void
+    public function test_list_tokens_displays_headers(): void
     {
-        $response = $this->service->run(ListTokensDirective::class, ['--model=NonexistentModel']);
+        $this->createToken();
+
+        $response = $this->testingService->run('nemesis:list-tokens');
 
         $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
-        $this->assertStringContainsString('No tokens found', $response->output);
-    }
-
-    public function test_execute_displays_correct_table_headers(): void
-    {
-        $this->createTestToken();
-
-        $response = $this->service->run(ListTokensDirective::class, []);
-
         $this->assertStringContainsString('ID', $response->output);
         $this->assertStringContainsString('Tokenable Type', $response->output);
         $this->assertStringContainsString('Tokenable ID', $response->output);
@@ -135,48 +134,178 @@ final class ListTokensDirectiveTest extends IntegrationTestCase
         $this->assertStringContainsString('Expires At', $response->output);
     }
 
-    public function test_execute_formats_never_used_correctly(): void
+    public function test_list_tokens_formats_tokenable_type(): void
     {
-        $this->createTestToken([
-            'name' => 'Never Used Token',
-            'last_used_at' => null,
-        ]);
+        $this->createToken(['tokenable_type' => 'App\\Models\\CustomUser']);
 
-        $response = $this->service->run(ListTokensDirective::class, []);
+        $response = $this->testingService->run('nemesis:list-tokens');
 
-        $this->assertStringContainsString('Never Used Token', $response->output);
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('CustomUser', $response->output);
+        $this->assertStringNotContainsString('App\\Models\\CustomUser', $response->output);
+    }
+
+    public function test_list_tokens_formats_last_used(): void
+    {
+        $token = $this->createToken();
+        $token->last_used_at = now()->subHour();
+        $token->save();
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('1 hour ago', $response->output);
+    }
+
+    public function test_list_tokens_formats_never_used(): void
+    {
+        $this->createToken(['last_used_at' => null]);
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
         $this->assertStringContainsString('Never', $response->output);
     }
 
-    public function test_execute_formats_never_expires_correctly(): void
+    public function test_list_tokens_formats_expiration_never(): void
     {
-        $this->createTestToken([
-            'name' => 'Never Expires Token',
-            'expires_at' => null,
-        ]);
+        $this->createToken(['expires_at' => null]);
 
-        $response = $this->service->run(ListTokensDirective::class, []);
+        $response = $this->testingService->run('nemesis:list-tokens');
 
-        $this->assertStringContainsString('Never Expires Token', $response->output);
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
         $this->assertStringContainsString('Never', $response->output);
     }
 
-    // ==================== Helper Methods ====================
-
-    private function createTestToken(array $overrides = []): NemesisToken
+    public function test_list_tokens_formats_expired(): void
     {
-        $defaults = [
-            'token_hash' => hash('sha256', Str::random(40)),
-            'name' => 'Test Token',
-            'source' => 'test',
-            'tokenable_type' => TestUser::class,
-            'tokenable_id' => 1,
-            'last_used_at' => now(),
-            'expires_at' => now()->addDays(30),
-        ];
+        $this->createToken(['expires_at' => now()->subDay()]);
 
-        $data = array_merge($defaults, $overrides);
+        $response = $this->testingService->run('nemesis:list-tokens');
 
-        return NemesisToken::create($data);
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Expired', $response->output);
+        $this->assertStringContainsString('ago', $response->output);
+    }
+
+    public function test_list_tokens_formats_future_expiration(): void
+    {
+        $this->createToken(['expires_at' => now()->addDays(7)]);
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('week', $response->output);
+        $this->assertStringNotContainsString('Expired', $response->output);
+    }
+
+    public function test_list_tokens_shows_n_a_for_missing_values(): void
+    {
+        $this->createToken(['name' => null, 'source' => null]);
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('N/A', $response->output);
+    }
+
+    public function test_list_tokens_with_alias(): void
+    {
+        $this->createToken();
+
+        $response = $this->testingService->run('tokens-list');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Total tokens: 1', $response->output);
+    }
+
+    public function test_list_tokens_with_second_alias(): void
+    {
+        $this->createToken();
+
+        $response = $this->testingService->run('nemesis-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Total tokens: 1', $response->output);
+    }
+
+    public function test_list_tokens_by_fqcn(): void
+    {
+        $this->createToken(['name' => 'fqcn-test']);
+
+        $response = $this->testingService->runDirective(
+            ListTokensDirective::class,
+            []
+        );
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('fqcn-test', $response->output);
+        $this->assertStringContainsString('Total tokens: 1', $response->output);
+    }
+
+    public function test_list_tokens_default_limit_50(): void
+    {
+        for ($i = 0; $i < 60; $i++) {
+            $this->createToken(['name' => 'token-'.$i]);
+        }
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Total tokens: 50', $response->output);
+    }
+
+    public function test_list_tokens_with_custom_limit(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            $this->createToken(['name' => 'token-'.$i]);
+        }
+
+        $response = $this->testingService->run('nemesis:list-tokens 10');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Total tokens: 10', $response->output);
+    }
+
+    public function test_list_tokens_with_model_filter_and_limit(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->createToken([
+                'tokenable_type' => TestUser::class,
+                'name' => 'user-token-'.$i,
+            ]);
+        }
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->createToken([
+                'tokenable_type' => 'App\\Models\\Admin',
+                'name' => 'admin-token-'.$i,
+            ]);
+        }
+
+        $response = $this->testingService->run('nemesis:list-tokens 3 User');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Filtering by model: User', $response->output);
+        $this->assertStringContainsString('Total tokens: 3', $response->output);
+        $this->assertStringContainsString('user-token', $response->output);
+        $this->assertStringNotContainsString('admin-token', $response->output);
+    }
+
+    public function test_list_tokens_displays_multiple_tokens_in_table(): void
+    {
+        $this->createToken(['name' => 'Alpha', 'source' => 'web']);
+        $this->createToken(['name' => 'Beta', 'source' => 'mobile']);
+        $this->createToken(['name' => 'Gamma', 'source' => 'api']);
+
+        $response = $this->testingService->run('nemesis:list-tokens');
+
+        $this->assertSame(ExitCode::SUCCESS, $response->exit_code);
+        $this->assertStringContainsString('Alpha', $response->output);
+        $this->assertStringContainsString('Beta', $response->output);
+        $this->assertStringContainsString('Gamma', $response->output);
+        $this->assertStringContainsString('web', $response->output);
+        $this->assertStringContainsString('mobile', $response->output);
+        $this->assertStringContainsString('api', $response->output);
     }
 }

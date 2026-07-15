@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis;
 
+use AndyDefer\Directive\DirectiveKernel;
 use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
@@ -17,6 +18,8 @@ use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Services\MetadataValidatorService;
 use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
 use AndyDefer\Nemesis\Services\NemesisService;
+use Illuminate\Config\Repository;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Routing\Router;
@@ -36,12 +39,24 @@ final class NemesisServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../config/nemesis.php',
-            'nemesis'
-        );
+        // ✅ Lier ConfigRepository AVANT tout
+        $this->app->singleton(ConfigRepository::class, function ($app) {
+            $config = [];
+            $configFile = $app->basePath().'/config/nemesis.php';
 
-        $this->registerNemesisConfig();
+            if (file_exists($configFile)) {
+                $config = require $configFile;
+                if (! is_array($config)) {
+                    $config = [];
+                }
+            }
+
+            // ✅ Ajouter la config sous la clé 'nemesis'
+            return new Repository(['nemesis' => $config]);
+        });
+
+        $this->registerConfig();
+        $this->registerRepositories();
         $this->registerServices();
         $this->registerMiddleware();
     }
@@ -65,25 +80,34 @@ final class NemesisServiceProvider extends ServiceProvider
     /**
      * Register the configuration service.
      */
-    private function registerNemesisConfig(): void
+    private function registerConfig(): void
     {
         $this->app->singleton(
             abstract: NemesisConfigInterface::class,
-            concrete: NemesisConfig::class,
+            concrete: function ($app) {
+                return new NemesisConfig(
+                    $app->make(ConfigRepository::class)
+                );
+            }
         );
     }
 
     /**
-     * Register all core services.
+     * Register all repositories.
      */
-    private function registerServices(): void
+    private function registerRepositories(): void
     {
-        // ✅ NemesisTokenRepository - bind interface to concrete
         $this->app->bind(
             abstract: NemesisTokenRepositoryInterface::class,
             concrete: NemesisTokenRepository::class,
         );
+    }
 
+    /**
+     * Register all services.
+     */
+    private function registerServices(): void
+    {
         // ✅ MetadataValidatorInterface - bind interface to concrete
         $this->app->singleton(
             abstract: MetadataValidatorInterface::class,
@@ -111,6 +135,15 @@ final class NemesisServiceProvider extends ServiceProvider
                     str: $app->make(Str::class),
                     metadataValidator: $app->make(MetadataValidatorInterface::class),
                 );
+            }
+
+        );
+
+        // ✅ DirectiveKernel
+        $this->app->singleton(
+            abstract: DirectiveKernel::class,
+            concrete: function () {
+                return DirectiveKernel::init($this->app);
             }
         );
 
@@ -159,5 +192,10 @@ final class NemesisServiceProvider extends ServiceProvider
                 NemesisTokenMiddleware::class,
             ]
         );
+    }
+
+    public function getApp(): Application
+    {
+        return $this->app;
     }
 }

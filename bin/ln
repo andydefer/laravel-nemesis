@@ -1,0 +1,105 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use AndyDefer\Directive\Bootstrap\ApplicationBuilder;
+use AndyDefer\Directive\DirectiveKernel;
+use AndyDefer\Directive\DirectiveServiceProvider;
+use AndyDefer\Directive\Enums\ApplicationType;
+use AndyDefer\Nemesis\NemesisServiceProvider;
+use AndyDefer\Nemesis\Tests\Providers\TestServiceProvider;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
+use Illuminate\Database\DatabaseServiceProvider;
+use Illuminate\Events\EventServiceProvider;
+
+// Autoloader
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// ✅ Base path
+$basePath = __DIR__ . '/..';
+
+// ✅ Créer le dossier storage/logs
+$logsDir = $basePath . '/storage/logs/nemesis';
+if (!is_dir($logsDir)) {
+    mkdir($logsDir, 0755, true);
+}
+
+// ✅ Créer le dossier database et le fichier SQLite
+$databaseDir = $basePath . '/database';
+if (!is_dir($databaseDir)) {
+    mkdir($databaseDir, 0755, true);
+}
+
+$databaseFile = $databaseDir . '/database.sqlite';
+if (!file_exists($databaseFile)) {
+    touch($databaseFile);
+}
+
+// ✅ Charger la configuration depuis le fichier
+$config = [];
+$configFile = $basePath . '/config/nemesis.php';
+if (file_exists($configFile)) {
+    $config = require $configFile;
+    if (!is_array($config)) {
+        $config = [];
+    }
+}
+
+// ✅ Boot application with ApplicationBuilder
+// NOTE: Ne PAS ajouter ConfigServiceProvider ici car ApplicationBuilder l'ajoute déjà
+$app = ApplicationBuilder::init(ApplicationType::INTERNAL)
+    ->withProviders([
+        EventServiceProvider::class,           // ✅ Événements (nécessaire pour Database)
+        DatabaseServiceProvider::class,        // ✅ Base de données
+        DirectiveServiceProvider::class,       // ✅ Directives
+        NemesisServiceProvider::class,         // ✅ Nemesis
+        TestServiceProvider::class
+    ])
+    ->withDatabase([
+        'default' => 'sqlite',
+        'connections' => [
+            'sqlite' => [
+                'driver' => 'sqlite',
+                'database' => $databaseFile,
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ],
+        ],
+        'migrations' => 'migrations',
+    ])
+    ->withConfig([
+        'app.name' => $config['app_name'] ?? 'Nemesis CLI',
+        'app.debug' => $config['debug'] ?? true,
+        'app.env' => $config['env'] ?? getenv('APP_ENV') ?? 'development',
+
+        'nemesis' => $config,
+
+        'logger' => [
+            'base_path' => $logsDir,
+            'buffer_size' => 100,
+        ],
+    ])
+    ->build();
+
+// ✅ Exécuter les migrations si nécessaire
+if (file_exists($basePath . '/src/../database/migrations')) {
+    try {
+        $app->make(ConsoleKernel::class)->call('migrate', [
+            '--database' => 'sqlite',
+            '--path' => 'src/../database/migrations',
+            '--force' => true,
+        ]);
+    } catch (\Throwable $e) {
+        // Silently ignore if migrations fail (tables might already exist)
+    }
+}
+
+// ✅ Exécuter Directive kernel
+$kernel = $app->make(DirectiveKernel::class);
+$exitCode = $kernel
+    ->verbose(true)
+    ->run($argv)
+    ->value;
+
+exit($exitCode);

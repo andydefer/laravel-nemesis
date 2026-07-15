@@ -1,17 +1,41 @@
-# Dépendances Composer
 /vendor/
-composer.lock
+node_modules/
+.phpunit.cache/
+docs/diffs/
+npm-debug.log
+yarn-error.log
+/.directive/
 
-# Documentation générée
-/docs/
-diff.txt
-note.md
+# Laravel 4 specific
+bootstrap/compiled.php
+app/storage/
 
-# Scripts (si ce sont des scripts temporaires ou locaux)
-/scripts/
+# Laravel 5 & Lumen specific
+public/storage
+storage/
+docs/prompts/
+docs/tickets/
+public/hot
+src/Directives/Internals
+# Laravel 5 & Lumen specific with changed public path
+public_html/storage
+public_html/hot
 
-# Fichiers de configuration locaux (optionnel)
-/.phpunit.result.cache
-/.idea/
-/.vscode/
-rector.md
+storage/*.key
+.env
+Homestead.yaml
+Homestead.json
+/.vagrant
+.phpunit.result.cache
+
+/public/build
+/storage/pail
+.env.backup
+.env.production
+.phpactor.json
+auth.json
+/.phpunit.cache/
+.phpunit.cache/
+
+all.txt
+all.md

@@ -6,7 +6,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Configs;
 
-use AndyDefer\DomainStructures\Services\HydrationService;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Records\CleanupConfigRecord;
 use AndyDefer\Nemesis\Records\CorsConfigRecord;
@@ -15,47 +14,40 @@ use AndyDefer\Nemesis\Records\TokenConfigRecord;
 
 final class NemesisConfig implements NemesisConfigInterface
 {
-    private HydrationService $hydration;
-
-    public function __construct()
-    {
-        $this->hydration = new HydrationService;
-    }
-
     public function tokenConfig(): TokenConfigRecord
     {
-        return $this->hydration->hydrate(TokenConfigRecord::class, [
-            'token_length' => (int) config('nemesis.token_length', 64),
+        return TokenConfigRecord::from([
+            'token_length' => config('nemesis.token_length', 64),
             'hash_algorithm' => $this->getValidHashAlgorithm(),
-            'expiration_minutes' => $this->getExpirationValue(),
+            'expiration_minutes' => config('nemesis.expiration'),
         ]);
     }
 
     public function middlewareConfig(): MiddlewareConfigRecord
     {
-        return $this->hydration->hydrate(MiddlewareConfigRecord::class, [
+        return MiddlewareConfigRecord::from([
             'parameter_name' => config('nemesis.middleware.parameter_name', 'nemesis_auth'),
             'token_header' => config('nemesis.middleware.token_header', 'Authorization'),
-            'security_headers' => (bool) config('nemesis.middleware.security_headers', true),
-            'validate_origin' => (bool) config('nemesis.middleware.validate_origin', true),
+            'security_headers' => config('nemesis.middleware.security_headers', true),
+            'validate_origin' => config('nemesis.middleware.validate_origin', true),
         ]);
     }
 
     public function corsConfig(): CorsConfigRecord
     {
-        return $this->hydration->hydrate(CorsConfigRecord::class, [
-            'allow_credentials' => (bool) config('nemesis.cors.allow_credentials', true),
-            'max_age' => (int) config('nemesis.cors.max_age', 86400),
-            'expose_token_info' => (bool) config('nemesis.cors.expose_token_info', false),
+        return CorsConfigRecord::from([
+            'allow_credentials' => config('nemesis.cors.allow_credentials', true),
+            'max_age' => config('nemesis.cors.max_age', 86400),
+            'expose_token_info' => config('nemesis.cors.expose_token_info', false),
         ]);
     }
 
     public function cleanupConfig(): CleanupConfigRecord
     {
-        return $this->hydration->hydrate(CleanupConfigRecord::class, [
-            'auto_cleanup' => (bool) config('nemesis.cleanup.auto_cleanup', true),
-            'frequency' => (int) config('nemesis.cleanup.frequency', 60),
-            'keep_expired_for_days' => (int) config('nemesis.cleanup.keep_expired_for_days', 30),
+        return CleanupConfigRecord::from([
+            'auto_cleanup' => config('nemesis.cleanup.auto_cleanup', true),
+            'frequency' => config('nemesis.cleanup.frequency', 60),
+            'keep_expired_for_days' => config('nemesis.cleanup.keep_expired_for_days', 30),
         ]);
     }
 
@@ -94,18 +86,5 @@ final class NemesisConfig implements NemesisConfigInterface
         $algorithm = config('nemesis.hash_algorithm', 'sha256');
 
         return in_array($algorithm, hash_algos(), true) ? $algorithm : 'sha256';
-    }
-
-    private function getExpirationValue(): ?int
-    {
-        $expiration = config('nemesis.expiration');
-
-        if ($expiration === null) {
-            return null;
-        }
-
-        $value = (int) $expiration;
-
-        return $value > 0 ? $value : 60;
     }
 }

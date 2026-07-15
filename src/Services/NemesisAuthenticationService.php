@@ -17,6 +17,7 @@ use AndyDefer\Nemesis\Records\NemesisTokenRecord;
 use AndyDefer\Nemesis\ValueObjects\AuthenticationResultVO;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 
 /**
@@ -220,10 +221,15 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
         $modelInstance = new $tokenableType;
         $table = $modelInstance->getTable();
 
-        return $this->db->table($table)
-            ->where('id', $tokenableId)
-            ->whereNull('deleted_at')
-            ->first();
+        $query = $this->db->table($table)
+            ->where('id', $tokenableId);
+
+        // Vérifier si le modèle utilise SoftDeletes
+        if (in_array(SoftDeletes::class, class_uses($tokenableType))) {
+            $query->whereNull('deleted_at');
+        }
+
+        return $query->first();
     }
 
     /**
