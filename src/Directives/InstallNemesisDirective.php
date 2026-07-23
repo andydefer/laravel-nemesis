@@ -1,22 +1,19 @@
 <?php
 
-// src/Directives/InstallNemesisDirective.php
-
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Directives;
 
-use AndyDefer\ConsoleWriter\Console\Enums\ListStyle;
+use AndyDefer\ConsoleWriter\Console\Components\Timeline;
 use AndyDefer\Directive\AbstractDirective;
 use AndyDefer\Directive\Enums\ExitCode;
 use AndyDefer\DomainStructures\Collections\Utility\StringTypedCollection;
-use AndyDefer\DomainStructures\Utils\SetCollection;
+use AndyDefer\DomainStructures\Utils\ListCollection;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\PhpServices\Contracts\FileSystemInterface;
 use AndyDefer\PhpServices\Enums\PermissionMode;
 use AndyDefer\PhpServices\Services\FileSystemService;
-use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
 
@@ -39,7 +36,6 @@ final class InstallNemesisDirective extends AbstractDirective
 
     private function getSchemaBuilder()
     {
-        $app = $this->getApplication()->make(Application::class);
         $db = $this->getApplication()->make(DatabaseManager::class);
         $connection = $db->connection();
 
@@ -50,7 +46,6 @@ final class InstallNemesisDirective extends AbstractDirective
     {
         $console = $this->getConsole();
         $app = $this->getApplication()->make(Application::class);
-        $kernel = $this->getApplication()->make(Kernel::class);
         $config = $this->getApplication()->make(NemesisConfigInterface::class);
         $filesystem = new FileSystemService;
 
@@ -62,12 +57,14 @@ final class InstallNemesisDirective extends AbstractDirective
             return ExitCode::SUCCESS;
         }
 
+        $console->title('🔐 Nemesis Installation');
+
         // ========================================================================
         // 1. VÉRIFIER QUE LE PACKAGE EXISTE
         // ========================================================================
         $packageRoot = getcwd().'/vendor/andydefer/laravel-nemesis';
 
-        $console->info("\n📦 Checking package files...");
+        $console->info('📦 Checking package files...');
 
         if (! $filesystem->exists($packageRoot)) {
             $console->error("Package not found at: {$packageRoot}");
@@ -75,12 +72,12 @@ final class InstallNemesisDirective extends AbstractDirective
 
             return ExitCode::FAILURE;
         }
-        $console->info('  ✓ Package found');
+        $console->success('  ✓ Package found');
 
         // ========================================================================
         // 2. COPIER LA CONFIGURATION
         // ========================================================================
-        $console->info("\n📄 Publishing configuration...");
+        $console->info('📄 Publishing configuration...');
 
         $configSource = $packageRoot.'/config/nemesis.php';
         $configDestination = $app->basePath('config/nemesis.php');
@@ -92,18 +89,18 @@ final class InstallNemesisDirective extends AbstractDirective
         }
 
         if ($filesystem->exists($configDestination) && ! $force) {
-            $console->alertWarning('Config already exists, use --force to overwrite');
+            $console->logWarning('  Config already exists, use --force to overwrite');
         } else {
             $this->ensureDirectoryExists($filesystem, dirname($configDestination));
             $content = $filesystem->get($configSource);
             $filesystem->put($configDestination, $content);
-            $console->info('  ✓ Config published to: config/nemesis.php');
+            $console->success('  ✓ Config published to config/nemesis.php');
         }
 
         // ========================================================================
         // 3. COPIER LA MIGRATION
         // ========================================================================
-        $console->info("\n🗄️ Publishing migration...");
+        $console->info('🗄️ Publishing migration...');
 
         $migrationSource = $packageRoot.'/database/migrations/2024_01_01_000001_create_nemesis_tokens_table.php';
         $migrationDestination = $app->databasePath('migrations/2024_01_01_000001_create_nemesis_tokens_table.php');
@@ -115,32 +112,41 @@ final class InstallNemesisDirective extends AbstractDirective
         }
 
         if ($filesystem->exists($migrationDestination) && ! $force) {
-            $console->alertWarning('Migration already exists, use --force to overwrite');
+            $console->logWarning('  Migration already exists, use --force to overwrite');
         } else {
             $this->ensureDirectoryExists($filesystem, dirname($migrationDestination));
             $content = $filesystem->get($migrationSource);
             $filesystem->put($migrationDestination, $content);
-            $console->info('  ✓ Migration published');
+            $console->success('  ✓ Migration published');
         }
 
         // ========================================================================
-        // 4. LANCER LES MIGRATIONS VIA ARTISAN
+        // 4. LANCER LES MIGRATIONS VIA exec()
         // ========================================================================
-        $console->info("\n🗄️ Running migrations...");
+        $console->info('🗄️ Running migrations...');
 
-        $exitCode = $kernel->call('migrate', ['--force' => true]);
+        $phpBinary = PHP_BINARY;
+        $artisanPath = $app->basePath('artisan');
+
+        $command = $phpBinary.' '.$artisanPath.' migrate --force 2>&1';
+
+        $output = [];
+        $exitCode = 0;
+        exec($command, $output, $exitCode);
 
         if ($exitCode !== 0) {
             $console->error('Failed to run migrations.');
+            $console->error('Output: '.implode("\n", $output));
 
             return ExitCode::FAILURE;
         }
-        $console->info('  ✓ Migrations executed');
+
+        $console->success('  ✓ Migrations executed');
 
         // ========================================================================
         // 5. VÉRIFIER QUE LA TABLE A ÉTÉ CRÉÉE
         // ========================================================================
-        $console->info("\n✅ Verifying database table...");
+        $console->info('✅ Verifying database table...');
 
         $schemaBuilder = $this->getSchemaBuilder();
 
@@ -149,34 +155,61 @@ final class InstallNemesisDirective extends AbstractDirective
 
             return ExitCode::FAILURE;
         }
-        $console->info('  ✓ Table "nemesis_tokens" exists');
+        $console->success('  ✓ Table "nemesis_tokens" exists');
 
         // ========================================================================
         // 6. VÉRIFIER LA CONFIGURATION
         // ========================================================================
-        $console->info("\n⚙️ Loading configuration...");
-        $console->info('  ✓ token_length: '.$config->tokenConfig()->token_length);
-        $console->info('  ✓ hash_algorithm: '.$config->tokenConfig()->hash_algorithm);
-        $console->info('  ✓ expiration: '.($config->tokenConfig()->expiration_minutes ?? 'never').' minutes');
-        $console->info('  ✓ validate_origin: '.($config->middlewareConfig()->validate_origin ? 'true' : 'false'));
+        $console->info('⚙️ Configuration loaded:');
+        $console->keyValue([
+            'token_length' => $config->tokenConfig()->token_length,
+            'hash_algorithm' => $config->tokenConfig()->hash_algorithm,
+            'expiration' => $config->tokenConfig()->expiration_minutes ?? 'never',
+            'validate_origin' => $config->middlewareConfig()->validate_origin ? 'true' : 'false',
+        ]);
 
         // ========================================================================
-        // 7. INSTALLATION FINALE
+        // 7. TIMELINE DES ÉTAPES
         // ========================================================================
-        $console->info("\n✨ Nemesis package installed successfully!");
+        $console->separator('-', 60);
+        $console->info('📋 Installation summary:');
+        $console->newLine();
+
+        $timelineEvents = ListCollection::from([
+            ListCollection::from(['Package verified', 'andydefer/laravel-nemesis found']),
+            ListCollection::from(['Configuration published', 'config/nemesis.php']),
+            ListCollection::from(['Migration published', '2024_01_01_000001_create_nemesis_tokens_table.php']),
+            ListCollection::from(['Migrations executed', 'Table nemesis_tokens created']),
+            ListCollection::from(['Configuration validated', 'Token length: '.$config->tokenConfig()->token_length]),
+        ]);
+
+        $timelineStatuses = ['success', 'success', 'success', 'success', 'success'];
+
+        $console->line(Timeline::renderWithStatus($timelineEvents, $timelineStatuses));
+
+        // ========================================================================
+        // 8. INSTALLATION FINALE
+        // ========================================================================
+        $console->separator('=', 60);
+        $console->success('✨ Nemesis package installed successfully!');
         $console->newLine();
 
         $console->info('📝 Next steps:');
 
-        $steps = SetCollection::from([
-            'Implement the MustNemesis interface on your models: class User extends Model implements '.MustNemesis::class,
-            'Define the nemesisFormat() method: public function nemesisFormat(): AbstractData { return new UserData(...); }',
-            'Create tokens for your models: $record = NemesisTokenRecord::from([...]); [$token, $plainToken] = $nemesisService->createWithPlainToken($record, $user);',
-            'Protect your routes with middleware: Route::middleware(["nemesis.token"])->group(...);',
-            'Use the NemesisHelper facade: NemesisHelper::getCurrentAuthenticatable() or NemesisHelper::getCurrentAuthenticatableFormat()',
-        ]);
+        $steps = [
+            'Implement MustNemesis on your models: class User extends Model implements '.MustNemesis::class,
+            'Define nemesisFormat(): public function nemesisFormat(): AbstractData { return new UserData(...); }',
+            'Create tokens: [$token, $plainToken] = $nemesisService->createWithPlainToken($record, $user);',
+            'Protect routes: Route::middleware(["nemesis.token"])->group(...);',
+            'Use NemesisHelper: NemesisHelper::getCurrentAuthenticatable()',
+        ];
 
-        $console->list($steps, ListStyle::NUMBER);
+        foreach ($steps as $index => $step) {
+            $console->line('  '.($index + 1).'. '.$step);
+        }
+
+        $console->newLine();
+        $console->badgeSuccess('READY');
 
         return ExitCode::SUCCESS;
     }
