@@ -1,5 +1,7 @@
 <?php
 
+// config/nemesis.php
+
 declare(strict_types=1);
 
 return [
@@ -76,6 +78,12 @@ return [
         | Used by the NemesisGuestMiddleware.
         */
         'dashboard_route' => '/dashboard',
+
+        /*
+        | Route to redirect unverified users when accessing protected web routes.
+        | Used by the NemesisWebVerifiedMiddleware.
+        */
+        'verification_route' => '/verify-email',
 
         /*
         | Name of the cookie where the token is stored for web authentication.

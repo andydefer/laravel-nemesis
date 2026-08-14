@@ -79,6 +79,7 @@ final class NemesisConfig implements NemesisConfigInterface
         return WebConfigRecord::from([
             'login_route' => config('nemesis.web.login_route', '/login'),
             'dashboard_route' => config('nemesis.web.dashboard_route', '/dashboard'),
+            'verification_route' => config('nemesis.web.verification_route', '/verify-email'),
             'cookie_name' => config('nemesis.web.cookie_name', 'nemesis_token'),
             'cookie_secure' => config('nemesis.web.cookie_secure', true),
             'cookie_httponly' => config('nemesis.web.cookie_httponly', true),

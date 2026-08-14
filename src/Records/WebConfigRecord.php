@@ -21,6 +21,7 @@ final class WebConfigRecord extends AbstractRecord
      *
      * @param  string  $login_route  The route to redirect unauthenticated users to
      * @param  string  $dashboard_route  The route to redirect authenticated users to
+     * @param  string  $verification_route  The route to redirect unverified users to
      * @param  string  $cookie_name  The name of the cookie storing the token
      * @param  bool  $cookie_secure  Whether the cookie should only be sent over HTTPS
      * @param  bool  $cookie_httponly  Whether the cookie should be inaccessible to JavaScript
@@ -29,6 +30,7 @@ final class WebConfigRecord extends AbstractRecord
     public function __construct(
         public readonly string $login_route = '/login',
         public readonly string $dashboard_route = '/dashboard',
+        public readonly string $verification_route = '/verify-email',
         public readonly string $cookie_name = 'nemesis_token',
         public readonly bool $cookie_secure = true,
         public readonly bool $cookie_httponly = true,

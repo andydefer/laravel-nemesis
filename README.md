@@ -95,11 +95,13 @@ Nemesis
 ├── Helpers/              # Helper pour accéder aux données
 │   └── NemesisHelper.php
 ├── Http/
-│   └── Middleware/       # 4 middlewares
+│   └── Middleware/       # 6 middlewares
 │       ├── NemesisTokenMiddleware.php
 │       ├── NemesisWebMiddleware.php
 │       ├── NemesisGuestMiddleware.php
-│       └── NemesisApiGuestMiddleware.php
+│       ├── NemesisApiGuestMiddleware.php
+│       ├── NemesisApiVerifiedMiddleware.php      # ✅ NOUVEAU
+│       └── NemesisWebVerifiedMiddleware.php      # ✅ NOUVEAU
 ├── Models/               # Modèle Eloquent
 │   └── NemesisToken.php
 ├── Repositories/         # Repository
@@ -114,7 +116,7 @@ Nemesis
 
 ### Les middlewares
 
-Le package fournit **4 middlewares** pour différents cas d'usage :
+Le package fournit **6 middlewares** pour différents cas d'usage :
 
 | Middleware | Alias | Rôle |
 |------------|-------|------|
@@ -122,6 +124,8 @@ Le package fournit **4 middlewares** pour différents cas d'usage :
 | `NemesisWebMiddleware` | `nemesis.web` | Protège les routes web (cookie) |
 | `NemesisGuestMiddleware` | `nemesis.guest` | Redirige les utilisateurs authentifiés (web) |
 | `NemesisApiGuestMiddleware` | `nemesis.api.guest` | Bloque les utilisateurs authentifiés (API) |
+| `NemesisApiVerifiedMiddleware` | `nemesis.api.verified` | Protège les routes API + vérification email |
+| `NemesisWebVerifiedMiddleware` | `nemesis.web.verified` | Protège les routes web + vérification email |
 
 ### Les services
 
@@ -378,6 +382,98 @@ Route::post('/api/register', [AuthController::class, 'register'])
     "status": 400,
     "details": null
 }
+```
+
+---
+
+### 5. `nemesis.api.verified` - API Verified Middleware ✅ NOUVEAU
+
+Protège les routes API avec Bearer token ET vérifie que l'email de l'utilisateur est validé.
+
+**Utilisation :**
+
+```php
+// routes/api.php
+Route::middleware('nemesis.api.verified')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::post('/orders', [OrderController::class, 'store']);
+});
+
+// Sans ability
+Route::middleware('nemesis.api.verified')->get('/dashboard', [DashboardController::class, 'index']);
+```
+
+**Comportement :**
+- Extrait le token du header `Authorization: Bearer {token}`
+- Valide le token
+- Vérifie que le modèle a la colonne `email_verified_at` via `Schema::hasColumn()`
+- Vérifie que `email_verified_at` n'est pas `null`
+- Injecte l'utilisateur dans la requête via le paramètre configuré (défaut: `nemesis_auth`)
+- Injecte le token dans la requête via `current_nemesis_token`
+- Injecte les données formatées via `{param_name}_format`
+
+**Réponse en cas d'erreur :**
+
+```json
+{
+    "errorCode": "EMAIL_NOT_VERIFIED",
+    "message": "Email not verified. Please verify your email address.",
+    "status": 403,
+    "details": null
+}
+```
+
+**Réponse si la colonne email_verified_at est manquante :**
+
+```json
+{
+    "errorCode": "MODEL_MISSING_EMAIL_VERIFIED_AT",
+    "message": "Model must have email_verified_at field",
+    "status": 500,
+    "details": null
+}
+```
+
+---
+
+### 6. `nemesis.web.verified` - Web Verified Middleware ✅ NOUVEAU
+
+Protège les routes web avec cookie ET vérifie que l'email de l'utilisateur est validé.
+
+**Utilisation :**
+
+```php
+// routes/web.php
+Route::middleware('nemesis.web.verified')->group(function () {
+    Route::get('/dashboard', function () {
+        return inertia('DashboardScreen');
+    });
+    Route::get('/profile', [ProfileController::class, 'edit']);
+});
+```
+
+**Comportement :**
+- Récupère le token du cookie configuré (`config('nemesis.web.cookie_name')`)
+- Ajoute le token dans le header `Authorization`
+- Valide le token via `NemesisAuthenticationService`
+- Vérifie que le modèle a la colonne `email_verified_at` via `Schema::hasColumn()`
+- Vérifie que `email_verified_at` n'est pas `null`
+- Si le token est invalide ou absent, redirection vers `config('nemesis.web.login_route')`
+- Si l'email n'est pas vérifié, redirection vers `config('nemesis.web.verification_route')`
+
+**Configuration :**
+
+```php
+// config/nemesis.php
+'web' => [
+    'login_route' => '/login',
+    'dashboard_route' => '/dashboard',
+    'verification_route' => '/verify-email',  // ✅ NOUVEAU
+    'cookie_name' => 'nemesis_token',
+    'cookie_secure' => true,
+    'cookie_httponly' => true,
+    'cookie_samesite' => 'lax',
+],
 ```
 
 ---
@@ -1580,6 +1676,7 @@ return [
     'web' => [
         'login_route' => '/login',
         'dashboard_route' => '/dashboard',
+        'verification_route' => '/verify-email', // ✅ NOUVEAU
         'cookie_name' => 'nemesis_token',
         'cookie_secure' => true,
         'cookie_httponly' => true,
@@ -1697,8 +1794,10 @@ $record = NemesisTokenRecord::from([
 |-------------|------------|
 | API avec Bearer token | `nemesis.token` |
 | API avec Bearer token + ability | `nemesis.token:ability` |
+| API avec Bearer token + vérification email | `nemesis.api.verified` |
 | Web avec cookie | `nemesis.web` |
 | Web avec cookie + ability | `nemesis.web:ability` |
+| Web avec cookie + vérification email | `nemesis.web.verified` |
 | Page de login/register (web) | `nemesis.guest` |
 | Page de login/register avec ability | `nemesis.guest:ability` |
 | Endpoint API login/register | `nemesis.api.guest` |
@@ -1728,6 +1827,8 @@ $record = NemesisTokenRecord::from([
 | `nemesis.guest:ability` | Web invité avec ability | `Route::middleware('nemesis.guest:admin')` |
 | `nemesis.api.guest` | API invité | `Route::middleware('nemesis.api.guest')` |
 | `nemesis.api.guest:ability` | API invité avec ability | `Route::middleware('nemesis.api.guest:admin')` |
+| `nemesis.api.verified` | API + vérification email | `Route::middleware('nemesis.api.verified')` |
+| `nemesis.web.verified` | Web + vérification email | `Route::middleware('nemesis.web.verified')` |
 
 ---
 
@@ -1750,10 +1851,13 @@ $record = NemesisTokenRecord::from([
 | `MISSING_TOKEN` | 401 | Token non fourni |
 | `INVALID_TOKEN` | 401 | Token invalide |
 | `TOKEN_EXPIRED` | 401 | Token expiré |
+| `AUTHENTICATABLE_NOT_FOUND` | 401 | Utilisateur non trouvé |
 | `INSUFFICIENT_PERMISSIONS` | 403 | Permissions insuffisantes |
 | `ORIGIN_NOT_ALLOWED` | 403 | Origine non autorisée |
+| `EMAIL_NOT_VERIFIED` | 403 | Email non vérifié |
 | `ALREADY_AUTHENTICATED` | 400 | Déjà authentifié |
 | `INVALID_AUTHENTICATABLE_MODEL` | 500 | Modèle non valide |
+| `MODEL_MISSING_EMAIL_VERIFIED_AT` | 500 | Colonne email_verified_at manquante |
 
 ---
 

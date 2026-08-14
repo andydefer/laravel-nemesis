@@ -16,9 +16,11 @@ use AndyDefer\Nemesis\Contracts\Services\MetadataValidatorInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
 use AndyDefer\Nemesis\Http\Middleware\NemesisApiGuestMiddleware;
+use AndyDefer\Nemesis\Http\Middleware\NemesisApiVerifiedMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisGuestMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisWebMiddleware;
+use AndyDefer\Nemesis\Http\Middleware\NemesisWebVerifiedMiddleware;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
 use AndyDefer\Nemesis\Services\CookieTokenStorageService;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
@@ -45,6 +47,7 @@ use Illuminate\Support\Str;
  * - Core services (token management, authentication, metadata validation)
  * - Middleware for API (Bearer token) and Web (cookie-based) authentication
  * - Guest middleware for redirecting authenticated users from public routes
+ * - Verified middleware for email verification checks
  */
 final class NemesisServiceProvider extends ServiceProvider
 {
@@ -229,7 +232,9 @@ final class NemesisServiceProvider extends ServiceProvider
         $router = $this->app->make(Router::class);
 
         $this->registerApiMiddleware($router);
+        $this->registerApiVerifiedMiddleware($router);
         $this->registerWebMiddleware($router);
+        $this->registerWebVerifiedMiddleware($router);
         $this->registerGuestMiddleware($router);
         $this->registerApiGuestMiddleware($router);
         $this->registerMiddlewareGroups($router);
@@ -263,6 +268,32 @@ final class NemesisServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register the API verified middleware.
+     *
+     * Registers the NemesisApiVerifiedMiddleware for protecting API routes
+     * with Bearer token authentication AND email verification check.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerApiVerifiedMiddleware(Router $router): void
+    {
+        $this->app->singleton(
+            abstract: NemesisApiVerifiedMiddleware::class,
+            concrete: function (Application $app): NemesisApiVerifiedMiddleware {
+                return new NemesisApiVerifiedMiddleware(
+                    authService: $app->make(NemesisAuthenticationInterface::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
+        $router->aliasMiddleware(
+            name: 'nemesis.api.verified',
+            class: NemesisApiVerifiedMiddleware::class
+        );
+    }
+
+    /**
      * Register the web cookie-based middleware.
      *
      * Registers the NemesisWebMiddleware for protecting web routes
@@ -286,6 +317,33 @@ final class NemesisServiceProvider extends ServiceProvider
         $router->aliasMiddleware(
             name: 'nemesis.web',
             class: NemesisWebMiddleware::class
+        );
+    }
+
+    /**
+     * Register the web verified middleware.
+     *
+     * Registers the NemesisWebVerifiedMiddleware for protecting web routes
+     * with cookie-based token authentication AND email verification check.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerWebVerifiedMiddleware(Router $router): void
+    {
+        $this->app->singleton(
+            abstract: NemesisWebVerifiedMiddleware::class,
+            concrete: function (Application $app): NemesisWebVerifiedMiddleware {
+                return new NemesisWebVerifiedMiddleware(
+                    cookieTokenStorage: $app->make(CookieTokenStorageInterface::class),
+                    authService: $app->make(NemesisAuthenticationInterface::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
+        $router->aliasMiddleware(
+            name: 'nemesis.web.verified',
+            class: NemesisWebVerifiedMiddleware::class
         );
     }
 
@@ -361,6 +419,16 @@ final class NemesisServiceProvider extends ServiceProvider
         $router->middlewareGroup(
             name: 'nemesis.web',
             middleware: [NemesisWebMiddleware::class]
+        );
+
+        $router->middlewareGroup(
+            name: 'nemesis.api.verified',
+            middleware: [NemesisApiVerifiedMiddleware::class]
+        );
+
+        $router->middlewareGroup(
+            name: 'nemesis.web.verified',
+            middleware: [NemesisWebVerifiedMiddleware::class]
         );
     }
 

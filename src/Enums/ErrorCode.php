@@ -1,5 +1,7 @@
 <?php
 
+// src/Enums/ErrorCode.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Enums;
@@ -34,6 +36,11 @@ enum ErrorCode: string
      */
     case TOKEN_EXPIRED = 'TOKEN_EXPIRED';
 
+    /**
+     * The authenticatable user was not found.
+     */
+    case AUTHENTICATABLE_NOT_FOUND = 'AUTHENTICATABLE_NOT_FOUND';
+
     // ============================================================================
     // Authorization Errors (HTTP 403)
     // ============================================================================
@@ -47,6 +54,11 @@ enum ErrorCode: string
      * The request origin is not allowed for this token.
      */
     case ORIGIN_NOT_ALLOWED = 'ORIGIN_NOT_ALLOWED';
+
+    /**
+     * The user's email is not verified.
+     */
+    case EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED';
 
     // ============================================================================
     // Client Errors (HTTP 400)
@@ -65,6 +77,11 @@ enum ErrorCode: string
      * The authenticatable model does not implement the required interface.
      */
     case INVALID_AUTHENTICATABLE_MODEL = 'INVALID_AUTHENTICATABLE_MODEL';
+
+    /**
+     * The authenticatable model is missing the email_verified_at field.
+     */
+    case MODEL_MISSING_EMAIL_VERIFIED_AT = 'MODEL_MISSING_EMAIL_VERIFIED_AT';
 
     // ============================================================================
     // Metadata Validation Errors (HTTP 400)
@@ -115,11 +132,13 @@ enum ErrorCode: string
             // Authentication errors (HTTP 401)
             self::MISSING_TOKEN,
             self::INVALID_TOKEN,
-            self::TOKEN_EXPIRED => HttpStatusCode::UNAUTHORIZED,
+            self::TOKEN_EXPIRED,
+            self::AUTHENTICATABLE_NOT_FOUND => HttpStatusCode::UNAUTHORIZED,
 
             // Authorization errors (HTTP 403)
             self::INSUFFICIENT_PERMISSIONS,
-            self::ORIGIN_NOT_ALLOWED => HttpStatusCode::FORBIDDEN,
+            self::ORIGIN_NOT_ALLOWED,
+            self::EMAIL_NOT_VERIFIED => HttpStatusCode::FORBIDDEN,
 
             // Client errors (HTTP 400)
             self::ALREADY_AUTHENTICATED,
@@ -131,7 +150,8 @@ enum ErrorCode: string
             self::METADATA_KEY_TOO_LONG => HttpStatusCode::BAD_REQUEST,
 
             // Server configuration error (HTTP 500)
-            self::INVALID_AUTHENTICATABLE_MODEL => HttpStatusCode::INTERNAL_SERVER_ERROR,
+            self::INVALID_AUTHENTICATABLE_MODEL,
+            self::MODEL_MISSING_EMAIL_VERIFIED_AT => HttpStatusCode::INTERNAL_SERVER_ERROR,
         };
     }
 
@@ -147,16 +167,19 @@ enum ErrorCode: string
             self::MISSING_TOKEN => 'Token not provided',
             self::INVALID_TOKEN => 'Invalid token',
             self::TOKEN_EXPIRED => 'Token has expired',
+            self::AUTHENTICATABLE_NOT_FOUND => 'User not found',
 
             // Authorization errors
             self::INSUFFICIENT_PERMISSIONS => 'Insufficient permissions',
             self::ORIGIN_NOT_ALLOWED => 'This origin is not allowed',
+            self::EMAIL_NOT_VERIFIED => 'Email not verified. Please verify your email address.',
 
             // Client errors
             self::ALREADY_AUTHENTICATED => 'Already authenticated',
 
             // Server configuration error
             self::INVALID_AUTHENTICATABLE_MODEL => 'Authenticatable model is invalid or misconfigured',
+            self::MODEL_MISSING_EMAIL_VERIFIED_AT => 'Model must have email_verified_at field',
 
             // Metadata validation errors
             self::METADATA_SIZE_EXCEEDED => 'Metadata size exceeds maximum allowed (64KB)',
@@ -234,8 +257,8 @@ enum ErrorCode: string
         return match ($this->getHttpStatusCode()) {
             HttpStatusCode::UNAUTHORIZED,
             HttpStatusCode::FORBIDDEN,
-            HttpStatusCode::BAD_REQUEST => true,  // Client can retry or fix the request
-            HttpStatusCode::INTERNAL_SERVER_ERROR => false, // Server error, not recoverable by client
+            HttpStatusCode::BAD_REQUEST => true,
+            HttpStatusCode::INTERNAL_SERVER_ERROR => false,
             default => false,
         };
     }
