@@ -49,6 +49,15 @@ enum ErrorCode: string
     case ORIGIN_NOT_ALLOWED = 'ORIGIN_NOT_ALLOWED';
 
     // ============================================================================
+    // Client Errors (HTTP 400)
+    // ============================================================================
+
+    /**
+     * User is already authenticated and cannot access guest routes.
+     */
+    case ALREADY_AUTHENTICATED = 'ALREADY_AUTHENTICATED';
+
+    // ============================================================================
     // Server Configuration Errors (HTTP 500)
     // ============================================================================
 
@@ -112,16 +121,17 @@ enum ErrorCode: string
             self::INSUFFICIENT_PERMISSIONS,
             self::ORIGIN_NOT_ALLOWED => HttpStatusCode::FORBIDDEN,
 
-            // Server configuration error (HTTP 500)
-            self::INVALID_AUTHENTICATABLE_MODEL => HttpStatusCode::INTERNAL_SERVER_ERROR,
-
-            // Metadata validation errors (HTTP 400)
+            // Client errors (HTTP 400)
+            self::ALREADY_AUTHENTICATED,
             self::METADATA_SIZE_EXCEEDED,
             self::METADATA_NESTING_TOO_DEEP,
             self::METADATA_TOO_MANY_KEYS,
             self::METADATA_INVALID_KEY,
             self::METADATA_INVALID_VALUE,
             self::METADATA_KEY_TOO_LONG => HttpStatusCode::BAD_REQUEST,
+
+            // Server configuration error (HTTP 500)
+            self::INVALID_AUTHENTICATABLE_MODEL => HttpStatusCode::INTERNAL_SERVER_ERROR,
         };
     }
 
@@ -141,6 +151,9 @@ enum ErrorCode: string
             // Authorization errors
             self::INSUFFICIENT_PERMISSIONS => 'Insufficient permissions',
             self::ORIGIN_NOT_ALLOWED => 'This origin is not allowed',
+
+            // Client errors
+            self::ALREADY_AUTHENTICATED => 'Already authenticated',
 
             // Server configuration error
             self::INVALID_AUTHENTICATABLE_MODEL => 'Authenticatable model is invalid or misconfigured',

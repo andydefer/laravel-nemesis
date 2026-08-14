@@ -11,9 +11,20 @@ use AndyDefer\Nemesis\Records\CleanupConfigRecord;
 use AndyDefer\Nemesis\Records\CorsConfigRecord;
 use AndyDefer\Nemesis\Records\MiddlewareConfigRecord;
 use AndyDefer\Nemesis\Records\TokenConfigRecord;
+use AndyDefer\Nemesis\Records\WebConfigRecord;
 
+/**
+ * Nemesis configuration manager.
+ *
+ * This class provides access to all configuration values used by the Nemesis
+ * authentication system. It pulls values from the Laravel config system
+ * and returns them as typed Record objects.
+ */
 final class NemesisConfig implements NemesisConfigInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function tokenConfig(): TokenConfigRecord
     {
         return TokenConfigRecord::from([
@@ -23,6 +34,9 @@ final class NemesisConfig implements NemesisConfigInterface
         ]);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function middlewareConfig(): MiddlewareConfigRecord
     {
         return MiddlewareConfigRecord::from([
@@ -33,6 +47,9 @@ final class NemesisConfig implements NemesisConfigInterface
         ]);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function corsConfig(): CorsConfigRecord
     {
         return CorsConfigRecord::from([
@@ -42,6 +59,9 @@ final class NemesisConfig implements NemesisConfigInterface
         ]);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function cleanupConfig(): CleanupConfigRecord
     {
         return CleanupConfigRecord::from([
@@ -51,20 +71,40 @@ final class NemesisConfig implements NemesisConfigInterface
         ]);
     }
 
-    // ============================================================================
-    // Helper Methods
-    // ============================================================================
+    /**
+     * {@inheritDoc}
+     */
+    public function webConfig(): WebConfigRecord
+    {
+        return WebConfigRecord::from([
+            'login_route' => config('nemesis.web.login_route', '/login'),
+            'dashboard_route' => config('nemesis.web.dashboard_route', '/dashboard'),
+            'cookie_name' => config('nemesis.web.cookie_name', 'nemesis_token'),
+            'cookie_secure' => config('nemesis.web.cookie_secure', true),
+            'cookie_httponly' => config('nemesis.web.cookie_httponly', true),
+            'cookie_samesite' => config('nemesis.web.cookie_samesite', 'lax'),
+        ]);
+    }
 
+    /**
+     * {@inheritDoc}
+     */
     public function isUsingCustomHeader(): bool
     {
         return $this->middlewareConfig()->token_header !== 'Authorization';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function shouldExpire(): bool
     {
         return $this->tokenConfig()->expiration_minutes !== null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function shouldCleanup(): bool
     {
         $config = $this->cleanupConfig();
@@ -72,15 +112,22 @@ final class NemesisConfig implements NemesisConfigInterface
         return $config->auto_cleanup && $config->frequency > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function isCorsEnabled(): bool
     {
         return $this->middlewareConfig()->validate_origin;
     }
 
-    // ============================================================================
-    // Private Helpers
-    // ============================================================================
-
+    /**
+     * Get a valid hash algorithm from configuration.
+     *
+     * Validates that the configured hash algorithm is supported by PHP's hash_algos().
+     * If the configured algorithm is not supported, falls back to 'sha256'.
+     *
+     * @return string A valid hash algorithm name
+     */
     private function getValidHashAlgorithm(): string
     {
         $algorithm = config('nemesis.hash_algorithm', 'sha256');

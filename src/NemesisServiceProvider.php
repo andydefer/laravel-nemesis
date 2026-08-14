@@ -1,5 +1,7 @@
 <?php
 
+// src/NemesisServiceProvider.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis;
@@ -8,12 +10,17 @@ use AndyDefer\Directive\DirectiveKernel;
 use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
+use AndyDefer\Nemesis\Contracts\Services\CookieTokenStorageInterface;
 use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
 use AndyDefer\Nemesis\Contracts\Services\MetadataValidatorInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
+use AndyDefer\Nemesis\Http\Middleware\NemesisApiGuestMiddleware;
+use AndyDefer\Nemesis\Http\Middleware\NemesisGuestMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
+use AndyDefer\Nemesis\Http\Middleware\NemesisWebMiddleware;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Services\CookieTokenStorageService;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Services\MetadataValidatorService;
 use AndyDefer\Nemesis\Services\NemesisAuthenticationService;
@@ -27,34 +34,29 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
 /**
- * Service provider for the Nemesis package.
+ * Service provider for the Nemesis authentication package.
  *
- * Registers all services, directives, middleware, and configuration
- * for the token management and authentication system.
+ * Registers all services, repositories, middleware, directives, and configuration
+ * needed for multi-model token-based authentication with both API and web support.
+ *
+ * This provider handles the complete registration of:
+ * - Configuration and settings management
+ * - Repository bindings for token storage
+ * - Core services (token management, authentication, metadata validation)
+ * - Middleware for API (Bearer token) and Web (cookie-based) authentication
+ * - Guest middleware for redirecting authenticated users from public routes
  */
 final class NemesisServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
+     *
+     * This method is called when the service provider is registered.
+     * It sets up all container bindings for the package.
      */
     public function register(): void
     {
-        // ✅ Lier ConfigRepository AVANT tout
-        $this->app->singleton(ConfigRepository::class, function ($app) {
-            $config = [];
-            $configFile = $app->basePath().'/config/nemesis.php';
-
-            if (file_exists($configFile)) {
-                $config = require $configFile;
-                if (! is_array($config)) {
-                    $config = [];
-                }
-            }
-
-            // ✅ Ajouter la config sous la clé 'nemesis'
-            return new Repository(['nemesis' => $config]);
-        });
-
+        $this->bindConfigRepository();
         $this->registerConfig();
         $this->registerRepositories();
         $this->registerServices();
@@ -63,28 +65,67 @@ final class NemesisServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
+     *
+     * This method is called after all service providers have been registered.
+     * It handles publishing of configuration and migration files.
      */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->publishes([
-                __DIR__.'/../config/nemesis.php' => config_path('nemesis.php'),
-            ], 'nemesis-config');
+            $this->publishes(
+                [
+                    __DIR__.'/../config/nemesis.php' => config_path('nemesis.php'),
+                ],
+                'nemesis-config'
+            );
 
-            $this->publishes([
-                __DIR__.'/../database/migrations/' => database_path('migrations'),
-            ], 'nemesis-migrations');
+            $this->publishes(
+                [
+                    __DIR__.'/../database/migrations/' => database_path('migrations'),
+                ],
+                'nemesis-migrations'
+            );
         }
     }
 
     /**
+     * Bind the configuration repository to the container.
+     *
+     * Loads the configuration from the nemesis.php config file and binds
+     * it as a singleton to the container for dependency injection.
+     */
+    private function bindConfigRepository(): void
+    {
+        $this->app->singleton(
+            abstract: ConfigRepository::class,
+            concrete: function (Application $app): Repository {
+                $config = [];
+                $configFile = $app->basePath().'/config/nemesis.php';
+
+                if (file_exists($configFile)) {
+                    $loadedConfig = require $configFile;
+
+                    if (is_array($loadedConfig)) {
+                        $config = $loadedConfig;
+                    }
+                }
+
+                return new Repository(['nemesis' => $config]);
+            }
+        );
+    }
+
+    /**
      * Register the configuration service.
+     *
+     * Binds the NemesisConfigInterface to its concrete implementation
+     * as a singleton in the container.
      */
     private function registerConfig(): void
     {
         $this->app->singleton(
             abstract: NemesisConfigInterface::class,
-            concrete: function ($app) {
+            concrete: function (Application $app): NemesisConfig {
                 return new NemesisConfig(
                     $app->make(ConfigRepository::class)
                 );
@@ -93,39 +134,47 @@ final class NemesisServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register all repositories.
+     * Register repository bindings.
+     *
+     * Binds the repository interfaces to their concrete implementations
+     * for database operations on tokens.
      */
     private function registerRepositories(): void
     {
         $this->app->bind(
             abstract: NemesisTokenRepositoryInterface::class,
-            concrete: NemesisTokenRepository::class,
+            concrete: NemesisTokenRepository::class
         );
     }
 
     /**
-     * Register all services.
+     * Register service bindings.
+     *
+     * Registers all core services as singletons in the container:
+     * - Metadata validator service
+     * - HTTP header service
+     * - Core token management service (NemesisInterface)
+     * - Cookie token storage service
+     * - Directive kernel for CLI commands
+     * - Authentication service
      */
     private function registerServices(): void
     {
-        // ✅ MetadataValidatorInterface - bind interface to concrete
         $this->app->singleton(
             abstract: MetadataValidatorInterface::class,
-            concrete: MetadataValidatorService::class,
+            concrete: MetadataValidatorService::class
         );
 
-        // ✅ HttpHeaderInterface - bind interface to concrete
         $this->app->singleton(
             abstract: HttpHeaderInterface::class,
             concrete: function (Application $app): HttpHeaderService {
                 return new HttpHeaderService(
                     config: $app->make(NemesisConfigInterface::class),
-                    app: $app,
+                    app: $app
                 );
             }
         );
 
-        // ✅ NemesisInterface - Service principal de gestion des tokens
         $this->app->singleton(
             abstract: NemesisInterface::class,
             concrete: function (Application $app): NemesisService {
@@ -133,21 +182,28 @@ final class NemesisServiceProvider extends ServiceProvider
                     repository: $app->make(NemesisTokenRepositoryInterface::class),
                     config: $app->make(NemesisConfigInterface::class),
                     str: $app->make(Str::class),
-                    metadataValidator: $app->make(MetadataValidatorInterface::class),
+                    metadataValidator: $app->make(MetadataValidatorInterface::class)
                 );
             }
-
         );
 
-        // ✅ DirectiveKernel
+        $this->app->singleton(
+            abstract: CookieTokenStorageInterface::class,
+            concrete: function (Application $app): CookieTokenStorageService {
+                return new CookieTokenStorageService(
+                    nemesisService: $app->make(NemesisInterface::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
         $this->app->singleton(
             abstract: DirectiveKernel::class,
-            concrete: function () {
+            concrete: function (): DirectiveKernel {
                 return DirectiveKernel::init($this->app);
             }
         );
 
-        // ✅ NemesisAuthenticationInterface - Service d'authentification
         $this->app->singleton(
             abstract: NemesisAuthenticationInterface::class,
             concrete: function (Application $app): NemesisAuthenticationService {
@@ -155,45 +211,164 @@ final class NemesisServiceProvider extends ServiceProvider
                     config: $app->make(NemesisConfigInterface::class),
                     nemesisService: $app->make(NemesisInterface::class),
                     db: $app->make(DatabaseManager::class),
-                    metadataValidator: $app->make(MetadataValidatorInterface::class),
+                    metadataValidator: $app->make(MetadataValidatorInterface::class)
                 );
             }
         );
     }
 
     /**
-     * Register the token middleware.
+     * Register middleware bindings and aliases.
+     *
+     * Registers all middleware classes and their aliases for use in routes,
+     * and sets up middleware groups for convenient route protection.
      */
     private function registerMiddleware(): void
     {
-        // NemesisTokenMiddleware
+        /** @var Router $router */
+        $router = $this->app->make(Router::class);
+
+        $this->registerApiMiddleware($router);
+        $this->registerWebMiddleware($router);
+        $this->registerGuestMiddleware($router);
+        $this->registerApiGuestMiddleware($router);
+        $this->registerMiddlewareGroups($router);
+    }
+
+    /**
+     * Register the API token middleware.
+     *
+     * Registers the NemesisTokenMiddleware for protecting API routes
+     * with Bearer token authentication.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerApiMiddleware(Router $router): void
+    {
         $this->app->singleton(
             abstract: NemesisTokenMiddleware::class,
             concrete: function (Application $app): NemesisTokenMiddleware {
                 return new NemesisTokenMiddleware(
                     config: $app->make(NemesisConfigInterface::class),
                     authService: $app->make(NemesisAuthenticationInterface::class),
-                    headerService: $app->make(HttpHeaderInterface::class),
+                    headerService: $app->make(HttpHeaderInterface::class)
                 );
             }
         );
-
-        /** @var Router $router */
-        $router = $this->app->make(Router::class);
 
         $router->aliasMiddleware(
             name: 'nemesis.token',
             class: NemesisTokenMiddleware::class
         );
+    }
 
-        $router->middlewareGroup(
-            name: 'nemesis',
-            middleware: [
-                NemesisTokenMiddleware::class,
-            ]
+    /**
+     * Register the web cookie-based middleware.
+     *
+     * Registers the NemesisWebMiddleware for protecting web routes
+     * with cookie-based token authentication.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerWebMiddleware(Router $router): void
+    {
+        $this->app->singleton(
+            abstract: NemesisWebMiddleware::class,
+            concrete: function (Application $app): NemesisWebMiddleware {
+                return new NemesisWebMiddleware(
+                    cookieTokenStorage: $app->make(CookieTokenStorageInterface::class),
+                    config: $app->make(NemesisConfigInterface::class),
+                    authService: $app->make(NemesisAuthenticationInterface::class)
+                );
+            }
+        );
+
+        $router->aliasMiddleware(
+            name: 'nemesis.web',
+            class: NemesisWebMiddleware::class
         );
     }
 
+    /**
+     * Register the web guest middleware.
+     *
+     * Registers the NemesisGuestMiddleware for protecting guest-only routes
+     * by redirecting authenticated users away from login/registration pages.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerGuestMiddleware(Router $router): void
+    {
+        $this->app->singleton(
+            abstract: NemesisGuestMiddleware::class,
+            concrete: function (Application $app): NemesisGuestMiddleware {
+                return new NemesisGuestMiddleware(
+                    cookieTokenStorage: $app->make(CookieTokenStorageInterface::class),
+                    authService: $app->make(NemesisAuthenticationInterface::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
+        $router->aliasMiddleware(
+            name: 'nemesis.guest',
+            class: NemesisGuestMiddleware::class
+        );
+    }
+
+    /**
+     * Register the API guest middleware.
+     *
+     * Registers the NemesisApiGuestMiddleware for protecting API guest-only routes
+     * by returning a 400 error when authenticated users try to access them.
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerApiGuestMiddleware(Router $router): void
+    {
+        $this->app->singleton(
+            abstract: NemesisApiGuestMiddleware::class,
+            concrete: function (Application $app): NemesisApiGuestMiddleware {
+                return new NemesisApiGuestMiddleware(
+                    authService: $app->make(NemesisAuthenticationInterface::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
+        $router->aliasMiddleware(
+            name: 'nemesis.api.guest',
+            class: NemesisApiGuestMiddleware::class
+        );
+    }
+
+    /**
+     * Register middleware groups.
+     *
+     * Defines convenient middleware groups for common use cases:
+     * - 'nemesis' for API authentication with Bearer token
+     * - 'nemesis.web' for web authentication with cookie
+     *
+     * @param  Router  $router  The Laravel router instance
+     */
+    private function registerMiddlewareGroups(Router $router): void
+    {
+        $router->middlewareGroup(
+            name: 'nemesis',
+            middleware: [NemesisTokenMiddleware::class]
+        );
+
+        $router->middlewareGroup(
+            name: 'nemesis.web',
+            middleware: [NemesisWebMiddleware::class]
+        );
+    }
+
+    /**
+     * Get the application instance.
+     *
+     * @return Application The Laravel application instance
+     */
     public function getApp(): Application
     {
         return $this->app;

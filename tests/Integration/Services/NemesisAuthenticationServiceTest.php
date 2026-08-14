@@ -42,8 +42,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
         $this->hydration = new HydrationService;
         $this->nemesisService = $this->app->make(NemesisService::class);
-
-        // ✅ Correction : 6 arguments pour NemesisAuthenticationService
         $this->authService = $this->app->make(NemesisAuthenticationService::class);
 
         $this->user = TestUser::create([
@@ -87,13 +85,10 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_returns_success_with_valid_token(): void
     {
-        // Arrange
         $this->withBearerToken($this->plainToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertTrue($result->isSuccess());
         $this->assertNotNull($result->getTokenRecord());
         $this->assertNull($result->getErrorCode());
@@ -101,13 +96,10 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_returns_token_record(): void
     {
-        // Arrange
         $this->withBearerToken($this->plainToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $tokenRecord = $result->getTokenRecord();
         $this->assertInstanceOf(NemesisTokenRecord::class, $tokenRecord);
         $this->assertSame($this->tokenModel->id, $tokenRecord->id);
@@ -116,29 +108,23 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_updates_last_used(): void
     {
-        // Arrange
         $this->assertNull($this->tokenModel->last_used_at);
         $this->withBearerToken($this->plainToken);
 
-        // Act
         $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->tokenModel->refresh();
         $this->assertNotNull($this->tokenModel->last_used_at);
     }
 
     public function test_authenticate_adds_tracking_metadata(): void
     {
-        // Arrange
         $this->withBearerToken($this->plainToken);
         $this->app['request']->server->set('REMOTE_ADDR', '192.168.1.1');
         $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0');
 
-        // Act
         $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->tokenModel->refresh();
         $this->assertArrayHasKey('last_auth_ip', $this->tokenModel->metadata);
         $this->assertArrayHasKey('last_auth_ua', $this->tokenModel->metadata);
@@ -148,14 +134,11 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_increments_auth_count(): void
     {
-        // Arrange
         $this->nemesisService->mergeMetadata($this->tokenModel, ['auth_count' => 5]);
         $this->withBearerToken($this->plainToken);
 
-        // Act
         $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->tokenModel->refresh();
         $this->assertEquals(6, $this->tokenModel->metadata['auth_count']);
     }
@@ -166,30 +149,24 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_returns_missing_token_error(): void
     {
-        // Act (no token set)
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::MISSING_TOKEN, $result->getErrorCode());
     }
 
     public function test_authenticate_returns_invalid_token_error(): void
     {
-        // Arrange
         $this->withBearerToken('invalid-token');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
     }
 
     public function test_authenticate_returns_expired_token_error(): void
     {
-        // Arrange
         $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
             'name' => 'Expired Token',
@@ -198,10 +175,25 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         [$expiredToken, $plainExpiredToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
         $this->withBearerToken($plainExpiredToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::TOKEN_EXPIRED, $result->getErrorCode());
+    }
+
+    public function test_authenticate_returns_token_expired_error_with_ability(): void
+    {
+        $expiredDate = new DateTimeVO(Carbon::getTestNow()->subDay()->format('Y-m-d\TH:i:sP'));
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Expired Token',
+            'abilities' => ['read'],
+            'expires_at' => $expiredDate,
+        ]);
+        [$expiredToken, $plainExpiredToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainExpiredToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::TOKEN_EXPIRED, $result->getErrorCode());
     }
@@ -212,7 +204,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_accepts_token_with_required_ability(): void
     {
-        // Arrange
         $abilities = new StringTypedCollection;
         $abilities->add('read');
         $abilities->add('write');
@@ -224,16 +215,32 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
         $this->withBearerToken($plainToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request'], 'read');
 
-        // Assert
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_accepts_token_with_multiple_abilities(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+        $abilities->add('write');
+        $abilities->add('admin');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Multi Ability Token',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'admin');
+
         $this->assertTrue($result->isSuccess());
     }
 
     public function test_authenticate_returns_insufficient_permissions_error(): void
     {
-        // Arrange
         $abilities = new StringTypedCollection;
         $abilities->add('read');
 
@@ -244,15 +251,73 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
         $this->withBearerToken($plainToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request'], 'admin');
 
-        // Assert
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::INSUFFICIENT_PERMISSIONS, $result->getErrorCode());
 
         $additionalData = $result->getAdditionalData();
         $this->assertEquals('admin', $additionalData->toArray()['required_ability']);
+    }
+
+    public function test_authenticate_returns_insufficient_permissions_when_token_has_no_abilities(): void
+    {
+        // Token sans abilities (abilities = null)
+        $this->withBearerToken($this->plainToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'admin');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INSUFFICIENT_PERMISSIONS, $result->getErrorCode());
+
+        $additionalData = $result->getAdditionalData();
+        $this->assertEquals('admin', $additionalData->toArray()['required_ability']);
+        $this->assertNull($additionalData->toArray()['token_abilities']);
+    }
+
+    public function test_authenticate_accepts_token_with_abilities_when_no_ability_required(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+        $abilities->add('write');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Ability Token No Check',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticate($this->app['request']);
+
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_accepts_token_with_no_abilities_when_no_ability_required(): void
+    {
+        $this->withBearerToken($this->plainToken);
+
+        $result = $this->authService->authenticate($this->app['request']);
+
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_returns_insufficient_permissions_when_token_has_partial_abilities(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Partial Token',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'write');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INSUFFICIENT_PERMISSIONS, $result->getErrorCode());
     }
 
     // ============================================================================
@@ -261,7 +326,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_accepts_request_from_allowed_origin(): void
     {
-        // Arrange
         $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
@@ -273,16 +337,13 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $this->withBearerToken($plainToken);
         $this->withOrigin('https://allowed.com');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertTrue($result->isSuccess());
     }
 
     public function test_authenticate_returns_origin_not_allowed_error(): void
     {
-        // Arrange
         $origins = new StringTypedCollection;
         $origins->add('https://allowed.com');
 
@@ -294,10 +355,8 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $this->withBearerToken($plainToken);
         $this->withOrigin('https://evil.com');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::ORIGIN_NOT_ALLOWED, $result->getErrorCode());
 
@@ -307,7 +366,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_ignores_origin_when_validation_disabled(): void
     {
-        // Arrange
         config()->set('nemesis.middleware.validate_origin', false);
 
         $origins = new StringTypedCollection;
@@ -321,11 +379,54 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $this->withBearerToken($plainToken);
         $this->withOrigin('https://evil.com');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
         $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_accepts_request_from_allowed_origin_with_ability(): void
+    {
+        $origins = new StringTypedCollection;
+        $origins->add('https://allowed.com');
+
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Origin Ability Token',
+            'allowed_origins' => $origins,
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+        $this->withOrigin('https://allowed.com');
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_returns_origin_not_allowed_with_ability(): void
+    {
+        $origins = new StringTypedCollection;
+        $origins->add('https://allowed.com');
+
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Restricted Ability Token',
+            'allowed_origins' => $origins,
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+        $this->withOrigin('https://evil.com');
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::ORIGIN_NOT_ALLOWED, $result->getErrorCode());
     }
 
     // ============================================================================
@@ -334,13 +435,27 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_accepts_token_in_custom_header(): void
     {
-        // Arrange
         $this->withCustomHeader($this->plainToken, 'X-Custom-Auth');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_accepts_token_in_custom_header_with_ability(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Custom Header Token',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withCustomHeader($plainToken, 'X-Custom-Auth');
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
         $this->assertTrue($result->isSuccess());
     }
 
@@ -350,19 +465,82 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_handles_token_with_deleted_tokenable(): void
     {
-        // Arrange
         $tempUser = TestUser::create(['name' => 'Temp', 'email' => 'temp@example.com']);
         $record = $this->hydration->hydrate(NemesisTokenRecord::class, ['name' => 'Temp Token']);
         [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $tempUser);
 
-        // Supprimer l'utilisateur
         $tempUser->delete();
         $this->withBearerToken($plainToken);
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
+    }
+
+    public function test_authenticate_handles_token_with_deleted_tokenable_with_ability(): void
+    {
+        $tempUser = TestUser::create(['name' => 'Temp', 'email' => 'temp@example.com']);
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Temp Token',
+            'abilities' => ['read'],
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $tempUser);
+
+        $tempUser->delete();
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
+    }
+
+    public function test_authenticate_handles_token_with_nonexistent_tokenable_type(): void
+    {
+        $token = NemesisToken::create([
+            'token_hash' => hash('sha256', 'bad-token'),
+            'tokenable_type' => 'NonExistent\\Model\\Class',
+            'tokenable_id' => 999,
+            'name' => 'Bad Token',
+            'source' => 'web',
+        ]);
+
+        $this->withBearerToken('bad-token');
+
+        $result = $this->authService->authenticate($this->app['request']);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
+    }
+
+    public function test_authenticate_handles_token_with_revoked_token(): void
+    {
+        $this->nemesisService->revoke($this->tokenModel);
+        $this->withBearerToken($this->plainToken);
+
+        $result = $this->authService->authenticate($this->app['request']);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
+    }
+
+    public function test_authenticate_handles_revoked_token_with_ability(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Revoked Ability Token',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+
+        $this->nemesisService->revoke($token);
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
         $this->assertFalse($result->isSuccess());
         $this->assertEquals(ErrorCode::INVALID_TOKEN, $result->getErrorCode());
     }
@@ -373,15 +551,39 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_to_record_returns_record(): void
     {
-        // Arrange
         $this->withBearerToken($this->plainToken);
 
-        // Act
         $record = $this->authService->authenticateToRecord($this->app['request']);
 
-        // Assert
         $this->assertInstanceOf(AuthenticationResultRecord::class, $record);
         $this->assertTrue($record->success);
+    }
+
+    public function test_authenticate_to_record_returns_error_record(): void
+    {
+        $record = $this->authService->authenticateToRecord($this->app['request']);
+
+        $this->assertInstanceOf(AuthenticationResultRecord::class, $record);
+        $this->assertFalse($record->success);
+        $this->assertEquals(ErrorCode::MISSING_TOKEN, $record->error_code);
+    }
+
+    public function test_authenticate_to_record_with_ability_returns_record(): void
+    {
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Ability Record Token',
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+
+        $result = $this->authService->authenticateToRecord($this->app['request'], 'read');
+
+        $this->assertInstanceOf(AuthenticationResultRecord::class, $result);
+        $this->assertTrue($result->success);
     }
 
     // ============================================================================
@@ -390,29 +592,20 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_get_formatted_authenticatable_returns_record(): void
     {
-        // Arrange
-        // Récupérer le token model via le service
         $tokenModel = $this->nemesisService->findByHash($this->tokenModel->token_hash);
-
-        // Récupérer l'authenticatable depuis le modèle
         $authenticatable = $tokenModel->tokenable;
 
-        // Act
         $formatted = $this->authService->getFormattedAuthenticatable($authenticatable);
 
-        // Assert
         $this->assertInstanceOf(AbstractData::class, $formatted);
     }
 
     public function test_get_formatted_authenticatable_returns_null_for_invalid_model(): void
     {
-        // Arrange
         $invalidModel = new \stdClass;
 
-        // Act
         $formatted = $this->authService->getFormattedAuthenticatable($invalidModel);
 
-        // Assert
         $this->assertNull($formatted);
     }
 
@@ -422,7 +615,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_accepts_wildcard_origin_match(): void
     {
-        // Arrange
         $origins = new StringTypedCollection;
         $origins->add('https://*.example.com');
 
@@ -434,10 +626,71 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $this->withBearerToken($plainToken);
         $this->withOrigin('https://sub.example.com');
 
-        // Act
         $result = $this->authService->authenticate($this->app['request']);
 
-        // Assert
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_accepts_wildcard_origin_with_ability(): void
+    {
+        $origins = new StringTypedCollection;
+        $origins->add('https://*.example.com');
+
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Wildcard Ability Token',
+            'allowed_origins' => $origins,
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+        $this->withOrigin('https://sub.example.com');
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_authenticate_rejects_wildcard_origin_with_ability(): void
+    {
+        $origins = new StringTypedCollection;
+        $origins->add('https://*.example.com');
+
+        $abilities = new StringTypedCollection;
+        $abilities->add('read');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Wildcard Restricted Token',
+            'allowed_origins' => $origins,
+            'abilities' => $abilities,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+        $this->withOrigin('https://sub.example.org');
+
+        $result = $this->authService->authenticate($this->app['request'], 'read');
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertEquals(ErrorCode::ORIGIN_NOT_ALLOWED, $result->getErrorCode());
+    }
+
+    public function test_authenticate_accepts_subdomain_wildcard_origin(): void
+    {
+        $origins = new StringTypedCollection;
+        $origins->add('https://*.example.com');
+
+        $record = $this->hydration->hydrate(NemesisTokenRecord::class, [
+            'name' => 'Subdomain Token',
+            'allowed_origins' => $origins,
+        ]);
+        [$token, $plainToken] = $this->nemesisService->createWithPlainToken($record, $this->user);
+        $this->withBearerToken($plainToken);
+        $this->withOrigin('https://api.example.com');
+
+        $result = $this->authService->authenticate($this->app['request']);
+
         $this->assertTrue($result->isSuccess());
     }
 }

@@ -47,18 +47,19 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
     /**
      * {@inheritDoc}
      */
-    public function authenticate(Request $request, ?string $requiredAbility = null): AuthenticationResultVO
+    public function authenticate(Request $request, ?string $requiredAbility = null, ?string $token = null): AuthenticationResultVO
     {
-        $token = $this->extractToken($request);
+        // Si un token est fourni, l'utiliser, sinon l'extraire de la requête
+        $rawToken = $token ?? $this->extractToken($request);
 
-        if ($token === null) {
+        if ($rawToken === null) {
             return $this->createErrorResult(
                 errorCode: ErrorCode::MISSING_TOKEN,
                 additionalData: null,
             );
         }
 
-        $tokenModel = $this->findToken($token);
+        $tokenModel = $this->findToken($rawToken);
 
         if ($tokenModel === null) {
             return $this->createErrorResult(
@@ -79,13 +80,20 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
             return $originResult;
         }
 
-        if ($requiredAbility !== null && ! $this->nemesisService->can($tokenModel, $requiredAbility)) {
-            return $this->createErrorResult(
-                errorCode: ErrorCode::INSUFFICIENT_PERMISSIONS,
-                additionalData: new StrictDataObject([
-                    'required_ability' => $requiredAbility,
-                ]),
-            );
+        // ✅ Vérifier l'ability si spécifiée
+        if ($requiredAbility !== null) {
+            $abilities = $tokenModel->abilities;
+
+            // Si le token n'a pas d'abilities OU si l'ability n'est pas dans la liste
+            if ($abilities === null || ! in_array($requiredAbility, $abilities, true)) {
+                return $this->createErrorResult(
+                    errorCode: ErrorCode::INSUFFICIENT_PERMISSIONS,
+                    additionalData: new StrictDataObject([
+                        'required_ability' => $requiredAbility,
+                        'token_abilities' => $abilities,
+                    ]),
+                );
+            }
         }
 
         $authenticatable = $this->getAuthenticatableFromToken($tokenModel);
@@ -115,6 +123,7 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
             'success' => true,
             'error_code' => null,
             'token_record' => $tokenRecord,
+            'authenticatable' => $authenticatable,
             'additional_data' => null,
         ]);
     }
