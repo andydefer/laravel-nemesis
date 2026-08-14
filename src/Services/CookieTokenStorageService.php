@@ -60,8 +60,17 @@ final class CookieTokenStorageService implements CookieTokenStorageInterface
     public function get(Request $request): ?string
     {
         $webConfig = $this->config->webConfig();
+        $cookieName = $webConfig->cookie_name;
 
-        return $request->cookie($webConfig->cookie_name);
+        // 1. Essayer de récupérer via la requête Laravel (déchiffré automatiquement)
+        $token = $request->cookie($cookieName);
+
+        // 2. Si non trouvé, essayer via $_COOKIE (cookie brut)
+        if ($token === null && isset($_COOKIE[$cookieName])) {
+            $token = $_COOKIE[$cookieName];
+        }
+
+        return $token;
     }
 
     /**
@@ -70,8 +79,15 @@ final class CookieTokenStorageService implements CookieTokenStorageInterface
     public function has(Request $request): bool
     {
         $webConfig = $this->config->webConfig();
+        $cookieName = $webConfig->cookie_name;
 
-        return $request->hasCookie($webConfig->cookie_name);
+        // 1. Vérifier via la requête Laravel
+        if ($request->hasCookie($cookieName)) {
+            return true;
+        }
+
+        // 2. Si non trouvé, vérifier via $_COOKIE
+        return isset($_COOKIE[$cookieName]);
     }
 
     /**
