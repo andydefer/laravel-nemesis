@@ -9,12 +9,15 @@ namespace AndyDefer\Nemesis;
 use AndyDefer\Directive\DirectiveKernel;
 use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
+use AndyDefer\Nemesis\Contracts\Helpers\NemesisHelperInterface;
 use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
 use AndyDefer\Nemesis\Contracts\Services\CookieTokenStorageInterface;
 use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
 use AndyDefer\Nemesis\Contracts\Services\MetadataValidatorInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
+use AndyDefer\Nemesis\Helpers\AutonomousNemesisHelper;
+use AndyDefer\Nemesis\Helpers\NemesisHelper;
 use AndyDefer\Nemesis\Http\Middleware\NemesisApiGuestMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisApiVerifiedMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisGuestMiddleware;
@@ -31,6 +34,7 @@ use Illuminate\Config\Repository;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -64,6 +68,7 @@ final class NemesisServiceProvider extends ServiceProvider
         $this->registerRepositories();
         $this->registerServices();
         $this->registerMiddleware();
+        $this->registerHelpers();
     }
 
     /**
@@ -238,6 +243,40 @@ final class NemesisServiceProvider extends ServiceProvider
         $this->registerGuestMiddleware($router);
         $this->registerApiGuestMiddleware($router);
         $this->registerMiddlewareGroups($router);
+    }
+
+    /**
+     * Register helper bindings.
+     *
+     * Registers both NemesisHelper and AutonomousNemesisHelper as singletons.
+     * AutonomousNemesisHelper can work with or without middleware.
+     */
+    private function registerHelpers(): void
+    {
+        // ✅ Enregistrer le helper standard (dépend du middleware)
+        $this->app->singleton(
+            abstract: NemesisHelper::class,
+            concrete: function (Application $app): NemesisHelper {
+                return new NemesisHelper(
+                    request: $app->make(Request::class),
+                    config: $app->make(NemesisConfigInterface::class)
+                );
+            }
+        );
+
+        // ✅ Enregistrer le helper autonome (peut lire les cookies directement)
+        $this->app->singleton(
+            abstract: AutonomousNemesisHelper::class,
+            concrete: function (Application $app): AutonomousNemesisHelper {
+                return new AutonomousNemesisHelper(
+                    cookieStorage: $app->make(CookieTokenStorageInterface::class),
+                    nemesisService: $app->make(NemesisInterface::class)
+                );
+            }
+        );
+
+        // ✅ Alias : par défaut, on utilise le helper autonome
+        $this->app->alias(AutonomousNemesisHelper::class, NemesisHelperInterface::class);
     }
 
     /**

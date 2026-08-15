@@ -918,24 +918,20 @@ final class NemesisHelperTest extends IntegrationTestCase
         $this->simulateAuthenticatedRequest(tokenRecord: $tokenRecord, user: $this->user);
         $helper = $this->getHelper();
 
-        // Act - First call caches values
+        // Remplir le cache
         $helper->getCurrentToken();
         $helper->getCurrentAuthenticatable();
 
-        // Act - Clear cache
+        // Vérifier que le cache est rempli
+        $this->assertNotNull($helper->cachedToken);
+        $this->assertNotNull($helper->cachedAuthenticatable);
+
+        // Clear
         $helper->clear();
 
-        // ✅ Recréer le helper avec une requête vide
-        $app = $this->app;
-        $app->instance(Request::class, Request::create('/'));
-        $helper = $app->make(NemesisHelper::class);
-
-        // Assert - Values should be null after clear
-        $this->assertNull($helper->getTokenId());
-        $this->assertNull($helper->getTokenName());
-        $this->assertNull($helper->getTokenableId());
-        $this->assertFalse($helper->hasCurrentToken());
-        $this->assertFalse($helper->hasCurrentAuthenticatable());
+        // ✅ Vérifier uniquement le cache interne
+        $this->assertNull($helper->cachedToken);
+        $this->assertNull($helper->cachedAuthenticatable);
     }
 
     // ============================================================================

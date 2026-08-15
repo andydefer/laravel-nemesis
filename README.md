@@ -1136,9 +1136,13 @@ Total tokens: 5
 
 ---
 
-## Le Helper
+# Les Helpers
 
-`NemesisHelper` permet d'accéder facilement aux informations du token et de l'utilisateur authentifié.
+Nemesis fournit deux helpers pour accéder facilement aux informations du token et de l'utilisateur authentifié.
+
+## 1. `NemesisHelper` - Helper standard
+
+Ce helper dépend des middlewares pour fonctionner. Il lit les données **uniquement** si elles ont été injectées dans la requête par un middleware (`nemesis.token`, `nemesis.web`, etc.).
 
 **Injection :**
 
@@ -1159,13 +1163,86 @@ class ProfileController
 }
 ```
 
-**Ou via le conteneur :**
+**⚠️ Important :** Ce helper ne fonctionne que si un middleware a été exécuté avant.
 
 ```php
-$helper = app(NemesisHelper::class);
+// ✅ Fonctionne
+Route::middleware('nemesis.token')->get('/profile', function () {
+    $helper = app(NemesisHelper::class);
+    $user = $helper->getCurrentAuthenticatable(); // ✅ Utilisateur trouvé
+});
+
+// ❌ Ne fonctionne pas
+Route::get('/profile', function () {
+    $helper = app(NemesisHelper::class);
+    $user = $helper->getCurrentAuthenticatable(); // ❌ null
+});
 ```
 
-**Récupération des données :**
+---
+
+## 2. `AutonomousNemesisHelper` - Helper autonome (Recommandé)
+
+Ce helper est **autonome**. Il peut fonctionner **avec ou sans middleware** en lisant directement le token depuis le cookie.
+
+**Injection :**
+
+```php
+use AndyDefer\Nemesis\Helpers\AutonomousNemesisHelper;
+
+class ProfileController
+{
+    public function __construct(
+        private readonly AutonomousNemesisHelper $helper,
+    ) {}
+
+    public function show()
+    {
+        $user = $this->helper->getCurrentAuthenticatable();
+        // ...
+    }
+}
+```
+
+**Fonctionnement :**
+
+1. Il vérifie d'abord si les données sont injectées par un middleware
+2. Si ce n'est pas le cas, il lit directement le token depuis le cookie
+3. Il valide le token et récupère l'utilisateur associé
+
+**Exemples :**
+
+```php
+// ✅ Avec middleware
+Route::middleware('nemesis.token')->get('/profile', function () {
+    $helper = app(AutonomousNemesisHelper::class);
+    $user = $helper->getCurrentAuthenticatable(); // ✅ Utilisateur trouvé
+});
+
+// ✅ Sans middleware (lecture directe du cookie)
+Route::get('/profile', function () {
+    $helper = app(AutonomousNemesisHelper::class);
+    $user = $helper->getCurrentAuthenticatable(); // ✅ Utilisateur trouvé via cookie
+});
+```
+
+---
+
+## Comparaison
+
+| Fonctionnalité | NemesisHelper | AutonomousNemesisHelper |
+|----------------|---------------|------------------------|
+| Dépend d'un middleware | ✅ Oui | ❌ Non (autonome) |
+| Lit depuis le cookie | ❌ Non | ✅ Oui |
+| Lecture depuis la requête | ✅ Oui | ✅ Oui |
+| Cache intégré | ✅ Oui | ✅ Oui |
+| Utilisation recommandée | ⚠️ Avec middleware | ✅ Toujours |
+
+---
+
+## Méthodes disponibles (les deux helpers)
+
+### Récupération des données
 
 ```php
 // Récupérer l'utilisateur
@@ -1194,7 +1271,7 @@ $lastUsed = $helper->getTokenLastUsedAt();
 $expiresAt = $helper->getTokenExpirationDate();
 ```
 
-**Vérifications :**
+### Vérifications
 
 ```php
 // Vérifier si authentifié
@@ -1243,12 +1320,65 @@ if ($helper->isOriginAllowed($origin)) {
 }
 ```
 
-**Nettoyage :**
+### Nettoyage
 
 ```php
 // Vider le cache du helper
 $helper->clear();
 ```
+
+---
+
+## Exemple complet
+
+```php
+use AndyDefer\Nemesis\Helpers\AutonomousNemesisHelper;
+
+class DashboardController extends Controller
+{
+    public function __construct(
+        private readonly AutonomousNemesisHelper $helper,
+    ) {}
+
+    public function index()
+    {
+        // Vérifier l'authentification
+        if (!$this->helper->isAuthenticated()) {
+            return redirect('/login');
+        }
+
+        // Récupérer l'utilisateur
+        $user = $this->helper->getCurrentAuthenticatable();
+        $formatted = $this->helper->getCurrentAuthenticatableFormat();
+
+        // Vérifier les permissions
+        $isAdmin = $this->helper->tokenHasAbility('admin');
+
+        // Vérifier l'expiration proche
+        $expiresAt = $this->helper->getTokenExpirationDate();
+        $expiringSoon = $expiresAt && $expiresAt->diffInMinutes(now()) < 10;
+
+        return view('dashboard', [
+            'user' => $formatted,
+            'isAdmin' => $isAdmin,
+            'expiringSoon' => $expiringSoon,
+        ]);
+    }
+}
+```
+
+---
+
+## Quelle helper utiliser ?
+
+| Cas d'usage | Helper recommandé |
+|-------------|-------------------|
+| Vous utilisez les middlewares Nemesis | Les deux fonctionnent |
+| Vous ne voulez pas dépendre des middlewares | `AutonomousNemesisHelper` |
+| Vous voulez la solution la plus robuste | `AutonomousNemesisHelper` |
+| Vous voulez la solution la plus simple | `AutonomousNemesisHelper` |
+
+> 💡 **Recommandation :** Utilisez **toujours** `AutonomousNemesisHelper`. Il est plus flexible et fonctionne dans tous les cas.
 
 ---
 

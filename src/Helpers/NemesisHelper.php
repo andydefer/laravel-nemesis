@@ -16,17 +16,17 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
-final class NemesisHelper implements NemesisHelperInterface
+class NemesisHelper implements NemesisHelperInterface
 {
     public ?NemesisTokenRecord $cachedToken = null;
 
     public ?Model $cachedAuthenticatable = null;
 
-    private ?AbstractData $cachedFormatted = null;
+    protected ?AbstractData $cachedFormatted = null;
 
     public function __construct(
-        private readonly Request $request,
-        private readonly NemesisConfigInterface $config,
+        protected readonly Request $request,
+        protected readonly NemesisConfigInterface $config,
     ) {}
 
     public function getCurrentToken(): ?NemesisTokenRecord
