@@ -222,7 +222,6 @@ class Shop extends Model implements MustNemesis
 ---
 
 ## Les middlewares
-
 ### 1. `nemesis.token` - API Token Middleware
 
 Protège les routes API avec Bearer token.
@@ -239,16 +238,22 @@ Route::middleware('nemesis.token')->group(function () {
 // Avec vérification d'ability
 Route::post('/admin', [AdminController::class, 'action'])
     ->middleware('nemesis.token:admin');
+
+// Mode optionnel - authentification facultative
+Route::get('/feed', [FeedController::class, 'index'])
+    ->middleware('nemesis.token:optional');
 ```
 
 **Comportement :**
 - Extrait le token du header `Authorization: Bearer {token}`
 - Valide le token
+- **Mode normal (`nemesis.token`)** : Échoue si token absent/invalide
+- **Mode optional (`nemesis.token:optional`)** : Continue sans authentification si token absent/invalide
 - Injecte l'utilisateur dans la requête via le paramètre configuré (défaut: `nemesis_auth`)
 - Injecte le token dans la requête via `current_nemesis_token`
 - Injecte les données formatées via `{param_name}_format`
 
-**Réponse en cas d'erreur :**
+**Réponse en cas d'erreur (mode normal) :**
 
 ```json
 {
@@ -282,8 +287,28 @@ class ProfileController
         ]);
     }
 }
-```
 
+// Exemple avec mode optional
+class FeedController
+{
+    public function __construct(
+        private readonly NemesisHelper $helper,
+    ) {}
+
+    public function index()
+    {
+        $user = $this->helper->getCurrentAuthenticatable();
+        
+        if ($user) {
+            // Feed personnalisé pour l'utilisateur connecté
+            return $this->personalizedFeed($user);
+        }
+        
+        // Feed public pour les invités
+        return $this->publicFeed();
+    }
+}
+```
 ---
 
 ### 2. `nemesis.web` - Web Middleware

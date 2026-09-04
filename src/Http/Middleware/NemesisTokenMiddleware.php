@@ -14,40 +14,25 @@ use AndyDefer\Nemesis\Enums\ErrorCode;
 use Closure;
 use Illuminate\Http\Request;
 
-/**
- * Middleware for authenticating requests using Nemesis tokens.
- *
- * Extracts the token from the request, validates it, and attaches
- * the authenticated model to the request for further processing.
- */
 final class NemesisTokenMiddleware
 {
-    /**
-     * Create a new NemesisTokenMiddleware instance.
-     *
-     * @param  NemesisConfigInterface  $config  Configuration for token and middleware settings
-     * @param  NemesisAuthenticationInterface  $authService  Service for token authentication
-     * @param  HttpHeaderInterface  $headerService  Service for HTTP header management
-     */
     public function __construct(
         private readonly NemesisConfigInterface $config,
         private readonly NemesisAuthenticationInterface $authService,
         private readonly HttpHeaderInterface $headerService,
     ) {}
 
-    /**
-     * Handle an incoming request.
-     *
-     * @param  Request  $request  The HTTP request
-     * @param  Closure  $next  The next middleware
-     * @param  string|null  $ability  Optional ability required for the token
-     * @return mixed The response
-     */
     public function handle(Request $request, Closure $next, ?string $ability = null): mixed
     {
-        $result = $this->authService->authenticate($request, $ability);
+        $isOptional = $ability === 'optional';
+
+        $result = $this->authService->authenticate($request, $isOptional ? null : $ability);
 
         if (! $result->isSuccess()) {
+            if ($isOptional) {
+                return $this->proceedWithoutAuth($request, $next);
+            }
+
             $errorCode = $result->getErrorCode();
             $statusInt = $errorCode->getHttpStatusCode()->value;
 
@@ -70,6 +55,10 @@ final class NemesisTokenMiddleware
         $tokenableId = $tokenRecord->tokenable_id;
 
         if ($tokenableType === null || $tokenableId === null || ! class_exists($tokenableType)) {
+            if ($isOptional) {
+                return $this->proceedWithoutAuth($request, $next);
+            }
+
             $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
 
             $errorResponse = ErrorResponseData::from([
@@ -87,6 +76,10 @@ final class NemesisTokenMiddleware
         $authenticatable = $tokenableType::find($tokenableId);
 
         if ($authenticatable === null) {
+            if ($isOptional) {
+                return $this->proceedWithoutAuth($request, $next);
+            }
+
             $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
 
             $errorResponse = ErrorResponseData::from([
@@ -119,6 +112,24 @@ final class NemesisTokenMiddleware
                 $formatKey => $formattedAuthenticatable,
             ]);
         }
+
+        $response = $next($request);
+
+        $response = $this->headerService->applySecurityHeaders($response);
+        $response = $this->headerService->applyCorsHeaders($response, $request);
+
+        return $response;
+    }
+
+    private function proceedWithoutAuth(Request $request, Closure $next): mixed
+    {
+        $parameterName = $this->config->middlewareConfig()->parameter_name;
+
+        $request->merge([
+            $parameterName => null,
+            'current_nemesis_token' => null,
+            $parameterName.'_format' => null,
+        ]);
 
         $response = $next($request);
 

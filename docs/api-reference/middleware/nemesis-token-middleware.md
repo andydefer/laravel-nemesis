@@ -29,6 +29,10 @@ Route::middleware('nemesis.token')->group(function () {
 // Avec vérification d'ability
 Route::post('/admin', [AdminController::class, 'action'])
     ->middleware('nemesis.token:admin');
+
+// Mode optionnel - n'échoue pas si le token est absent/invalide
+Route::get('/profile', [ProfileController::class, 'show'])
+    ->middleware('nemesis.token:optional');
 ```
 
 ## API
@@ -39,7 +43,7 @@ Route::post('/admin', [AdminController::class, 'action'])
 |-----------|------|-------------|
 | `$request` | `Request` | La requête HTTP entrante |
 | `$next` | `Closure` | Le prochain middleware dans le pipeline |
-| `$ability` | `string|null` | Ability optionnelle requise pour le token |
+| `$ability` | `string|null` | Ability optionnelle requise pour le token. Valeur spéciale `optional` pour désactiver l'échec |
 
 **Retourne :** `mixed` - La réponse HTTP
 
@@ -47,9 +51,15 @@ Route::post('/admin', [AdminController::class, 'action'])
 ```php
 public function handle(Request $request, Closure $next, ?string $ability = null): mixed
 {
-    $result = $this->authService->authenticate($request, $ability);
+    $isOptional = $ability === 'optional';
+    
+    $result = $this->authService->authenticate($request, $isOptional ? null : $ability);
     
     if (! $result->isSuccess()) {
+        if ($isOptional) {
+            // Continuer sans authentification
+            return $this->proceedWithoutAuth($request, $next);
+        }
         // Retourner une erreur
     }
     
@@ -79,7 +89,16 @@ Route::post('/api/admin/users', [AdminController::class, 'store'])
     ->middleware('nemesis.token:admin');
 ```
 
-### Cas 3 : Grouper des routes protégées
+### Cas 3 : Mode optionnel (authentification facultative)
+
+```php
+Route::get('/api/search', [SearchController::class, 'index'])
+    ->middleware('nemesis.token:optional');
+```
+
+Dans ce mode, si un token est fourni et valide, l'utilisateur est authentifié. Sinon, la requête continue avec `null` comme utilisateur.
+
+### Cas 4 : Grouper des routes protégées
 
 ```php
 Route::middleware('nemesis.token')->group(function () {
@@ -89,7 +108,7 @@ Route::middleware('nemesis.token')->group(function () {
 });
 ```
 
-### Cas 4 : Protection avec abilities multiples
+### Cas 5 : Protection avec abilities multiples
 
 ```php
 // Nécessite l'ability 'manage_users' ou 'admin'
@@ -97,23 +116,49 @@ Route::get('/api/users', [UserController::class, 'index'])
     ->middleware('nemesis.token:manage_users');
 ```
 
+### Cas 6 : Routes avec authentification optionnelle
+
+```php
+// L'utilisateur peut être authentifié ou non
+Route::get('/api/feed', [FeedController::class, 'index'])
+    ->middleware('nemesis.token:optional');
+
+// Dans le contrôleur
+public function index(Request $request)
+{
+    $user = $request->input('nemesis_auth');
+    
+    if ($user) {
+        // Contenu personnalisé pour l'utilisateur connecté
+        return $this->personalizedFeed($user);
+    }
+    
+    // Contenu public
+    return $this->publicFeed();
+}
+```
+
 ## Flux d'exécution
 
 ```
 Requête entrante
     ↓
+Vérifier si mode optional
+    ↓
 Extraire le Bearer Token du header Authorization
     ↓
 Valider le token via NemesisAuthenticationService
-    ├── Échec → Retourner une erreur (401/403/400)
+    ├── Échec → Si mode optional → continuer sans auth
+    │               Sinon → Retourner une erreur (401/403/400)
     └── Succès → Poursuivre
         ↓
-Vérifier l'ability (si spécifiée)
+Vérifier l'ability (si spécifiée et non optional)
     ├── Non présente → Retourner 403
     └── Présente → Poursuivre
         ↓
 Récupérer le modèle authentifiable
-    ├── Non trouvé → Retourner 401
+    ├── Non trouvé → Si mode optional → continuer sans auth
+    │               Sinon → Retourner 401
     └── Trouvé → Poursuivre
         ↓
 Attacher le modèle et le token à la requête
@@ -129,6 +174,8 @@ Passer au middleware suivant
 
 ## Gestion des erreurs
 
+### Mode normal (sans optional)
+
 | Situation | Code HTTP | Message | ErrorCode |
 |-----------|-----------|---------|-----------|
 | Token manquant | 401 | `Token not provided` | `MISSING_TOKEN` |
@@ -136,6 +183,16 @@ Passer au middleware suivant
 | Token expiré | 401 | `Token has expired` | `TOKEN_EXPIRED` |
 | Ability manquante | 403 | `Insufficient permissions` | `INSUFFICIENT_PERMISSIONS` |
 | Origine non autorisée | 403 | `This origin is not allowed` | `ORIGIN_NOT_ALLOWED` |
+
+### Mode optional
+
+| Situation | Comportement |
+|-----------|--------------|
+| Token manquant | Continue sans authentification |
+| Token invalide | Continue sans authentification |
+| Token expiré | Continue sans authentification |
+| Token révoqué | Continue sans authentification |
+| Token valide | Authentifie l'utilisateur |
 
 **Format de la réponse d'erreur :**
 ```json
@@ -177,6 +234,7 @@ Ce middleware s'intègre avec :
 - Mise en cache automatique des résultats
 - Application des headers avec impact minimal
 - Complexité : O(1)
+- Mode optionnel : Pas de surcharge supplémentaire
 
 ## Compatibilité
 
@@ -230,7 +288,6 @@ class ProfileController extends Controller
 
     public function show()
     {
-        // Récupérer l'utilisateur authentifié via le helper
         $user = $this->helper->getCurrentAuthenticatable();
         $formatted = $this->helper->getCurrentAuthenticatableFormat();
 
@@ -247,8 +304,19 @@ class ProfileController extends Controller
     public function adminAction()
     {
         // Cette méthode est protégée par 'nemesis.token:admin'
-        // L'utilisateur a déjà l'ability 'admin'
         return response()->json(['message' => 'Admin action performed']);
+    }
+
+    public function optionalAction()
+    {
+        // Cette méthode est protégée par 'nemesis.token:optional'
+        $user = $this->helper->getCurrentAuthenticatable();
+        
+        if ($user) {
+            return response()->json(['message' => 'Welcome back, ' . $user->name]);
+        }
+        
+        return response()->json(['message' => 'Welcome, guest']);
     }
 }
 ```
@@ -261,6 +329,7 @@ class ProfileController extends Controller
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\PublicController;
+use App\Http\Controllers\Api\FeedController;
 
 // Routes publiques
 Route::post('/login', [PublicController::class, 'login']);
@@ -283,6 +352,10 @@ Route::middleware('nemesis.token:admin')->group(function () {
 // Route avec ability 'manage_posts'
 Route::post('/posts', [PostController::class, 'store'])
     ->middleware('nemesis.token:manage_posts');
+
+// Route avec authentification optionnelle
+Route::get('/feed', [FeedController::class, 'index'])
+    ->middleware('nemesis.token:optional');
 ```
 
 ### Accès aux données dans les contrôleurs
@@ -293,13 +366,43 @@ $user = NemesisHelper::getCurrentAuthenticatable();
 $formatted = NemesisHelper::getCurrentAuthenticatableFormat();
 
 // Via la requête
-$user = $request->nemesis_auth;
-$token = $request->current_nemesis_token;
+$user = $request->input('nemesis_auth');
+$token = $request->input('current_nemesis_token');
 
 // Via l'injection de dépendance
 public function show(NemesisHelper $helper)
 {
     $user = $helper->getCurrentAuthenticatable();
+}
+```
+
+### Mode optional - Exemple complet
+
+```php
+// Dans le contrôleur FeedController
+class FeedController extends Controller
+{
+    public function __construct(
+        private readonly NemesisHelper $helper,
+    ) {}
+
+    public function index()
+    {
+        $user = $this->helper->getCurrentAuthenticatable();
+        
+        if ($user) {
+            // Récupérer le feed personnalisé
+            $feed = $this->getPersonalizedFeed($user);
+        } else {
+            // Récupérer le feed public
+            $feed = $this->getPublicFeed();
+        }
+        
+        return response()->json([
+            'feed' => $feed,
+            'authenticated' => $user !== null,
+        ]);
+    }
 }
 ```
 
