@@ -600,7 +600,7 @@ final class NemesisHelperTest extends IntegrationTestCase
         $this->assertTrue($result);
     }
 
-    public function test_is_token_expired_returns_true_when_no_expiration_date(): void
+    public function test_is_token_expired_returns_false_when_no_expiration_date(): void
     {
         // Arrange
         $tokenRecord = $this->createTokenRecord(['expires_at' => null]);
@@ -611,7 +611,7 @@ final class NemesisHelperTest extends IntegrationTestCase
         $result = $helper->isTokenExpired();
 
         // Assert
-        $this->assertTrue($result);
+        $this->assertFalse($result);
     }
 
     public function test_is_token_expired_returns_true_when_no_token(): void

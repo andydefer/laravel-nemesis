@@ -129,8 +129,12 @@ class NemesisHelper implements NemesisHelperInterface
     {
         $token = $this->getCurrentToken();
 
-        if (! $token || ! $token->expires_at) {
+        if (! $token) {
             return true;
+        }
+
+        if ($token->expires_at === null) {
+            return false;
         }
 
         $now = new DateTimeVO;
