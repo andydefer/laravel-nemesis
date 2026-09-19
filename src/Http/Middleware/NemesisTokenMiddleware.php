@@ -9,7 +9,6 @@ use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
-use AndyDefer\Nemesis\Data\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use Closure;
 use Illuminate\Http\Request;
@@ -36,14 +35,10 @@ final class NemesisTokenMiddleware
             $errorCode = $result->getErrorCode();
             $statusInt = $errorCode->getHttpStatusCode()->value;
 
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => $errorCode,
-                'message' => $errorCode->message(),
-                'status' => $statusInt,
-                'details' => $result->getAdditionalData(),
-            ]);
-
-            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+            $response = ResponseFactory::json(
+                $errorCode->toResponseData(details: $result->getAdditionalData()),
+                $statusInt,
+            )->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
         }
@@ -61,14 +56,10 @@ final class NemesisTokenMiddleware
 
             $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
 
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::INVALID_TOKEN,
-                'message' => ErrorCode::INVALID_TOKEN->message(),
-                'status' => $statusInt,
-                'details' => null,
-            ]);
-
-            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+            $response = ResponseFactory::json(
+                ErrorCode::INVALID_TOKEN->toResponseData(),
+                $statusInt,
+            )->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
         }
@@ -82,14 +73,10 @@ final class NemesisTokenMiddleware
 
             $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
 
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::INVALID_TOKEN,
-                'message' => ErrorCode::INVALID_TOKEN->message(),
-                'status' => $statusInt,
-                'details' => null,
-            ]);
-
-            $response = ResponseFactory::json($errorResponse, $statusInt)->toResponse();
+            $response = ResponseFactory::json(
+                ErrorCode::INVALID_TOKEN->toResponseData(),
+                $statusInt,
+            )->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
         }

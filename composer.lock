@@ -4,24 +4,24 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "37b6d2087e1a82446ce8d73df56aaeb2",
+    "content-hash": "1810cd009f88f1ed9242198c3b937b97",
     "packages": [
         {
             "name": "andydefer/algo-kit",
-            "version": "v0.8.20",
+            "version": "v0.9.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/algo-kit.git",
-                "reference": "3d9fb42032d0306028780bc23c08d4c6fb8d50b5"
+                "reference": "45fb12ab8f03805d309d2944b61ce73b9ca36036"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/algo-kit/zipball/3d9fb42032d0306028780bc23c08d4c6fb8d50b5",
-                "reference": "3d9fb42032d0306028780bc23c08d4c6fb8d50b5",
+                "url": "https://api.github.com/repos/andydefer/algo-kit/zipball/45fb12ab8f03805d309d2944b61ce73b9ca36036",
+                "reference": "45fb12ab8f03805d309d2944b61ce73b9ca36036",
                 "shasum": ""
             },
             "require": {
-                "andydefer/storage-kit": "^0.7.21",
+                "andydefer/storage-kit": "^0.7.25",
                 "php": ">=8.1"
             },
             "require-dev": {
@@ -49,9 +49,9 @@
             "description": "Algo KIT - Probabilistic data structures and algorithms for large-scale data processing in PHP",
             "support": {
                 "issues": "https://github.com/andydefer/algo-kit/issues",
-                "source": "https://github.com/andydefer/algo-kit/tree/v0.8.20"
+                "source": "https://github.com/andydefer/algo-kit/tree/v0.9.4"
             },
-            "time": "2026-08-28T05:25:14+00:00"
+            "time": "2026-09-18T09:01:59+00:00"
         },
         {
             "name": "andydefer/data-validator",
@@ -113,16 +113,16 @@
         },
         {
             "name": "andydefer/domain-structures",
-            "version": "v1.27.4",
+            "version": "v1.28.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/domain-structures.git",
-                "reference": "dce4f4c88980b6af0b93b80369ab914189e8243d"
+                "reference": "a05b54149ccf12f760bf85ba031f1f1c60888625"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/domain-structures/zipball/dce4f4c88980b6af0b93b80369ab914189e8243d",
-                "reference": "dce4f4c88980b6af0b93b80369ab914189e8243d",
+                "url": "https://api.github.com/repos/andydefer/domain-structures/zipball/a05b54149ccf12f760bf85ba031f1f1c60888625",
+                "reference": "a05b54149ccf12f760bf85ba031f1f1c60888625",
                 "shasum": ""
             },
             "require": {
@@ -161,26 +161,26 @@
             "description": "A complete domain structures package for PHP: Records, Value Objects, Data DTOs, and TypedCollections. Brings type safety and clean architecture to your application.",
             "support": {
                 "issues": "https://github.com/andydefer/domain-structures/issues",
-                "source": "https://github.com/andydefer/domain-structures/tree/v1.27.4"
+                "source": "https://github.com/andydefer/domain-structures/tree/v1.28.0"
             },
-            "time": "2026-08-27T09:32:33+00:00"
+            "time": "2026-09-05T10:34:59+00:00"
         },
         {
             "name": "andydefer/laravel-actions",
-            "version": "v2.11.1",
+            "version": "v2.11.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-actions.git",
-                "reference": "95a9763b4f0ecb7154b9ae389dbe93f1157be2eb"
+                "reference": "6a850d2df3b59b80f81018248f026a65f9f7660d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-actions/zipball/95a9763b4f0ecb7154b9ae389dbe93f1157be2eb",
-                "reference": "95a9763b4f0ecb7154b9ae389dbe93f1157be2eb",
+                "url": "https://api.github.com/repos/andydefer/laravel-actions/zipball/6a850d2df3b59b80f81018248f026a65f9f7660d",
+                "reference": "6a850d2df3b59b80f81018248f026a65f9f7660d",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-services": "^1.6.8",
+                "andydefer/php-services": "^1.6.12",
                 "inertiajs/inertia-laravel": "^2.0|^3.0",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": ">=8.1",
@@ -221,26 +221,26 @@
             "description": "Action-oriented architecture for Laravel applications",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-actions/issues",
-                "source": "https://github.com/andydefer/laravel-actions/tree/v2.11.1"
+                "source": "https://github.com/andydefer/laravel-actions/tree/v2.11.5"
             },
-            "time": "2026-08-31T03:31:30+00:00"
+            "time": "2026-09-18T08:53:15+00:00"
         },
         {
             "name": "andydefer/laravel-cluster",
-            "version": "v0.23.1",
+            "version": "v0.23.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-cluster.git",
-                "reference": "dd8cd8be0b53685e1a5a84d5007247b9764fa6dd"
+                "reference": "239a1424c62ba57f7777108ca637cdebc0fb843f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-cluster/zipball/dd8cd8be0b53685e1a5a84d5007247b9764fa6dd",
-                "reference": "dd8cd8be0b53685e1a5a84d5007247b9764fa6dd",
+                "url": "https://api.github.com/repos/andydefer/laravel-cluster/zipball/239a1424c62ba57f7777108ca637cdebc0fb843f",
+                "reference": "239a1424c62ba57f7777108ca637cdebc0fb843f",
                 "shasum": ""
             },
             "require": {
-                "andydefer/laravel-actions": "^2.11.1",
+                "andydefer/laravel-actions": "^2.11.5",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.1"
             },
@@ -274,29 +274,29 @@
             "description": "A powerful cluster query parser and filter for Laravel with JSON column support",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-cluster/issues",
-                "source": "https://github.com/andydefer/laravel-cluster/tree/v0.23.1"
+                "source": "https://github.com/andydefer/laravel-cluster/tree/v0.23.5"
             },
-            "time": "2026-08-31T03:41:47+00:00"
+            "time": "2026-09-18T08:56:30+00:00"
         },
         {
             "name": "andydefer/laravel-directive",
-            "version": "v3.66.2",
+            "version": "v3.66.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-directive.git",
-                "reference": "05c760adb97196937326e63db501e585b30370eb"
+                "reference": "5b0b1e4ded777939f1e775bbea0b48ba1665cead"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/05c760adb97196937326e63db501e585b30370eb",
-                "reference": "05c760adb97196937326e63db501e585b30370eb",
+                "url": "https://api.github.com/repos/andydefer/laravel-directive/zipball/5b0b1e4ded777939f1e775bbea0b48ba1665cead",
+                "reference": "5b0b1e4ded777939f1e775bbea0b48ba1665cead",
                 "shasum": ""
             },
             "require": {
-                "andydefer/algo-kit": "^0.8.20",
-                "andydefer/laravel-jsonl": "^0.8.21",
-                "andydefer/php-console": "^1.7.4",
-                "andydefer/php-signature-parser": "^0.12.4",
+                "andydefer/algo-kit": "^0.9.4",
+                "andydefer/laravel-jsonl": "^0.8.25",
+                "andydefer/php-console": "^1.7.9",
+                "andydefer/php-signature-parser": "^0.12.5",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "nikic/php-parser": "^5.8",
                 "php": ">=8.1"
@@ -344,26 +344,26 @@
             "description": "A flexible CLI command system for Laravel that breaks free from Artisan's constraints. Directives introduces a clean separation between what your command does (business logic) and how it's presented (output/UI).",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-directive/issues",
-                "source": "https://github.com/andydefer/laravel-directive/tree/v3.66.2"
+                "source": "https://github.com/andydefer/laravel-directive/tree/v3.66.17"
             },
-            "time": "2026-08-28T06:38:56+00:00"
+            "time": "2026-09-18T09:09:26+00:00"
         },
         {
             "name": "andydefer/laravel-jsonl",
-            "version": "v0.8.21",
+            "version": "v0.8.25",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-jsonl.git",
-                "reference": "9f0f39ece50a9a1942fe73a3a47d2768e8bf9016"
+                "reference": "c7d8218713b17ae7f9282467db487a8a19c87852"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-jsonl/zipball/9f0f39ece50a9a1942fe73a3a47d2768e8bf9016",
-                "reference": "9f0f39ece50a9a1942fe73a3a47d2768e8bf9016",
+                "url": "https://api.github.com/repos/andydefer/laravel-jsonl/zipball/c7d8218713b17ae7f9282467db487a8a19c87852",
+                "reference": "c7d8218713b17ae7f9282467db487a8a19c87852",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-services": "^1.6.8",
+                "andydefer/php-services": "^1.6.12",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.2"
             },
@@ -399,26 +399,26 @@
             "description": "JSONL storage service for Laravel - write, read, query, and clean JSON Lines files with custom path strategies",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-jsonl/issues",
-                "source": "https://github.com/andydefer/laravel-jsonl/tree/v0.8.21"
+                "source": "https://github.com/andydefer/laravel-jsonl/tree/v0.8.25"
             },
-            "time": "2026-08-28T05:17:19+00:00"
+            "time": "2026-09-18T08:53:50+00:00"
         },
         {
             "name": "andydefer/laravel-repository",
-            "version": "v2.17.4",
+            "version": "v2.17.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/laravel-repository.git",
-                "reference": "c9e78f1ae4b870894cb8cadbb4cd7f59db89b47a"
+                "reference": "433e5fd55b883ebc486a67e5e66414af2b9c522a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/c9e78f1ae4b870894cb8cadbb4cd7f59db89b47a",
-                "reference": "c9e78f1ae4b870894cb8cadbb4cd7f59db89b47a",
+                "url": "https://api.github.com/repos/andydefer/laravel-repository/zipball/433e5fd55b883ebc486a67e5e66414af2b9c522a",
+                "reference": "433e5fd55b883ebc486a67e5e66414af2b9c522a",
                 "shasum": ""
             },
             "require": {
-                "andydefer/laravel-cluster": "^0.23.1",
+                "andydefer/laravel-cluster": "^0.23.5",
                 "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
                 "php": "^8.1"
             },
@@ -454,26 +454,26 @@
             "description": "A lightweight, type-safe repository pattern implementation for Laravel",
             "support": {
                 "issues": "https://github.com/andydefer/laravel-repository/issues",
-                "source": "https://github.com/andydefer/laravel-repository/tree/v2.17.4"
+                "source": "https://github.com/andydefer/laravel-repository/tree/v2.17.8"
             },
-            "time": "2026-08-31T03:41:59+00:00"
+            "time": "2026-09-18T09:01:26+00:00"
         },
         {
             "name": "andydefer/php-client",
-            "version": "v0.6.7",
+            "version": "v0.6.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-client.git",
-                "reference": "08b0e094afe50a24da09a38fd3873b1380062b12"
+                "reference": "f2975ba06d75f1e65a1c36044fed8bca2d00e575"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-client/zipball/08b0e094afe50a24da09a38fd3873b1380062b12",
-                "reference": "08b0e094afe50a24da09a38fd3873b1380062b12",
+                "url": "https://api.github.com/repos/andydefer/php-client/zipball/f2975ba06d75f1e65a1c36044fed8bca2d00e575",
+                "reference": "f2975ba06d75f1e65a1c36044fed8bca2d00e575",
                 "shasum": ""
             },
             "require": {
-                "andydefer/domain-structures": "^1.27.4",
+                "andydefer/domain-structures": "^1.28.0",
                 "guzzlehttp/guzzle": "^7.11",
                 "php": "^8.2"
             },
@@ -504,26 +504,26 @@
             "description": "PSR-7 compliant HTTP client with type-safe request/response handling and SOLID architecture",
             "support": {
                 "issues": "https://github.com/andydefer/php-client/issues",
-                "source": "https://github.com/andydefer/php-client/tree/v0.6.7"
+                "source": "https://github.com/andydefer/php-client/tree/v0.6.8"
             },
-            "time": "2026-08-27T09:37:10+00:00"
+            "time": "2026-09-05T10:35:42+00:00"
         },
         {
             "name": "andydefer/php-console",
-            "version": "v1.7.4",
+            "version": "v1.7.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-console.git",
-                "reference": "4ce32ab9efdbc16fbee8d60a540925ad54bf502c"
+                "reference": "ef8646008eb953f96e44bcaa88b638cc9694a117"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-console/zipball/4ce32ab9efdbc16fbee8d60a540925ad54bf502c",
-                "reference": "4ce32ab9efdbc16fbee8d60a540925ad54bf502c",
+                "url": "https://api.github.com/repos/andydefer/php-console/zipball/ef8646008eb953f96e44bcaa88b638cc9694a117",
+                "reference": "ef8646008eb953f96e44bcaa88b638cc9694a117",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-vo": "^0.20.5",
+                "andydefer/php-vo": "^0.22.1",
                 "php": ">=8.0"
             },
             "require-dev": {
@@ -551,26 +551,26 @@
             "description": "A simple and elegant console output writer for PHP with styled components",
             "support": {
                 "issues": "https://github.com/andydefer/php-console/issues",
-                "source": "https://github.com/andydefer/php-console/tree/v1.7.4"
+                "source": "https://github.com/andydefer/php-console/tree/v1.7.9"
             },
-            "time": "2026-08-28T05:15:51+00:00"
+            "time": "2026-09-18T08:52:17+00:00"
         },
         {
             "name": "andydefer/php-jsonl",
-            "version": "v0.11.5",
+            "version": "v0.11.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-jsonl.git",
-                "reference": "1788e90598358e6a8581e7b639c1a4f35bb49856"
+                "reference": "f6f120eea724a80f25cc5acb0a471bca52af944a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-jsonl/zipball/1788e90598358e6a8581e7b639c1a4f35bb49856",
-                "reference": "1788e90598358e6a8581e7b639c1a4f35bb49856",
+                "url": "https://api.github.com/repos/andydefer/php-jsonl/zipball/f6f120eea724a80f25cc5acb0a471bca52af944a",
+                "reference": "f6f120eea724a80f25cc5acb0a471bca52af944a",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-services": "^1.6.8",
+                "andydefer/php-services": "^1.6.12",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -602,27 +602,27 @@
             "description": "High-performance JSONL (JSON Lines) file management library with temporal and key-based storage strategies, automatic batching, and cache expiration",
             "support": {
                 "issues": "https://github.com/andydefer/php-jsonl/issues",
-                "source": "https://github.com/andydefer/php-jsonl/tree/v0.11.5"
+                "source": "https://github.com/andydefer/php-jsonl/tree/v0.11.9"
             },
-            "time": "2026-08-28T05:17:37+00:00"
+            "time": "2026-09-18T08:54:07+00:00"
         },
         {
             "name": "andydefer/php-services",
-            "version": "v1.6.8",
+            "version": "v1.6.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-services.git",
-                "reference": "bf23ceb5d22d777c133a18af27ddb559ee330c7e"
+                "reference": "dc468fccf928ea1687a2f454bd8cc6f394587c6a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-services/zipball/bf23ceb5d22d777c133a18af27ddb559ee330c7e",
-                "reference": "bf23ceb5d22d777c133a18af27ddb559ee330c7e",
+                "url": "https://api.github.com/repos/andydefer/php-services/zipball/dc468fccf928ea1687a2f454bd8cc6f394587c6a",
+                "reference": "dc468fccf928ea1687a2f454bd8cc6f394587c6a",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-client": "^0.6.7",
-                "andydefer/php-vo": "^0.20.5",
+                "andydefer/php-client": "^0.6.8",
+                "andydefer/php-vo": "^0.22.1",
                 "php": "^8.2"
             },
             "require-dev": {
@@ -653,26 +653,26 @@
             "description": "Collection of reusable services for PHP and Laravel applications including model transformation, caching, and common business logic",
             "support": {
                 "issues": "https://github.com/andydefer/php-services/issues",
-                "source": "https://github.com/andydefer/php-services/tree/v1.6.8"
+                "source": "https://github.com/andydefer/php-services/tree/v1.6.12"
             },
-            "time": "2026-08-28T05:16:06+00:00"
+            "time": "2026-09-18T08:52:33+00:00"
         },
         {
             "name": "andydefer/php-signature-parser",
-            "version": "v0.12.4",
+            "version": "v0.12.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-signature-parser.git",
-                "reference": "594e0d8d91c0813c2bb716d474f3665755e0a975"
+                "reference": "a6f2b1b669b0295b0b7c9b9e157ed9d4954230bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-signature-parser/zipball/594e0d8d91c0813c2bb716d474f3665755e0a975",
-                "reference": "594e0d8d91c0813c2bb716d474f3665755e0a975",
+                "url": "https://api.github.com/repos/andydefer/php-signature-parser/zipball/a6f2b1b669b0295b0b7c9b9e157ed9d4954230bb",
+                "reference": "a6f2b1b669b0295b0b7c9b9e157ed9d4954230bb",
                 "shasum": ""
             },
             "require": {
-                "andydefer/domain-structures": "^1.27.4",
+                "andydefer/domain-structures": "^1.28.0",
                 "php": "^8.1"
             },
             "require-dev": {
@@ -700,26 +700,26 @@
             "description": "A flexible signature parser for CLI commands",
             "support": {
                 "issues": "https://github.com/andydefer/php-signature-parser/issues",
-                "source": "https://github.com/andydefer/php-signature-parser/tree/v0.12.4"
+                "source": "https://github.com/andydefer/php-signature-parser/tree/v0.12.5"
             },
-            "time": "2026-08-27T09:36:38+00:00"
+            "time": "2026-09-05T10:35:21+00:00"
         },
         {
             "name": "andydefer/php-vo",
-            "version": "v0.20.5",
+            "version": "v0.22.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/php-vo.git",
-                "reference": "2e93f3918f7b2849eac5d6733318d67547c52775"
+                "reference": "109ee1966cc5c515b2c2ad465d6c18c2fb0d3617"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/php-vo/zipball/2e93f3918f7b2849eac5d6733318d67547c52775",
-                "reference": "2e93f3918f7b2849eac5d6733318d67547c52775",
+                "url": "https://api.github.com/repos/andydefer/php-vo/zipball/109ee1966cc5c515b2c2ad465d6c18c2fb0d3617",
+                "reference": "109ee1966cc5c515b2c2ad465d6c18c2fb0d3617",
                 "shasum": ""
             },
             "require": {
-                "andydefer/domain-structures": "^1.27.4",
+                "andydefer/domain-structures": "^1.28.0",
                 "php": ">=8.1"
             },
             "require-dev": {
@@ -747,26 +747,26 @@
             "description": "A collection of reusable Value Objects and Enums for PHP applications (Email, Money, Address, PostalCode, Iso8601DateTime, Currency, etc.)",
             "support": {
                 "issues": "https://github.com/andydefer/php-vo/issues",
-                "source": "https://github.com/andydefer/php-vo/tree/v0.20.5"
+                "source": "https://github.com/andydefer/php-vo/tree/v0.22.1"
             },
-            "time": "2026-08-28T05:14:13+00:00"
+            "time": "2026-09-18T08:51:46+00:00"
         },
         {
             "name": "andydefer/storage-kit",
-            "version": "v0.7.21",
+            "version": "v0.7.25",
             "source": {
                 "type": "git",
                 "url": "https://github.com/andydefer/storage-kit.git",
-                "reference": "0107e7f2a3578a09ff51ba8f0fcb99e3775c30d0"
+                "reference": "bd0a46f1a813972385a33ef169ce1fe7e4095a4f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/andydefer/storage-kit/zipball/0107e7f2a3578a09ff51ba8f0fcb99e3775c30d0",
-                "reference": "0107e7f2a3578a09ff51ba8f0fcb99e3775c30d0",
+                "url": "https://api.github.com/repos/andydefer/storage-kit/zipball/bd0a46f1a813972385a33ef169ce1fe7e4095a4f",
+                "reference": "bd0a46f1a813972385a33ef169ce1fe7e4095a4f",
                 "shasum": ""
             },
             "require": {
-                "andydefer/php-jsonl": "^0.11.5",
+                "andydefer/php-jsonl": "^0.11.9",
                 "php": ">=8.1",
                 "phpfastcache/phpfastcache": "^9.2"
             },
@@ -796,9 +796,9 @@
             "description": "Storage adapters : Memory, JSONL, and Cache",
             "support": {
                 "issues": "https://github.com/andydefer/storage-kit/issues",
-                "source": "https://github.com/andydefer/storage-kit/tree/v0.7.21"
+                "source": "https://github.com/andydefer/storage-kit/tree/v0.7.25"
             },
-            "time": "2026-08-28T05:20:49+00:00"
+            "time": "2026-09-18T08:57:24+00:00"
         },
         {
             "name": "brick/math",

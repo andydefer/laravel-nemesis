@@ -10,7 +10,6 @@ use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
-use AndyDefer\Nemesis\Data\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use Closure;
 use Illuminate\Http\Request;
@@ -37,14 +36,12 @@ final class NemesisApiVerifiedMiddleware
 
         if (! $authResult->isSuccess()) {
             $errorCode = $authResult->getErrorCode() ?? ErrorCode::INVALID_TOKEN;
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => $errorCode,
-                'message' => $errorCode->message(),
-                'status' => $errorCode->getHttpStatusCode()->value,
-                'details' => null,
-            ]);
+            $status = $errorCode->getHttpStatusCode()->value;
 
-            return ResponseFactory::json($errorResponse, $errorCode->getHttpStatusCode()->value)->toResponse();
+            return ResponseFactory::json(
+                $errorCode->toResponseData(),
+                $status,
+            )->toResponse();
         }
 
         // 2. Récupérer le token model
@@ -58,53 +55,37 @@ final class NemesisApiVerifiedMiddleware
 
         // 3. Vérifier que le token est valide
         if ($tokenModel === null || ! $tokenModel->isValid()) {
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::INVALID_TOKEN,
-                'message' => ErrorCode::INVALID_TOKEN->message(),
-                'status' => ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value,
-                'details' => null,
-            ]);
-
-            return ResponseFactory::json($errorResponse, ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value)->toResponse();
+            return ResponseFactory::json(
+                ErrorCode::INVALID_TOKEN->toResponseData(),
+                ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value,
+            )->toResponse();
         }
 
         // 4. Récupérer l'utilisateur via tokenable
         $authenticatable = $tokenModel->tokenable;
 
         if ($authenticatable === null) {
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::AUTHENTICATABLE_NOT_FOUND,
-                'message' => ErrorCode::AUTHENTICATABLE_NOT_FOUND->message(),
-                'status' => ErrorCode::AUTHENTICATABLE_NOT_FOUND->getHttpStatusCode()->value,
-                'details' => null,
-            ]);
-
-            return ResponseFactory::json($errorResponse, ErrorCode::AUTHENTICATABLE_NOT_FOUND->getHttpStatusCode()->value)->toResponse();
+            return ResponseFactory::json(
+                ErrorCode::AUTHENTICATABLE_NOT_FOUND->toResponseData(),
+                ErrorCode::AUTHENTICATABLE_NOT_FOUND->getHttpStatusCode()->value,
+            )->toResponse();
         }
 
         // 5. Vérifier que le modèle a le champ email_verified_at via Schema
         $table = $authenticatable->getTable();
         if (! Schema::hasColumn($table, 'email_verified_at')) {
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT,
-                'message' => ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT->message(),
-                'status' => ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT->getHttpStatusCode()->value,
-                'details' => null,
-            ]);
-
-            return ResponseFactory::json($errorResponse, ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT->getHttpStatusCode()->value)->toResponse();
+            return ResponseFactory::json(
+                ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT->toResponseData(),
+                ErrorCode::MODEL_MISSING_EMAIL_VERIFIED_AT->getHttpStatusCode()->value,
+            )->toResponse();
         }
 
         // 6. Vérifier si l'email est vérifié
         if ($authenticatable->email_verified_at === null) {
-            $errorResponse = ErrorResponseData::from([
-                'errorCode' => ErrorCode::EMAIL_NOT_VERIFIED,
-                'message' => ErrorCode::EMAIL_NOT_VERIFIED->message(),
-                'status' => ErrorCode::EMAIL_NOT_VERIFIED->getHttpStatusCode()->value,
-                'details' => null,
-            ]);
-
-            return ResponseFactory::json($errorResponse, ErrorCode::EMAIL_NOT_VERIFIED->getHttpStatusCode()->value)->toResponse();
+            return ResponseFactory::json(
+                ErrorCode::EMAIL_NOT_VERIFIED->toResponseData(),
+                ErrorCode::EMAIL_NOT_VERIFIED->getHttpStatusCode()->value,
+            )->toResponse();
         }
 
         // 7. Ajouter l'utilisateur et le token à la requête

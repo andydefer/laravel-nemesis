@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Enums;
 
+use AndyDefer\Nemesis\Contracts\ErrorDescribable;
+use AndyDefer\Nemesis\Datas\ErrorResponseData;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 
 /**
@@ -15,132 +17,68 @@ use AndyDefer\PhpVo\Enums\HttpStatusCode;
  * HTTP status codes and user-friendly messages. This enum ensures
  * consistent error handling across the entire package.
  */
-enum ErrorCode: string
+enum ErrorCode: string implements ErrorDescribable
 {
     // ============================================================================
     // Authentication Errors (HTTP 401)
     // ============================================================================
 
-    /**
-     * No token was provided in the request.
-     */
     case MISSING_TOKEN = 'MISSING_TOKEN';
-
-    /**
-     * The provided token is invalid (not found in database).
-     */
     case INVALID_TOKEN = 'INVALID_TOKEN';
-
-    /**
-     * The token has expired and is no longer valid.
-     */
     case TOKEN_EXPIRED = 'TOKEN_EXPIRED';
-
-    /**
-     * The authenticatable user was not found.
-     */
     case AUTHENTICATABLE_NOT_FOUND = 'AUTHENTICATABLE_NOT_FOUND';
 
     // ============================================================================
     // Authorization Errors (HTTP 403)
     // ============================================================================
 
-    /**
-     * The token lacks the required ability/permission.
-     */
     case INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS';
-
-    /**
-     * The request origin is not allowed for this token.
-     */
     case ORIGIN_NOT_ALLOWED = 'ORIGIN_NOT_ALLOWED';
-
-    /**
-     * The user's email is not verified.
-     */
     case EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED';
 
     // ============================================================================
     // Client Errors (HTTP 400)
     // ============================================================================
 
-    /**
-     * User is already authenticated and cannot access guest routes.
-     */
     case ALREADY_AUTHENTICATED = 'ALREADY_AUTHENTICATED';
 
     // ============================================================================
     // Server Configuration Errors (HTTP 500)
     // ============================================================================
 
-    /**
-     * The authenticatable model does not implement the required interface.
-     */
     case INVALID_AUTHENTICATABLE_MODEL = 'INVALID_AUTHENTICATABLE_MODEL';
-
-    /**
-     * The authenticatable model is missing the email_verified_at field.
-     */
     case MODEL_MISSING_EMAIL_VERIFIED_AT = 'MODEL_MISSING_EMAIL_VERIFIED_AT';
 
     // ============================================================================
     // Metadata Validation Errors (HTTP 400)
     // ============================================================================
 
-    /**
-     * Metadata size exceeds the maximum allowed (64KB).
-     */
     case METADATA_SIZE_EXCEEDED = 'METADATA_SIZE_EXCEEDED';
-
-    /**
-     * Metadata nesting depth exceeds the maximum allowed (5 levels).
-     */
     case METADATA_NESTING_TOO_DEEP = 'METADATA_NESTING_TOO_DEEP';
-
-    /**
-     * Metadata contains too many keys (max 100).
-     */
     case METADATA_TOO_MANY_KEYS = 'METADATA_TOO_MANY_KEYS';
-
-    /**
-     * Metadata key type is invalid (must be string or int).
-     */
     case METADATA_INVALID_KEY = 'METADATA_INVALID_KEY';
-
-    /**
-     * Metadata value type is invalid (must be scalar, array, or null).
-     */
     case METADATA_INVALID_VALUE = 'METADATA_INVALID_VALUE';
-
-    /**
-     * Metadata key exceeds the maximum length (255 characters).
-     */
     case METADATA_KEY_TOO_LONG = 'METADATA_KEY_TOO_LONG';
 
     // ============================================================================
-    // Methods
+    // ErrorDescribable
     // ============================================================================
 
     /**
-     * Get the HTTP status code for this error.
-     *
-     * @return HttpStatusCode The HTTP status code enum
+     * {@inheritDoc}
      */
     public function getHttpStatusCode(): HttpStatusCode
     {
         return match ($this) {
-            // Authentication errors (HTTP 401)
             self::MISSING_TOKEN,
             self::INVALID_TOKEN,
             self::TOKEN_EXPIRED,
             self::AUTHENTICATABLE_NOT_FOUND => HttpStatusCode::UNAUTHORIZED,
 
-            // Authorization errors (HTTP 403)
             self::INSUFFICIENT_PERMISSIONS,
             self::ORIGIN_NOT_ALLOWED,
             self::EMAIL_NOT_VERIFIED => HttpStatusCode::FORBIDDEN,
 
-            // Client errors (HTTP 400)
             self::ALREADY_AUTHENTICATED,
             self::METADATA_SIZE_EXCEEDED,
             self::METADATA_NESTING_TOO_DEEP,
@@ -149,39 +87,31 @@ enum ErrorCode: string
             self::METADATA_INVALID_VALUE,
             self::METADATA_KEY_TOO_LONG => HttpStatusCode::BAD_REQUEST,
 
-            // Server configuration error (HTTP 500)
             self::INVALID_AUTHENTICATABLE_MODEL,
             self::MODEL_MISSING_EMAIL_VERIFIED_AT => HttpStatusCode::INTERNAL_SERVER_ERROR,
         };
     }
 
     /**
-     * Get the user-friendly error message.
-     *
-     * @return string The error message
+     * {@inheritDoc}
      */
-    public function message(): string
+    public function getMessage(): string
     {
         return match ($this) {
-            // Authentication errors
             self::MISSING_TOKEN => 'Token not provided',
             self::INVALID_TOKEN => 'Invalid token',
             self::TOKEN_EXPIRED => 'Token has expired',
             self::AUTHENTICATABLE_NOT_FOUND => 'User not found',
 
-            // Authorization errors
             self::INSUFFICIENT_PERMISSIONS => 'Insufficient permissions',
             self::ORIGIN_NOT_ALLOWED => 'This origin is not allowed',
             self::EMAIL_NOT_VERIFIED => 'Email not verified. Please verify your email address.',
 
-            // Client errors
             self::ALREADY_AUTHENTICATED => 'Already authenticated',
 
-            // Server configuration error
             self::INVALID_AUTHENTICATABLE_MODEL => 'Authenticatable model is invalid or misconfigured',
             self::MODEL_MISSING_EMAIL_VERIFIED_AT => 'Model must have email_verified_at field',
 
-            // Metadata validation errors
             self::METADATA_SIZE_EXCEEDED => 'Metadata size exceeds maximum allowed (64KB)',
             self::METADATA_NESTING_TOO_DEEP => 'Metadata nesting depth exceeds maximum allowed (5 levels)',
             self::METADATA_TOO_MANY_KEYS => 'Metadata contains too many keys (max 100)',
@@ -192,74 +122,25 @@ enum ErrorCode: string
     }
 
     /**
-     * Check if the error is an authentication error (HTTP 401).
-     *
-     * @return bool True if authentication error, false otherwise
+     * {@inheritDoc}
      */
-    public function isAuthenticationError(): bool
+    public function getLabel(): string
     {
-        return $this->getHttpStatusCode() === HttpStatusCode::UNAUTHORIZED;
+        return $this->getMessage();
     }
 
     /**
-     * Check if the error is an authorization error (HTTP 403).
-     *
-     * @return bool True if authorization error, false otherwise
+     * {@inheritDoc}
      */
-    public function isAuthorizationError(): bool
-    {
-        return $this->getHttpStatusCode() === HttpStatusCode::FORBIDDEN;
-    }
-
-    /**
-     * Check if the error is a client error (HTTP 400).
-     *
-     * @return bool True if client error, false otherwise
-     */
-    public function isClientError(): bool
-    {
-        return $this->getHttpStatusCode() === HttpStatusCode::BAD_REQUEST;
-    }
-
-    /**
-     * Check if the error is a server error (HTTP 500).
-     *
-     * @return bool True if server error, false otherwise
-     */
-    public function isServerError(): bool
-    {
-        return $this->getHttpStatusCode() === HttpStatusCode::INTERNAL_SERVER_ERROR;
-    }
-
-    /**
-     * Get the error category as a string.
-     *
-     * @return string The error category (auth, authorization, client, server)
-     */
-    public function getCategory(): string
-    {
-        return match ($this->getHttpStatusCode()) {
-            HttpStatusCode::UNAUTHORIZED => 'authentication',
-            HttpStatusCode::FORBIDDEN => 'authorization',
-            HttpStatusCode::BAD_REQUEST => 'client',
-            HttpStatusCode::INTERNAL_SERVER_ERROR => 'server',
-            default => 'unknown',
-        };
-    }
-
-    /**
-     * Check if the error is recoverable by the client.
-     *
-     * @return bool True if the error is recoverable
-     */
-    public function isRecoverable(): bool
-    {
-        return match ($this->getHttpStatusCode()) {
-            HttpStatusCode::UNAUTHORIZED,
-            HttpStatusCode::FORBIDDEN,
-            HttpStatusCode::BAD_REQUEST => true,
-            HttpStatusCode::INTERNAL_SERVER_ERROR => false,
-            default => false,
-        };
+    public function toResponseData(
+        ?string $message = null,
+        mixed $details = null,
+    ): ErrorResponseData {
+        return ErrorResponseData::from([
+            'errorCode' => $this,
+            'message' => $message ?? $this->getMessage(),
+            'status' => $this->getHttpStatusCode(),
+            'details' => $details,
+        ]);
     }
 }

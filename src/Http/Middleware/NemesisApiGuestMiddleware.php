@@ -10,7 +10,6 @@ use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
-use AndyDefer\Nemesis\Data\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\Nemesis\Models\NemesisToken;
 use Closure;
@@ -75,12 +74,7 @@ final class NemesisApiGuestMiddleware
             $hasAbility = $nemesisService->can($tokenModel, $ability);
 
             if ($hasAbility) {
-                $errorResponse = ErrorResponseData::from([
-                    'errorCode' => ErrorCode::ALREADY_AUTHENTICATED,
-                    'message' => 'Already authenticated',
-                    'status' => 400,
-                    'details' => null,
-                ]);
+                $errorResponse = ErrorCode::ALREADY_AUTHENTICATED->toResponseData();
 
                 return ResponseFactory::json($errorResponse, 400)->toResponse();
             }
@@ -88,12 +82,7 @@ final class NemesisApiGuestMiddleware
             return $next($request);
         }
 
-        $errorResponse = ErrorResponseData::from([
-            'errorCode' => ErrorCode::ALREADY_AUTHENTICATED,
-            'message' => 'Already authenticated',
-            'status' => 400,
-            'details' => null,
-        ]);
+        $errorResponse = ErrorCode::ALREADY_AUTHENTICATED->toResponseData();
 
         return ResponseFactory::json($errorResponse, 400)->toResponse();
     }

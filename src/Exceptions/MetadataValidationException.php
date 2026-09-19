@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\Nemesis\Exceptions;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\Nemesis\Data\ErrorResponseData;
+use AndyDefer\Nemesis\Datas\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 use InvalidArgumentException;
@@ -81,10 +81,8 @@ final class MetadataValidationException extends InvalidArgumentException
      */
     public function toErrorResponse(): ErrorResponseData
     {
-        return new ErrorResponseData(
-            errorCode: $this->errorCode,
+        return $this->errorCode->toResponseData(
             message: $this->getMessage(),
-            status: $this->getHttpStatusCode(),
             details: $this->details,
         );
     }
