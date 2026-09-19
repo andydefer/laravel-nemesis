@@ -6,6 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Enums;
 
+use AndyDefer\Actions\Http\ResponseFactory;
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\Nemesis\Contracts\ErrorDescribable;
 use AndyDefer\Nemesis\Datas\ErrorResponseData;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
@@ -134,7 +137,7 @@ enum ErrorCode: string implements ErrorDescribable
      */
     public function toResponseData(
         ?string $message = null,
-        mixed $errors = null,
+        array|StrictAssociative|StrictDataObject|null $errors = null,
     ): ErrorResponseData {
         return ErrorResponseData::from([
             'errorCode' => $this,
@@ -142,5 +145,18 @@ enum ErrorCode: string implements ErrorDescribable
             'status' => $this->getHttpStatusCode(),
             'errors' => $errors,
         ]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function toJsonResponseFactory(
+        ?string $message = null,
+        array|StrictAssociative|StrictDataObject|null $errors = null,
+    ): ResponseFactory {
+        return ResponseFactory::json(
+            $this->toResponseData($message, $errors),
+            $this->getHttpStatusCode(),
+        );
     }
 }

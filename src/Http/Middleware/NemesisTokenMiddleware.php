@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Http\Middleware;
 
-use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\MustNemesis;
 use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
@@ -32,13 +31,9 @@ final class NemesisTokenMiddleware
                 return $this->proceedWithoutAuth($request, $next);
             }
 
-            $errorCode = $result->getErrorCode();
-            $statusInt = $errorCode->getHttpStatusCode()->value;
-
-            $response = ResponseFactory::json(
-                $errorCode->toResponseData(errors: $result->getAdditionalData()),
-                $statusInt,
-            )->toResponse();
+            $response = $result->getErrorCode()
+                ->toJsonResponseFactory(errors: $result->getAdditionalData())
+                ->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
         }
@@ -54,12 +49,7 @@ final class NemesisTokenMiddleware
                 return $this->proceedWithoutAuth($request, $next);
             }
 
-            $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
-
-            $response = ResponseFactory::json(
-                ErrorCode::INVALID_TOKEN->toResponseData(),
-                $statusInt,
-            )->toResponse();
+            $response = ErrorCode::INVALID_TOKEN->toJsonResponseFactory()->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
         }
@@ -71,19 +61,9 @@ final class NemesisTokenMiddleware
                 return $this->proceedWithoutAuth($request, $next);
             }
 
-            $statusInt = ErrorCode::INVALID_TOKEN->getHttpStatusCode()->value;
-
-            $response = ResponseFactory::json(
-                ErrorCode::INVALID_TOKEN->toResponseData(),
-                $statusInt,
-            )->toResponse();
+            $response = ErrorCode::INVALID_TOKEN->toJsonResponseFactory()->toResponse();
 
             return $this->headerService->addCorsToErrorResponse($response, $request);
-        }
-
-        $formattedAuthenticatable = null;
-        if ($authenticatable instanceof MustNemesis) {
-            $formattedAuthenticatable = $authenticatable->nemesisFormat();
         }
 
         $parameterName = $this->config->middlewareConfig()->parameter_name;
@@ -93,10 +73,9 @@ final class NemesisTokenMiddleware
             'current_nemesis_token' => $tokenRecord,
         ]);
 
-        if ($formattedAuthenticatable !== null) {
-            $formatKey = $parameterName.'_format';
+        if ($authenticatable instanceof MustNemesis) {
             $request->merge([
-                $formatKey => $formattedAuthenticatable,
+                $parameterName.'_format' => $authenticatable->nemesisFormat(),
             ]);
         }
 

@@ -6,7 +6,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Http\Middleware;
 
-use AndyDefer\Actions\Http\ResponseFactory;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisAuthenticationInterface;
 use AndyDefer\Nemesis\Contracts\Services\NemesisInterface;
@@ -71,19 +70,13 @@ final class NemesisApiGuestMiddleware
         }
 
         if ($ability !== null && $tokenModel instanceof NemesisToken) {
-            $hasAbility = $nemesisService->can($tokenModel, $ability);
-
-            if ($hasAbility) {
-                $errorResponse = ErrorCode::ALREADY_AUTHENTICATED->toResponseData();
-
-                return ResponseFactory::json($errorResponse, 400)->toResponse();
+            if ($nemesisService->can($tokenModel, $ability)) {
+                return ErrorCode::ALREADY_AUTHENTICATED->toJsonResponseFactory()->toResponse();
             }
 
             return $next($request);
         }
 
-        $errorResponse = ErrorCode::ALREADY_AUTHENTICATED->toResponseData();
-
-        return ResponseFactory::json($errorResponse, 400)->toResponse();
+        return ErrorCode::ALREADY_AUTHENTICATED->toJsonResponseFactory()->toResponse();
     }
 }
