@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Contracts;
 
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
+use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\Nemesis\Datas\ErrorResponseData;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 
@@ -43,6 +45,6 @@ interface ErrorDescribable
      */
     public function toResponseData(
         ?string $message = null,
-        mixed $details = null,
+        array|StrictAssociative|StrictDataObject|null $errors = null,
     ): ErrorResponseData;
 }

@@ -134,13 +134,13 @@ enum ErrorCode: string implements ErrorDescribable
      */
     public function toResponseData(
         ?string $message = null,
-        mixed $details = null,
+        mixed $errors = null,
     ): ErrorResponseData {
         return ErrorResponseData::from([
             'errorCode' => $this,
             'message' => $message ?? $this->getMessage(),
             'status' => $this->getHttpStatusCode(),
-            'details' => $details,
+            'errors' => $errors,
         ]);
     }
 }

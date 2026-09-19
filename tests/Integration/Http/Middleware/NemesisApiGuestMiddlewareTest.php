@@ -279,7 +279,7 @@ final class NemesisApiGuestMiddlewareTest extends IntegrationTestCase
             'errorCode',
             'message',
             'status',
-            'details',
+            'errors',
         ]);
     }
 }

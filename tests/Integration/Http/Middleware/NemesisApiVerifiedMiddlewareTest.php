@@ -331,7 +331,7 @@ final class NemesisApiVerifiedMiddlewareTest extends IntegrationTestCase
             'errorCode',
             'message',
             'status',
-            'details',
+            'errors',
         ]);
     }
 
@@ -354,7 +354,7 @@ final class NemesisApiVerifiedMiddlewareTest extends IntegrationTestCase
             'errorCode',
             'message',
             'status',
-            'details',
+            'errors',
         ]);
     }
 }

@@ -36,7 +36,7 @@ final class NemesisTokenMiddleware
             $statusInt = $errorCode->getHttpStatusCode()->value;
 
             $response = ResponseFactory::json(
-                $errorCode->toResponseData(details: $result->getAdditionalData()),
+                $errorCode->toResponseData(errors: $result->getAdditionalData()),
                 $statusInt,
             )->toResponse();
 

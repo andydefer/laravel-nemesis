@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Exceptions;
 
-use AndyDefer\DomainStructures\Utils\StrictDataObject;
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
 use AndyDefer\Nemesis\Datas\ErrorResponseData;
 use AndyDefer\Nemesis\Enums\ErrorCode;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
@@ -22,26 +22,26 @@ final class MetadataValidationException extends InvalidArgumentException
 {
     private readonly ErrorCode $errorCode;
 
-    private readonly ?StrictDataObject $details;
+    private readonly ?StrictAssociative $errors;
 
     /**
      * Constructor.
      *
      * @param  ErrorCode  $errorCode  The error code enum
      * @param  string  $message  Human-readable error message
-     * @param  StrictDataObject|null  $details  Additional error details
+     * @param  StrictAssociative|null  $errors  Additional error details
      * @param  Throwable|null  $previous  Previous exception for chaining
      */
     public function __construct(
         ErrorCode $errorCode,
         string $message,
-        ?StrictDataObject $details = null,
+        ?StrictAssociative $errors = null,
         ?Throwable $previous = null
     ) {
         parent::__construct($message, 0, $previous);
 
         $this->errorCode = $errorCode;
-        $this->details = $details;
+        $this->errors = $errors;
     }
 
     /**
@@ -63,17 +63,17 @@ final class MetadataValidationException extends InvalidArgumentException
     /**
      * Get additional error details.
      */
-    public function getDetails(): ?StrictDataObject
+    public function getDetails(): ?StrictAssociative
     {
-        return $this->details;
+        return $this->errors;
     }
 
     /**
      * Check if the exception has additional details.
      */
-    public function hasDetails(): bool
+    public function hasErrors(): bool
     {
-        return $this->details !== null;
+        return $this->errors !== null;
     }
 
     /**
@@ -83,7 +83,7 @@ final class MetadataValidationException extends InvalidArgumentException
     {
         return $this->errorCode->toResponseData(
             message: $this->getMessage(),
-            details: $this->details,
+            errors: $this->errors,
         );
     }
 
@@ -114,8 +114,8 @@ final class MetadataValidationException extends InvalidArgumentException
             'status' => $this->getHttpStatusCode()->value,
         ];
 
-        if ($this->hasDetails()) {
-            $data['details'] = $this->details->toArray();
+        if ($this->hasErrors()) {
+            $data['errors'] = $this->errors->toArray();
         }
 
         return $data;
@@ -137,7 +137,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_SIZE_EXCEEDED,
             message: sprintf('Metadata size (%d bytes) exceeds maximum allowed (%d bytes)', $size, $maxSize),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'size' => $size,
                 'max_size' => $maxSize,
                 'size_mb' => round($size / 1024 / 1024, 2),
@@ -154,7 +154,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_NESTING_TOO_DEEP,
             message: sprintf('Metadata nesting depth (%d) exceeds maximum allowed (%d)', $depth, $maxDepth),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'current_depth' => $depth,
                 'max_depth' => $maxDepth,
             ])
@@ -169,7 +169,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_TOO_MANY_KEYS,
             message: sprintf('Metadata contains %d keys, maximum allowed is %d', $keyCount, $maxKeys),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'key_count' => $keyCount,
                 'max_keys' => $maxKeys,
             ])
@@ -184,7 +184,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_INVALID_KEY,
             message: sprintf('Metadata key must be string or int, %s given', $keyType),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'key_type' => $keyType,
                 'allowed_types' => ['string', 'int'],
             ])
@@ -199,7 +199,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_KEY_TOO_LONG,
             message: sprintf('Metadata key exceeds maximum length of %d characters. Got %d characters.', $maxLength, $length),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'key' => substr($key, 0, 50),
                 'length' => $length,
                 'max_length' => $maxLength,
@@ -217,7 +217,7 @@ final class MetadataValidationException extends InvalidArgumentException
         return new self(
             errorCode: ErrorCode::METADATA_INVALID_VALUE,
             message: sprintf('Metadata value%s must be scalar, array, or null, %s given', $context, $valueType),
-            details: new StrictDataObject([
+            errors: new StrictAssociative([
                 'key' => $key,
                 'value_type' => $valueType,
                 'allowed_types' => ['scalar', 'array', 'null'],
