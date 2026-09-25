@@ -29,8 +29,8 @@
         "php": ">=8.1",
         "laravel/framework": "^12.0|^13.0|^14.0|^15.0",
         "andydefer/data-validator": "^1.0.3",
-        "andydefer/laravel-directive": "^3.66.37",
-        "andydefer/laravel-repository": "^2.17.17"
+        "andydefer/laravel-directive": "^3.66.38",
+        "andydefer/laravel-repository": "^2.17.18"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
