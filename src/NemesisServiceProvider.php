@@ -11,6 +11,7 @@ use AndyDefer\Nemesis\Configs\NemesisConfig;
 use AndyDefer\Nemesis\Contracts\Configs\NemesisConfigInterface;
 use AndyDefer\Nemesis\Contracts\Helpers\NemesisHelperInterface;
 use AndyDefer\Nemesis\Contracts\Repositories\NemesisTokenRepositoryInterface;
+use AndyDefer\Nemesis\Contracts\Services\AgentServiceInterface;
 use AndyDefer\Nemesis\Contracts\Services\CookieTokenStorageInterface;
 use AndyDefer\Nemesis\Contracts\Services\HttpHeaderInterface;
 use AndyDefer\Nemesis\Contracts\Services\MetadataValidatorInterface;
@@ -25,6 +26,7 @@ use AndyDefer\Nemesis\Http\Middleware\NemesisTokenMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisWebMiddleware;
 use AndyDefer\Nemesis\Http\Middleware\NemesisWebVerifiedMiddleware;
 use AndyDefer\Nemesis\Repositories\NemesisTokenRepository;
+use AndyDefer\Nemesis\Services\AgentService;
 use AndyDefer\Nemesis\Services\CookieTokenStorageService;
 use AndyDefer\Nemesis\Services\HttpHeaderService;
 use AndyDefer\Nemesis\Services\MetadataValidatorService;
@@ -38,6 +40,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Jenssegers\Agent\Agent;
 
 /**
  * Service provider for the Nemesis authentication package.
@@ -69,6 +72,7 @@ final class NemesisServiceProvider extends ServiceProvider
         $this->registerServices();
         $this->registerMiddleware();
         $this->registerHelpers();
+        $this->registerAgentService();
     }
 
     /**
@@ -436,6 +440,29 @@ final class NemesisServiceProvider extends ServiceProvider
         $router->aliasMiddleware(
             name: 'nemesis.api.guest',
             class: NemesisApiGuestMiddleware::class
+        );
+    }
+
+    /**
+     * Register the agent detection service.
+     *
+     * Registers the concrete AgentService as a singleton and binds
+     * AgentServiceInterface to it.
+     */
+    private function registerAgentService(): void
+    {
+        $this->app->singleton(
+            abstract: AgentService::class,
+            concrete: function (): AgentService {
+                return new AgentService(
+                    new Agent,
+                );
+            }
+        );
+
+        $this->app->bind(
+            abstract: AgentServiceInterface::class,
+            concrete: AgentService::class
         );
     }
 
