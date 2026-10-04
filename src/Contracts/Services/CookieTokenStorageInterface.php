@@ -23,8 +23,9 @@ interface CookieTokenStorageInterface
      * Store a token in the cookie.
      *
      * @param  string  $plainToken  The plain text token to store
+     * @param  int  $durationInMinutes  Cookie lifetime in minutes (default: 525600 = 1 year)
      */
-    public function store(string $plainToken): void;
+    public function store(string $plainToken, int $durationInMinutes = 525600): void;
 
     /**
      * Get the plain token from the cookie.

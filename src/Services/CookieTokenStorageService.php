@@ -37,14 +37,14 @@ final class CookieTokenStorageService implements CookieTokenStorageInterface
     /**
      * {@inheritDoc}
      */
-    public function store(string $plainToken): void
+    public function store(string $plainToken, int $durationInMinutes = 525600): void
     {
         $webConfig = $this->config->webConfig();
 
         Cookie::queue(
             $webConfig->cookie_name,
             $plainToken,
-            525600,
+            $durationInMinutes,
             '/',
             null,
             $webConfig->cookie_secure,
