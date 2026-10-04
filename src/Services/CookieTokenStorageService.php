@@ -44,7 +44,7 @@ final class CookieTokenStorageService implements CookieTokenStorageInterface
         Cookie::queue(
             $webConfig->cookie_name,
             $plainToken,
-            0, // Pas d'expiration, le token expire via sa propre logique
+            525600,
             '/',
             null,
             $webConfig->cookie_secure,
