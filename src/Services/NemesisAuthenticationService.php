@@ -149,6 +149,38 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
     }
 
     /**
+     * Extract the token from the request.
+     *
+     * @param  Request  $request  The HTTP request
+     * @return string|null The extracted token or null
+     */
+    public function extractToken(Request $request): ?string
+    {
+        if ($this->config->isUsingCustomHeader()) {
+            $headerName = $this->config->middlewareConfig()->token_header;
+            $token = $request->header($headerName);
+
+            if (is_string($token)) {
+                $token = trim($token);
+
+                if ($token !== '') {
+                    return $token;
+                }
+            }
+        }
+
+        $token = $request->bearerToken();
+
+        if (! is_string($token)) {
+            return null;
+        }
+
+        $token = trim($token);
+
+        return $token !== '' ? $token : null;
+    }
+
+    /**
      * Convert a token model to a record.
      *
      * @param  NemesisToken  $tokenModel  The token model to convert
@@ -255,28 +287,6 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
         $eloquentModel->exists = true;
 
         return $eloquentModel;
-    }
-
-    /**
-     * Extract the token from the request.
-     *
-     * @param  Request  $request  The HTTP request
-     * @return string|null The extracted token or null
-     */
-    private function extractToken(Request $request): ?string
-    {
-        if ($this->config->isUsingCustomHeader()) {
-            $headerName = $this->config->middlewareConfig()->token_header;
-            $token = $request->header($headerName);
-
-            if ($token !== null && trim($token) !== '') {
-                return $token;
-            }
-        }
-
-        $token = $request->bearerToken();
-
-        return $token !== null && trim($token) !== '' ? $token : null;
     }
 
     /**

@@ -53,4 +53,12 @@ interface NemesisAuthenticationInterface
      * @return AbstractData|null The formatted data or null
      */
     public function getFormattedAuthenticatable(mixed $authenticatable): ?AbstractData;
+
+    /**
+     * Extract the token from the request.
+     *
+     * @param  Request  $request  The HTTP request
+     * @return string|null The extracted token or null
+     */
+    public function extractToken(Request $request): ?string;
 }

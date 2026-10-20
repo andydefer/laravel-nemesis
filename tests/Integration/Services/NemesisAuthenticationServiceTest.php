@@ -262,7 +262,6 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
 
     public function test_authenticate_returns_insufficient_permissions_when_token_has_no_abilities(): void
     {
-        // Token sans abilities (abilities = null)
         $this->withBearerToken($this->plainToken);
 
         $result = $this->authService->authenticate($this->app['request'], 'admin');
@@ -692,5 +691,127 @@ final class NemesisAuthenticationServiceTest extends IntegrationTestCase
         $result = $this->authService->authenticate($this->app['request']);
 
         $this->assertTrue($result->isSuccess());
+    }
+
+    // ============================================================================
+    // extractToken Tests
+    // ============================================================================
+
+    public function test_extract_token_returns_bearer_token(): void
+    {
+        $this->withBearerToken($this->plainToken);
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame($this->plainToken, $extracted);
+    }
+
+    public function test_extract_token_returns_null_when_no_token_present(): void
+    {
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_returns_null_for_empty_bearer(): void
+    {
+        $this->app['request']->headers->set('Authorization', 'Bearer ');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_returns_null_for_whitespace_only_bearer(): void
+    {
+        $this->app['request']->headers->set('Authorization', 'Bearer    ');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_returns_null_for_non_bearer_scheme(): void
+    {
+        $this->app['request']->headers->set('Authorization', 'Basic dXNlcjpwYXNz');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_returns_custom_header_when_configured(): void
+    {
+        config()->set('nemesis.middleware.token_header', 'X-API-Key');
+        $this->app['request']->headers->set('X-API-Key', $this->plainToken);
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame($this->plainToken, $extracted);
+    }
+
+    public function test_extract_token_prefers_custom_header_over_bearer(): void
+    {
+        config()->set('nemesis.middleware.token_header', 'X-API-Key');
+        $this->app['request']->headers->set('X-API-Key', 'custom-header-token');
+        $this->app['request']->headers->set('Authorization', 'Bearer bearer-token');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame('custom-header-token', $extracted);
+    }
+
+    public function test_extract_token_falls_back_to_bearer_when_custom_header_empty(): void
+    {
+        config()->set('nemesis.middleware.token_header', 'X-API-Key');
+        $this->app['request']->headers->set('X-API-Key', '');
+        $this->app['request']->headers->set('Authorization', 'Bearer '.$this->plainToken);
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame($this->plainToken, $extracted);
+    }
+
+    public function test_extract_token_falls_back_to_bearer_when_custom_header_whitespace(): void
+    {
+        config()->set('nemesis.middleware.token_header', 'X-API-Key');
+        $this->app['request']->headers->set('X-API-Key', '   ');
+        $this->app['request']->headers->set('Authorization', 'Bearer '.$this->plainToken);
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame($this->plainToken, $extracted);
+    }
+
+    public function test_extract_token_ignores_custom_header_when_not_enabled(): void
+    {
+        // Le custom header est "désactivé" quand token_header vaut 'Authorization'.
+        // Il n'existe pas de flag custom_header_enabled : la condition repose
+        // uniquement sur le nom du header.
+        config()->set('nemesis.middleware.token_header', 'Authorization');
+
+        $this->app['request']->headers->set('X-API-Key', 'custom-token');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_returns_null_when_custom_header_configured_but_not_set(): void
+    {
+        config()->set('nemesis.middleware.token_header', 'X-API-Key');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertNull($extracted);
+    }
+
+    public function test_extract_token_trims_whitespace_around_bearer_token(): void
+    {
+        $this->app['request']->headers->set('Authorization', 'Bearer   '.$this->plainToken.'   ');
+
+        $extracted = $this->authService->extractToken($this->app['request']);
+
+        $this->assertSame($this->plainToken, $extracted);
     }
 }
