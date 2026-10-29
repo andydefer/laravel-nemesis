@@ -1,7 +1,5 @@
 <?php
 
-// src/Helpers/NemesisHelper.php
-
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Helpers;
@@ -31,7 +29,6 @@ class NemesisHelper implements NemesisHelperInterface
 
     public function getCurrentToken(): ?NemesisTokenRecord
     {
-        // ✅ Vérifier le cache d'abord
         if ($this->cachedToken !== null) {
             return $this->cachedToken;
         }
@@ -47,7 +44,6 @@ class NemesisHelper implements NemesisHelperInterface
 
     public function getCurrentAuthenticatable(): ?Model
     {
-        // ✅ Vérifier le cache d'abord
         if ($this->cachedAuthenticatable !== null) {
             return $this->cachedAuthenticatable;
         }
@@ -64,7 +60,6 @@ class NemesisHelper implements NemesisHelperInterface
 
     public function getCurrentAuthenticatableFormat(): ?AbstractData
     {
-        // ✅ Vérifier le cache d'abord
         if ($this->cachedFormatted !== null) {
             return $this->cachedFormatted;
         }
@@ -90,39 +85,29 @@ class NemesisHelper implements NemesisHelperInterface
         return $this->getCurrentAuthenticatable() !== null;
     }
 
-    public function getTokenId(): ?int
+    public function getTokenId(): ?string
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->id;
+        return $this->getCurrentToken()?->id;
     }
 
-    public function getTokenableId(): ?int
+    public function getTokenableId(): ?string
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->tokenable_id;
+        return $this->getCurrentToken()?->tokenable_id;
     }
 
     public function getTokenableType(): ?string
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->tokenable_type;
+        return $this->getCurrentToken()?->tokenable_type;
     }
 
     public function getTokenName(): ?string
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->name;
+        return $this->getCurrentToken()?->name;
     }
 
     public function getTokenAbilities(): ?StringTypedCollection
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->abilities;
+        return $this->getCurrentToken()?->abilities;
     }
 
     public function isTokenExpired(): bool
@@ -137,9 +122,7 @@ class NemesisHelper implements NemesisHelperInterface
             return false;
         }
 
-        $now = new DateTimeVO;
-
-        return $token->expires_at->isBefore($now);
+        return $token->expires_at->isBefore(new DateTimeVO);
     }
 
     public function isTokenValid(): bool
@@ -149,16 +132,12 @@ class NemesisHelper implements NemesisHelperInterface
 
     public function getTokenMetadata(): ?StrictDataObject
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->metadata;
+        return $this->getCurrentToken()?->metadata;
     }
 
     public function getTokenAllowedOrigins(): ?StringTypedCollection
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->allowed_origins;
+        return $this->getCurrentToken()?->allowed_origins;
     }
 
     public function clear(): self
@@ -167,7 +146,6 @@ class NemesisHelper implements NemesisHelperInterface
         $this->cachedAuthenticatable = null;
         $this->cachedFormatted = null;
 
-        // ✅ SUPPRIMER AUSSI LES DONNÉES DE LA REQUÊTE
         $this->request->request->remove('current_nemesis_token');
 
         $parameterName = $this->config->middlewareConfig()->parameter_name;
@@ -179,71 +157,40 @@ class NemesisHelper implements NemesisHelperInterface
         return $this;
     }
 
-    /**
-     * Vérifie si l'utilisateur est authentifié
-     */
     public function isAuthenticated(): bool
     {
-        return $this->hasCurrentToken() &&
-               $this->hasCurrentAuthenticatable() &&
-               $this->isTokenValid();
+        return $this->hasCurrentToken()
+            && $this->hasCurrentAuthenticatable()
+            && $this->isTokenValid();
     }
 
-    /**
-     * Vérifie si l'utilisateur est un invité (non authentifié)
-     */
     public function isGuest(): bool
     {
         return ! $this->isAuthenticated();
     }
 
-    /**
-     * Obtient la date d'expiration du token formatée
-     */
     public function getTokenExpirationDate(): ?DateTimeVO
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->expires_at;
+        return $this->getCurrentToken()?->expires_at;
     }
 
-    /**
-     * Obtient la dernière date d'utilisation du token
-     */
     public function getTokenLastUsedAt(): ?DateTimeVO
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->last_used_at;
+        return $this->getCurrentToken()?->last_used_at;
     }
 
-    /**
-     * Obtient la source du token
-     */
     public function getTokenSource(): ?string
     {
-        $token = $this->getCurrentToken();
-
-        return $token?->source;
+        return $this->getCurrentToken()?->source;
     }
 
-    /**
-     * Vérifie si le token a une ability spécifique
-     */
     public function tokenHasAbility(string $ability): bool
     {
         $abilities = $this->getTokenAbilities();
 
-        if (! $abilities) {
-            return false;
-        }
-
-        return $abilities->contains($ability);
+        return $abilities !== null && $abilities->contains($ability);
     }
 
-    /**
-     * Vérifie si le token a toutes les abilities spécifiées
-     */
     public function tokenHasAllAbilities(array $abilities): bool
     {
         $tokenAbilities = $this->getTokenAbilities();
@@ -261,17 +208,10 @@ class NemesisHelper implements NemesisHelperInterface
         return true;
     }
 
-    /**
-     * Vérifie si une origine est autorisée
-     */
     public function isOriginAllowed(string $origin): bool
     {
         $allowedOrigins = $this->getTokenAllowedOrigins();
 
-        if (! $allowedOrigins) {
-            return false;
-        }
-
-        return $allowedOrigins->contains($origin);
+        return $allowedOrigins !== null && $allowedOrigins->contains($origin);
     }
 }

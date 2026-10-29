@@ -510,7 +510,7 @@ final class AutonomousNemesisHelperTest extends IntegrationTestCase
 
         // Act & Assert
         $this->assertSame($token->id, $helper->getTokenId());
-        $this->assertSame($token->tokenable_id, $helper->getTokenableId());
+        $this->assertSame((string) $token->tokenable_id, $helper->getTokenableId());
         $this->assertSame($token->tokenable_type, $helper->getTokenableType());
         $this->assertSame($token->name, $helper->getTokenName());
         $this->assertSame($token->source, $helper->getTokenSource());

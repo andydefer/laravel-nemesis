@@ -22,24 +22,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-/**
- * Service for managing Nemesis authentication tokens.
- *
- * Provides comprehensive token lifecycle management including creation,
- * validation, revocation, metadata handling, and capabilities management.
- * All tokens are associated with a tokenable model (User, ApiClient, etc.)
- * and support soft deletes, expiration, and origin restrictions.
- */
 final class NemesisService implements NemesisInterface
 {
-    /**
-     * Create a new NemesisService instance.
-     *
-     * @param  NemesisTokenRepositoryInterface  $repository  Repository for token persistence
-     * @param  NemesisConfigInterface  $config  Configuration for token generation
-     * @param  Str  $str  String helper for random token generation
-     * @param  MetadataValidatorInterface  $metadataValidator  Validator for token metadata
-     */
     public function __construct(
         private readonly NemesisTokenRepositoryInterface $repository,
         private readonly NemesisConfigInterface $config,
@@ -100,7 +84,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function update(int $tokenId, NemesisTokenRecord $record): NemesisToken
+    public function update(int|string $tokenId, NemesisTokenRecord $record): NemesisToken
     {
         $validatedMetadata = $this->validateMetadata($record->metadata);
 
@@ -115,7 +99,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function delete(int $tokenId): bool
+    public function delete(int|string $tokenId): bool
     {
         return $this->repository->delete($tokenId);
     }
@@ -123,7 +107,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function forceDelete(int $tokenId): bool
+    public function forceDelete(int|string $tokenId): bool
     {
         return $this->repository->forceDelete($tokenId);
     }
@@ -131,7 +115,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function restore(int $tokenId): bool
+    public function restore(int|string $tokenId): bool
     {
         return $this->repository->restore($tokenId);
     }
@@ -139,7 +123,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function find(int $tokenId): ?NemesisToken
+    public function find(int|string $tokenId): ?NemesisToken
     {
         return $this->repository->find($tokenId);
     }
@@ -147,7 +131,7 @@ final class NemesisService implements NemesisInterface
     /**
      * {@inheritDoc}
      */
-    public function findWithTrashed(int $tokenId): ?NemesisToken
+    public function findWithTrashed(int|string $tokenId): ?NemesisToken
     {
         return $this->repository->findWithTrashed($tokenId);
     }
@@ -166,9 +150,7 @@ final class NemesisService implements NemesisInterface
             limit: 1
         );
 
-        $collection = $this->repository->findBy($findByRecord);
-
-        return $collection->first();
+        return $this->repository->findBy($findByRecord)->first();
     }
 
     // ============================================================================
@@ -192,7 +174,7 @@ final class NemesisService implements NemesisInterface
     }
 
     // ============================================================================
-    // Tokenable Operations (Bulk)
+    // Tokenable Operations
     // ============================================================================
 
     /**
@@ -200,9 +182,7 @@ final class NemesisService implements NemesisInterface
      */
     public function getTokensFor(Model $tokenable, bool $withTrashed = false): Collection
     {
-        $filters = $this->createTokenableFilters($tokenable);
-
-        return $this->findTokensWithFilter($filters, $withTrashed);
+        return $this->findTokensWithFilter($this->createTokenableFilters($tokenable), $withTrashed);
     }
 
     /**
@@ -210,9 +190,10 @@ final class NemesisService implements NemesisInterface
      */
     public function getTokensBySource(Model $tokenable, string $source, bool $withTrashed = false): Collection
     {
-        $filters = $this->createTokenableFilters($tokenable, ['source' => $source]);
-
-        return $this->findTokensWithFilter($filters, $withTrashed);
+        return $this->findTokensWithFilter(
+            $this->createTokenableFilters($tokenable, ['source' => $source]),
+            $withTrashed
+        );
     }
 
     /**
@@ -220,9 +201,10 @@ final class NemesisService implements NemesisInterface
      */
     public function getTokensByName(Model $tokenable, string $name, bool $withTrashed = false): Collection
     {
-        $filters = $this->createTokenableFilters($tokenable, ['name' => $name]);
-
-        return $this->findTokensWithFilter($filters, $withTrashed);
+        return $this->findTokensWithFilter(
+            $this->createTokenableFilters($tokenable, ['name' => $name]),
+            $withTrashed
+        );
     }
 
     /**
@@ -254,9 +236,7 @@ final class NemesisService implements NemesisInterface
      */
     public function revokeAllTokens(Model $tokenable): int
     {
-        $filters = $this->createTokenableFilters($tokenable);
-
-        return $this->repository->deleteBulk($filters);
+        return $this->repository->deleteBulk($this->createTokenableFilters($tokenable));
     }
 
     /**
@@ -314,10 +294,9 @@ final class NemesisService implements NemesisInterface
      */
     public function revokeAllTokensExceptSource(Model $tokenable, string $source, bool $force = false): int
     {
-        $allTokens = $this->getTokensFor($tokenable);
         $revokedCount = 0;
 
-        foreach ($allTokens as $token) {
+        foreach ($this->getTokensFor($tokenable) as $token) {
             if ($token->source !== $source) {
                 $this->deleteToken($token, $force);
                 $revokedCount++;
@@ -350,14 +329,9 @@ final class NemesisService implements NemesisInterface
             'token_hash' => $hashedToken,
         ]);
 
-        $findByRecord = new FindByRecord(
-            filters: $filters,
-            limit: 1
-        );
-
-        $collection = $this->repository->findBy($findByRecord);
-
-        return $collection->first();
+        return $this->repository
+            ->findBy(new FindByRecord(filters: $filters, limit: 1))
+            ->first();
     }
 
     /**
@@ -405,17 +379,13 @@ final class NemesisService implements NemesisInterface
      */
     public function getTokenByPlainText(string $plainToken, Model $tokenable, bool $withTrashed = false): ?NemesisToken
     {
-        $hashedToken = $this->hashToken($plainToken);
-
         $filters = NemesisTokenFilterRecord::from([
             'tokenable_type' => $tokenable->getMorphClass(),
             'tokenable_id' => $tokenable->getKey(),
-            'token_hash' => $hashedToken,
+            'token_hash' => $this->hashToken($plainToken),
         ]);
 
-        $collection = $this->findTokensWithFilter($filters, $withTrashed);
-
-        return $collection->first();
+        return $this->findTokensWithFilter($filters, $withTrashed)->first();
     }
 
     /**
@@ -463,9 +433,9 @@ final class NemesisService implements NemesisInterface
      */
     public function revokeExpiredTokens(Model $tokenable): int
     {
-        $filters = $this->createTokenableFilters($tokenable, ['is_expired' => true]);
-
-        return $this->repository->deleteBulk($filters);
+        return $this->repository->deleteBulk(
+            $this->createTokenableFilters($tokenable, ['is_expired' => true])
+        );
     }
 
     /**
@@ -473,13 +443,13 @@ final class NemesisService implements NemesisInterface
      */
     public function forceDeleteExpiredTokens(Model $tokenable): int
     {
-        $filters = $this->createTokenableFilters($tokenable, ['is_expired' => true]);
-
-        return $this->repository->forceDeleteBulk($filters);
+        return $this->repository->forceDeleteBulk(
+            $this->createTokenableFilters($tokenable, ['is_expired' => true])
+        );
     }
 
     // ============================================================================
-    // Global Operations (without tokenable)
+    // Global Operations
     // ============================================================================
 
     /**
@@ -487,14 +457,12 @@ final class NemesisService implements NemesisInterface
      */
     public function findAllActive(): Collection
     {
-        $filters = NemesisTokenFilterRecord::from([
-            'is_expired' => false,
-            'is_revoked' => false,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filters);
-
-        return $this->repository->findBy($findByRecord);
+        return $this->repository->findBy(new FindByRecord(
+            filters: NemesisTokenFilterRecord::from([
+                'is_expired' => false,
+                'is_revoked' => false,
+            ])
+        ));
     }
 
     /**
@@ -502,13 +470,9 @@ final class NemesisService implements NemesisInterface
      */
     public function findAllExpired(): Collection
     {
-        $filters = NemesisTokenFilterRecord::from([
-            'is_expired' => true,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filters);
-
-        return $this->repository->findBy($findByRecord);
+        return $this->repository->findBy(new FindByRecord(
+            filters: NemesisTokenFilterRecord::from(['is_expired' => true])
+        ));
     }
 
     /**
@@ -516,13 +480,9 @@ final class NemesisService implements NemesisInterface
      */
     public function findAllRevoked(): Collection
     {
-        $filters = NemesisTokenFilterRecord::from([
-            'is_revoked' => true,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filters);
-
-        return $this->repository->findBy($findByRecord);
+        return $this->repository->findBy(new FindByRecord(
+            filters: NemesisTokenFilterRecord::from(['is_revoked' => true])
+        ));
     }
 
     /**
@@ -530,11 +490,9 @@ final class NemesisService implements NemesisInterface
      */
     public function revokeAllExpiredTokensGlobally(): int
     {
-        $filters = NemesisTokenFilterRecord::from([
-            'is_expired' => true,
-        ]);
-
-        return $this->repository->deleteBulk($filters);
+        return $this->repository->deleteBulk(
+            NemesisTokenFilterRecord::from(['is_expired' => true])
+        );
     }
 
     /**
@@ -542,11 +500,9 @@ final class NemesisService implements NemesisInterface
      */
     public function forceDeleteAllExpiredTokensGlobally(): int
     {
-        $filters = NemesisTokenFilterRecord::from([
-            'is_expired' => true,
-        ]);
-
-        return $this->repository->forceDeleteBulk($filters);
+        return $this->repository->forceDeleteBulk(
+            NemesisTokenFilterRecord::from(['is_expired' => true])
+        );
     }
 
     // ============================================================================
@@ -571,11 +527,9 @@ final class NemesisService implements NemesisInterface
         }
 
         if (is_string($token->abilities)) {
-            $decodedAbilities = json_decode($token->abilities, true);
+            $decoded = json_decode($token->abilities, true);
 
-            if (is_array($decodedAbilities)) {
-                return in_array($ability, $decodedAbilities, true);
-            }
+            return is_array($decoded) && in_array($ability, $decoded, true);
         }
 
         return false;
@@ -634,13 +588,11 @@ final class NemesisService implements NemesisInterface
      */
     public function canUseFromCurrentRequest(NemesisToken $token, Request $request): bool
     {
-        $origin = $request->headers->get('Origin');
-
-        return $this->canUseFromOrigin($token, $origin);
+        return $this->canUseFromOrigin($token, $request->headers->get('Origin'));
     }
 
     // ============================================================================
-    // Token Lifecycle Operations
+    // Token Lifecycle
     // ============================================================================
 
     /**
@@ -648,11 +600,9 @@ final class NemesisService implements NemesisInterface
      */
     public function updateLastUsed(NemesisToken $token): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
             'last_used_at' => new DateTimeVO(now()->toIso8601String()),
-        ]);
-
-        return $this->repository->update($token->id, $record);
+        ]));
     }
 
     /**
@@ -676,11 +626,9 @@ final class NemesisService implements NemesisInterface
      */
     public function forceExpire(NemesisToken $token): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
             'expires_at' => new DateTimeVO(now()->subSecond()->toIso8601String()),
-        ]);
-
-        return $this->repository->update($token->id, $record);
+        ]));
     }
 
     /**
@@ -688,15 +636,13 @@ final class NemesisService implements NemesisInterface
      */
     public function forceExpireByMinutes(NemesisToken $token, int $minutes): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
             'expires_at' => new DateTimeVO(now()->subMinutes($minutes)->toIso8601String()),
-        ]);
-
-        return $this->repository->update($token->id, $record);
+        ]));
     }
 
     // ============================================================================
-    // Allowed Origins Management
+    // Allowed Origins
     // ============================================================================
 
     /**
@@ -706,17 +652,15 @@ final class NemesisService implements NemesisInterface
     {
         $origins = $token->allowed_origins ?? [];
 
-        if (! in_array($origin, $origins, true)) {
-            $origins[] = $origin;
-
-            $record = NemesisTokenRecord::from([
-                'allowed_origins' => $origins,
-            ]);
-
-            return $this->repository->update($token->id, $record);
+        if (in_array($origin, $origins, true)) {
+            return $token;
         }
 
-        return $token;
+        $origins[] = $origin;
+
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
+            'allowed_origins' => $origins,
+        ]));
     }
 
     /**
@@ -728,17 +672,15 @@ final class NemesisService implements NemesisInterface
 
         $key = array_search($origin, $origins, true);
 
-        if ($key !== false) {
-            unset($origins[$key]);
-
-            $record = NemesisTokenRecord::from([
-                'allowed_origins' => array_values($origins),
-            ]);
-
-            return $this->repository->update($token->id, $record);
+        if ($key === false) {
+            return $token;
         }
 
-        return $token;
+        unset($origins[$key]);
+
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
+            'allowed_origins' => array_values($origins),
+        ]));
     }
 
     /**
@@ -746,11 +688,9 @@ final class NemesisService implements NemesisInterface
      */
     public function setAllowedOrigins(NemesisToken $token, ?array $origins): NemesisToken
     {
-        $record = NemesisTokenRecord::from([
+        return $this->repository->update($token->id, NemesisTokenRecord::from([
             'allowed_origins' => $origins,
-        ]);
-
-        return $this->repository->update($token->id, $record);
+        ]));
     }
 
     // ============================================================================
@@ -783,10 +723,8 @@ final class NemesisService implements NemesisInterface
         $metadata = $token->metadata ?? [];
         $metadata[$key] = $value;
 
-        $validatedMetadata = $this->validateMetadataArray($metadata);
-
         return $this->update($token->id, NemesisTokenRecord::from([
-            'metadata' => $validatedMetadata !== null ? new StrictDataObject($validatedMetadata) : null,
+            'metadata' => $this->wrapMetadata($this->validateMetadataArray($metadata)),
         ]));
     }
 
@@ -797,17 +735,15 @@ final class NemesisService implements NemesisInterface
     {
         $metadata = $token->metadata ?? [];
 
-        if (array_key_exists($key, $metadata)) {
-            unset($metadata[$key]);
-
-            $validatedMetadata = $this->validateMetadataArray($metadata);
-
-            return $this->update($token->id, NemesisTokenRecord::from([
-                'metadata' => $validatedMetadata !== null ? new StrictDataObject($validatedMetadata) : null,
-            ]));
+        if (! array_key_exists($key, $metadata)) {
+            return $token;
         }
 
-        return $token;
+        unset($metadata[$key]);
+
+        return $this->update($token->id, NemesisTokenRecord::from([
+            'metadata' => $this->wrapMetadata($this->validateMetadataArray($metadata)),
+        ]));
     }
 
     /**
@@ -823,13 +759,10 @@ final class NemesisService implements NemesisInterface
      */
     public function mergeMetadata(NemesisToken $token, array $metadata): NemesisToken
     {
-        $existing = $token->metadata ?? [];
-        $merged = array_merge($existing, $metadata);
-
-        $validatedMetadata = $this->validateMetadataArray($merged);
+        $merged = array_merge($token->metadata ?? [], $metadata);
 
         return $this->update($token->id, NemesisTokenRecord::from([
-            'metadata' => $validatedMetadata !== null ? new StrictDataObject($validatedMetadata) : null,
+            'metadata' => $this->wrapMetadata($this->validateMetadataArray($merged)),
         ]));
     }
 
@@ -838,10 +771,8 @@ final class NemesisService implements NemesisInterface
      */
     public function setAllMetadata(NemesisToken $token, ?array $metadata): NemesisToken
     {
-        $validatedMetadata = $this->validateMetadataArray($metadata);
-
         return $this->update($token->id, NemesisTokenRecord::from([
-            'metadata' => $validatedMetadata !== null ? new StrictDataObject($validatedMetadata) : null,
+            'metadata' => $this->wrapMetadata($this->validateMetadataArray($metadata)),
         ]));
     }
 
@@ -866,26 +797,23 @@ final class NemesisService implements NemesisInterface
         ?SortColumns $sortBy = null,
         array $columns = ['*']
     ): Collection {
-        $findByRecord = new FindByRecord(
+        return $this->repository->findBy(new FindByRecord(
             filters: $filters,
             limit: $limit,
             sortBy: $sortBy,
             columns: new SelectColumns($columns)
-        );
-
-        return $this->repository->findBy($findByRecord);
+        ));
     }
 
     // ============================================================================
     // Private Helpers
     // ============================================================================
 
-    /**
-     * Validate and sanitize metadata from a StrictDataObject.
-     *
-     * @param  StrictDataObject|null  $metadata  The metadata to validate
-     * @return array|null The validated metadata as array, or null if empty
-     */
+    private function wrapMetadata(?array $metadata): ?StrictDataObject
+    {
+        return $metadata !== null ? new StrictDataObject($metadata) : null;
+    }
+
     private function validateMetadata(?StrictDataObject $metadata): ?array
     {
         if ($metadata === null) {
@@ -895,12 +823,6 @@ final class NemesisService implements NemesisInterface
         return $this->metadataValidator->process($metadata->toArray());
     }
 
-    /**
-     * Validate and sanitize metadata from an array.
-     *
-     * @param  array|null  $metadata  The metadata to validate
-     * @return array|null The validated metadata as array, or null if empty
-     */
     private function validateMetadataArray(?array $metadata): ?array
     {
         if ($metadata === null || $metadata === []) {
@@ -910,13 +832,6 @@ final class NemesisService implements NemesisInterface
         return $this->metadataValidator->process($metadata);
     }
 
-    /**
-     * Validate a metadata value.
-     *
-     * @param  array<string, mixed>  $metadata  The metadata to validate
-     *
-     * @throws \InvalidArgumentException If the metadata is invalid
-     */
     private function validateMetadataValue(array $metadata): void
     {
         if (! $this->metadataValidator->isValid($metadata)) {
@@ -924,49 +839,25 @@ final class NemesisService implements NemesisInterface
         }
     }
 
-    /**
-     * Create filter record for a tokenable model.
-     *
-     * @param  Model  $tokenable  The tokenable model
-     * @param  array<string, mixed>  $extraFilters  Additional filters to apply
-     * @return NemesisTokenFilterRecord The filter record
-     */
     private function createTokenableFilters(Model $tokenable, array $extraFilters = []): NemesisTokenFilterRecord
     {
-        $filters = [
-            'tokenable_type' => $tokenable->getMorphClass(),
-            'tokenable_id' => $tokenable->getKey(),
-        ];
-
         return NemesisTokenFilterRecord::from(
-            array_merge($filters, $extraFilters)
+            array_merge([
+                'tokenable_type' => $tokenable->getMorphClass(),
+                'tokenable_id' => $tokenable->getKey(),
+            ], $extraFilters)
         );
     }
 
-    /**
-     * Find tokens with a filter, optionally including soft-deleted ones.
-     *
-     * @param  NemesisTokenFilterRecord  $filters  The filters to apply
-     * @param  bool  $withTrashed  Whether to include soft-deleted tokens
-     * @return Collection<int, NemesisToken> Collection of tokens
-     */
     private function findTokensWithFilter(NemesisTokenFilterRecord $filters, bool $withTrashed): Collection
     {
         if ($withTrashed) {
             return $this->repository->findWithTrashedByFilters($filters);
         }
 
-        $findByRecord = new FindByRecord(filters: $filters);
-
-        return $this->repository->findBy($findByRecord);
+        return $this->repository->findBy(new FindByRecord(filters: $filters));
     }
 
-    /**
-     * Delete a single token (soft or hard delete).
-     *
-     * @param  NemesisToken  $token  The token to delete
-     * @param  bool  $force  Whether to permanently delete
-     */
     private function deleteToken(NemesisToken $token, bool $force): void
     {
         if ($force) {
@@ -976,49 +867,24 @@ final class NemesisService implements NemesisInterface
         }
     }
 
-    /**
-     * Hash a plain text token.
-     *
-     * @param  string  $plainToken  The plain text token
-     * @return string The hashed token
-     */
     private function hashToken(string $plainToken): string
     {
-        $tokenConfig = $this->config->tokenConfig();
-
-        return hash($tokenConfig->hash_algorithm, $plainToken);
+        return hash($this->config->tokenConfig()->hash_algorithm, $plainToken);
     }
 
-    /**
-     * Normalize a URL by removing trailing slash.
-     *
-     * @param  string  $url  The URL to normalize
-     * @return string The normalized URL
-     */
     private function normalizeUrl(string $url): string
     {
         return rtrim($url, '/');
     }
 
-    /**
-     * Check if an origin matches a wildcard pattern.
-     *
-     * Supports wildcard pattern matching where '*' can match any subdomain.
-     * Example: "*.example.com" matches "api.example.com" and "app.example.com".
-     *
-     * @param  string  $origin  The origin to test
-     * @param  string  $pattern  The pattern to test against
-     * @return bool True if the origin matches the pattern
-     */
     private function isWildcardMatch(string $origin, string $pattern): bool
     {
         if (strpos($pattern, '*') === false) {
             return false;
         }
 
-        $escapedPattern = preg_quote($pattern, '/');
-        $regexPattern = str_replace('\\*', '.*', $escapedPattern);
-        $regex = '/^'.$regexPattern.'$/i';
+        $escaped = preg_quote($pattern, '/');
+        $regex = '/^'.str_replace('\\*', '.*', $escaped).'$/i';
 
         return preg_match($regex, $origin) === 1;
     }

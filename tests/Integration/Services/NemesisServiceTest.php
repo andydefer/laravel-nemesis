@@ -102,7 +102,7 @@ final class NemesisServiceTest extends IntegrationTestCase
         $this->assertSame('API Token', $token->name);
         $this->assertSame('api', $token->source);
         $this->assertSame($this->user->getMorphClass(), $token->tokenable_type);
-        $this->assertSame($this->user->id, $token->tokenable_id);
+        $this->assertSame((string) $this->user->id, $token->tokenable_id);
     }
 
     public function test_create_with_plain_token_returns_token_and_plain_token(): void

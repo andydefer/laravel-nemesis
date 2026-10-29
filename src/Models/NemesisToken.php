@@ -1,28 +1,22 @@
 <?php
 
-// src/Models/NemesisToken.php
-
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * Model representing an authentication token - PURE DATA CONTAINER ONLY.
- *
- * NO business logic whatsoever.
- * ONLY:
- * - Relationships
- * - Getters for computed properties
- *
- * All capabilities and business logic are in NemesisService.
- */
 final class NemesisToken extends Model
 {
+    use HasUuids;
     use SoftDeletes;
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $table = 'nemesis_tokens';
 
@@ -50,17 +44,11 @@ final class NemesisToken extends Model
 
     protected $hidden = ['token_hash'];
 
-    /**
-     * Get the parent authenticatable model (polymorphic relation).
-     */
     public function tokenable(): MorphTo
     {
         return $this->morphTo();
     }
 
-    /**
-     * Check if token is expired.
-     */
     public function isExpired(): bool
     {
         if ($this->expires_at === null) {
@@ -70,17 +58,11 @@ final class NemesisToken extends Model
         return $this->expires_at->isPast();
     }
 
-    /**
-     * Check if token is revoked (soft deleted).
-     */
     public function isRevoked(): bool
     {
         return $this->trashed();
     }
 
-    /**
-     * Check if token is valid (not expired and not revoked).
-     */
     public function isValid(): bool
     {
         if ($this->isExpired()) {

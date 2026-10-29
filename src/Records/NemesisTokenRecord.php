@@ -1,7 +1,5 @@
 <?php
 
-// src/Records/NemesisTokenRecord.php
-
 declare(strict_types=1);
 
 namespace AndyDefer\Nemesis\Records;
@@ -14,9 +12,9 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 final class NemesisTokenRecord extends AbstractRecord
 {
     public function __construct(
-        public readonly ?int $id = null,
+        public readonly ?string $id = null,
         public readonly ?string $tokenable_type = null,
-        public readonly ?int $tokenable_id = null,
+        public readonly ?string $tokenable_id = null,
         public readonly ?string $token_hash = null,
         public readonly ?string $name = null,
         public readonly ?string $source = null,
