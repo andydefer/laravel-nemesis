@@ -257,7 +257,7 @@ final class NemesisAuthenticationService implements NemesisAuthenticationInterfa
      * @param  int  $tokenableId  The model ID
      * @return object|null The query result or null
      */
-    private function queryAuthenticatable(string $tokenableType, int $tokenableId): ?object
+    private function queryAuthenticatable(string $tokenableType, int|string $tokenableId): ?object
     {
         $modelInstance = new $tokenableType;
         $table = $modelInstance->getTable();

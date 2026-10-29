@@ -17,7 +17,8 @@ return new class extends Migration
                 ->unique()
                 ->comment('Hashed token value (SHA256) - NEVER store raw tokens');
 
-            $table->morphs('tokenable');
+            $table->string('tokenable_type', 191);
+            $table->string('tokenable_id', 191);
 
             $table->softDeletes();
 
