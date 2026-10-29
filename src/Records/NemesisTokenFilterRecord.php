@@ -15,7 +15,7 @@ final class NemesisTokenFilterRecord extends AbstractRecord
     public function __construct(
         public readonly ?string $token_hash = null,
         public readonly ?string $tokenable_type = null,
-        public readonly ?int $tokenable_id = null,
+        public readonly ?string $tokenable_id = null,
         public readonly ?string $name = null,
         public readonly ?string $source = null,
         public readonly ?StringTypedCollection $abilities = null,
